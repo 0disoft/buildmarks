@@ -1,0 +1,23 @@
+{
+  "name": "buildmarks",
+  "version": "0.0.0",
+  "description": "Public GitHub engineering signal cards for profile READMEs.",
+  "license": "0BSD",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "docs",
+    "fixtures",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "bun test",
+    "test": "bun test",
+    "build": "bun build src/index.ts src/cli/render-card.ts --outdir dist --target node",
+    "build:card": "bun src/cli/render-card.ts fixtures/example-public-profile.json out/example-card.svg"
+  }
+}

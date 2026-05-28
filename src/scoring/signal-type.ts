@@ -1,0 +1,25 @@
+import type { SignalDimension } from "../shared/types";
+
+export function classifySignalType(dimensions: Record<SignalDimension, number>): string {
+  if (dimensions.maintainability >= 75 && dimensions.shipping >= 70) {
+    return "Maintainer-Builder";
+  }
+
+  if (dimensions.collaboration >= 75) {
+    return "Collaborator";
+  }
+
+  if (dimensions.completeness >= 75 && dimensions.shipping >= 65) {
+    return "Builder";
+  }
+
+  if (dimensions.externalValidation >= 75) {
+    return "Popular Project Owner";
+  }
+
+  if (dimensions.completeness >= 65 && dimensions.collaboration < 40) {
+    return "Quiet Professional";
+  }
+
+  return "Public Signal Explorer";
+}

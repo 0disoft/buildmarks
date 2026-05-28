@@ -14,7 +14,7 @@ Just public signals for maintainability, completeness, shipping evidence, collab
 
 ## Status
 
-Buildmarks is in repository bootstrap stage. There is no package, API server, renderer, or hosted service yet.
+Buildmarks is in early v0 scaffold stage. The repository currently includes fixture-based scoring, a static SVG renderer, documentation for the scoring philosophy, and Bun tests.
 
 The intended license is 0BSD so the scoring rules, renderer, and self-host path can stay easy to reuse.
 
@@ -75,7 +75,7 @@ Examples of evidence:
 
 ## Planned Surfaces
 
-Future API shape may look like this:
+Future hosted or self-hosted API shape may look like this:
 
 ```txt
 GET /api/card/user/{username}.svg
@@ -84,7 +84,7 @@ GET /api/report/user/{username}.json
 GET /api/report/repo/{owner}/{repo}.json
 ```
 
-These routes are not implemented yet.
+These routes are not implemented yet. The current implementation starts with local scoring and SVG rendering so the card contract can stabilize before live GitHub API collection.
 
 ## Candidate Hosted Domain
 
@@ -92,33 +92,60 @@ These routes are not implemented yet.
 
 ## Repository Shape
 
-The first implementation should start small:
+The current implementation starts small:
 
 ```txt
 fixtures/
-packages/
+src/
   renderer/
   scoring/
   shared/
+tests/
 docs/
   scoring.md
   anti-gaming.md
-examples/
-  profile-readme.md
 ```
 
-Do not create every folder before it has real content.
+Live GitHub collection, HTTP routing, cache storage, hosted billing, and deployment files are intentionally deferred.
 
 ## Development
 
-No toolchain is installed yet. After a package scaffold is added, this section should list the real commands.
-
-Expected future checks:
+Buildmarks uses Bun for the current v0 scaffold.
 
 ```bash
 bun run check
 bun test
 bun run build
+bun run build:card
+```
+
+The current tests use `fixtures/example-public-profile.json` and do not call the GitHub API.
+
+## Generate a Local SVG Card
+
+Buildmarks can render a local profile JSON fixture into an SVG file:
+
+```bash
+bun run build:card
+```
+
+The default command reads `fixtures/example-public-profile.json` and writes `out/example-card.svg`.
+
+To render another file directly:
+
+```bash
+bun src/cli/render-card.ts path/to/profile.json out/profile-card.svg
+```
+
+If the input cannot be read or parsed, the CLI writes a fallback SVG instead of leaving a broken image behind.
+
+## API-Free Example
+
+```ts
+import { renderUserSignalCard, scoreUserProfile } from "buildmarks";
+
+const report = scoreUserProfile(profileFixture);
+const svg = renderUserSignalCard(report);
 ```
 
 ## License
