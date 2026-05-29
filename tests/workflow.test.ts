@@ -2,6 +2,21 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 
 describe("profile README workflow example", () => {
+  test("documents the profile README quick start paths", async () => {
+    const readme = await readFile("README.md", "utf8");
+    const example = await readFile("examples/profile-readme.md", "utf8");
+
+    for (const document of [readme, example]) {
+      expect(document).toContain("Quick Start");
+      expect(document).toContain("workflow_dispatch");
+      expect(document).toContain("assets/buildmarks.svg");
+      expect(document).toContain("assets/buildmarks-report/buildmarks-report.html");
+      expect(document).toContain("assets/buildmarks-report/buildmarks-report.json");
+      expect(document).toContain("![Buildmarks public GitHub signal card](./assets/buildmarks.svg)");
+      expect(document).toContain("[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)");
+    }
+  });
+
   test("serializes scheduled updates and commits newly generated artifacts", async () => {
     const workflow = await readFile("examples/profile-readme-workflow.yml", "utf8");
 

@@ -12,6 +12,30 @@ No language pie charts.
 Just public signals for maintainability, completeness, shipping evidence, collaboration, and consistency.
 ```
 
+## Quick Start: GitHub Profile README
+
+1. Copy [examples/profile-readme-workflow.yml](examples/profile-readme-workflow.yml) into your profile README repository as `.github/workflows/update-buildmarks-card.yml`.
+
+2. Add the generated card and report link to your profile `README.md`:
+
+```md
+![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
+
+[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)
+```
+
+3. Run the workflow once from the GitHub Actions `workflow_dispatch` button.
+
+The workflow creates and commits:
+
+```txt
+assets/buildmarks.svg
+assets/buildmarks-report/buildmarks-report.html
+assets/buildmarks-report/buildmarks-report.json
+```
+
+No hosted Buildmarks backend is required. Your profile repository stores the static SVG and inspectable report files.
+
 ## Status
 
 Buildmarks is in v0 foundation stage. The repository currently includes fixture-based scoring, static SVG renderers, a fallback SVG path, a public-only GitHub collector, local CLI card generation, a composite GitHub Action, profile README examples, documentation for the scoring philosophy, and Bun tests.

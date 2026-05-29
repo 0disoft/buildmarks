@@ -1,5 +1,29 @@
 # Profile README Example
 
+## Quick Start: Recommended GitHub Actions Setup
+
+1. Copy [profile-readme-workflow.yml](profile-readme-workflow.yml) into your profile README repository as `.github/workflows/update-buildmarks-card.yml`.
+
+2. Add the generated card and report link to your profile `README.md`:
+
+```md
+![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
+
+[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)
+```
+
+3. Run the workflow once from GitHub Actions using the manual `workflow_dispatch` button.
+
+The workflow creates and commits:
+
+```txt
+assets/buildmarks.svg
+assets/buildmarks-report/buildmarks-report.html
+assets/buildmarks-report/buildmarks-report.json
+```
+
+This is the recommended backend-free path. GitHub serves the checked-in SVG and report files directly from your profile repository.
+
 ## Static Checked-In Card
 
 Generate a local SVG card from a profile fixture:
