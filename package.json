@@ -19,9 +19,10 @@
   "scripts": {
     "check": "bun test",
     "test": "bun test",
-    "build": "bun build src/index.ts src/cli/render-card.ts src/cli/render-github-card.ts src/cli/render-gaps-card.ts src/cli/render-repo-card.ts --outdir dist --target node",
+    "build": "bun build src/index.ts src/cli/render-card.ts src/cli/render-github-card.ts src/cli/render-gaps-card.ts src/cli/render-repo-card.ts src/cli/render-report.ts --outdir dist --target node",
     "build:card": "bun src/cli/render-card.ts fixtures/example-public-profile.json out/example-card.svg",
     "build:gaps-card": "bun src/cli/render-gaps-card.ts fixtures/example-public-profile.json out/example-gaps-card.svg",
-    "build:repo-card": "bun src/cli/render-repo-card.ts fixtures/example-public-profile.json usable-toolkit out/example-repo-card.svg"
+    "build:repo-card": "bun src/cli/render-repo-card.ts fixtures/example-public-profile.json usable-toolkit out/example-repo-card.svg",
+    "build:report": "bun src/cli/render-report.ts fixtures/example-public-profile.json out/report"
   }
 }

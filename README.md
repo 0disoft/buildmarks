@@ -201,6 +201,23 @@ bun src/cli/render-repo-card.ts path/to/profile.json owner/repo out/repo-card.sv
 
 Repository cards are useful inside project READMEs because they show one repository's maintainability, completeness, shipping, collaboration, consistency, and external validation signals without turning the owner profile into a leaderboard.
 
+## Generate an Inspectable Static Report
+
+Buildmarks can write a static HTML report and a matching JSON report from the same profile fixture:
+
+```bash
+bun run build:report
+```
+
+The default command writes:
+
+```txt
+out/report/buildmarks-report.html
+out/report/buildmarks-report.json
+```
+
+The report shows dimension scores, evidence, signal gaps, repository-level signals, and limitations. It is designed to sit next to generated SVG cards in a profile README repository or static site.
+
 ## Development
 
 Buildmarks uses Bun for the current v0 scaffold.
@@ -212,6 +229,7 @@ bun run build
 bun run build:card
 bun run build:gaps-card
 bun run build:repo-card
+bun run build:report
 ```
 
 The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.

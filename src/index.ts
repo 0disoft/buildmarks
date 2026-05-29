@@ -38,3 +38,8 @@ export {
   renderSignalGapsCard,
   renderUserSignalCard
 } from "./renderer/svg";
+export {
+  createStaticReport,
+  renderStaticReportHtml,
+  type BuildmarksStaticReport
+} from "./reporter/static-report";

@@ -80,4 +80,18 @@ Then reference it from a project README:
 ![Buildmarks repository signal card](./out/example-repo-card.svg)
 ```
 
+## Inspectable Static Report
+
+Generate an HTML and JSON report:
+
+```bash
+bun run build:report
+```
+
+Then link to the static report from your README:
+
+```md
+[View the Buildmarks evidence report](./out/report/buildmarks-report.html)
+```
+
 For a hosted version, replace the checked-in SVG path with the future card endpoint once that service exists.
