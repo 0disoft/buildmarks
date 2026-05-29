@@ -14,7 +14,7 @@ Just public signals for maintainability, completeness, shipping evidence, collab
 
 ## Status
 
-Buildmarks is in early v0 scaffold stage. The repository currently includes fixture-based scoring, a static SVG renderer, a public-only GitHub collector, documentation for the scoring philosophy, and Bun tests.
+Buildmarks is in v0 foundation stage. The repository currently includes fixture-based scoring, static SVG renderers, a fallback SVG path, a public-only GitHub collector, local CLI card generation, a composite GitHub Action, profile README examples, documentation for the scoring philosophy, and Bun tests.
 
 The intended license is 0BSD so the scoring rules, renderer, and self-host path can stay easy to reuse.
 
@@ -84,7 +84,7 @@ GET /api/report/user/{username}.json
 GET /api/report/repo/{owner}/{repo}.json
 ```
 
-These routes are not implemented yet. The current implementation starts with local scoring, SVG rendering, and a normalized public collector contract so the card contract can stabilize before hosted API routing.
+These routes are not implemented yet. The current implementation supports local scoring, SVG rendering, public GitHub collection, and backend-free profile README updates before hosted API routing.
 
 ## Candidate Hosted Domain
 
@@ -97,6 +97,8 @@ The current implementation starts small:
 ```txt
 fixtures/
 src/
+  cli/
+  collector/
   renderer/
   scoring/
   shared/
@@ -104,6 +106,7 @@ tests/
 docs/
   scoring.md
   anti-gaming.md
+examples/
 ```
 
 HTTP routing, cache storage, hosted billing, and deployment files are intentionally deferred.
@@ -130,6 +133,74 @@ The token is optional and must be passed explicitly. Buildmarks does not read to
 
 The live collector is still a local library surface, not a hosted endpoint. It intentionally has no cache storage, Redis/KV binding, Cloudflare Worker, billing, or web server in this repository.
 
+## Generate from a GitHub Username
+
+Buildmarks can generate an SVG directly from public GitHub data:
+
+```bash
+bun src/cli/render-github-card.ts octocat out/octocat-card.svg
+```
+
+Authenticated public-data collection is supported by passing a token explicitly:
+
+```bash
+bun src/cli/render-github-card.ts octocat out/octocat-card.svg --token "public-data-token"
+```
+
+For cheaper local demos, scan fewer repositories:
+
+```bash
+bun src/cli/render-github-card.ts octocat out/octocat-card.svg --max-repositories-scanned 1 --max-repositories-scored 1
+```
+
+The CLI does not read `GITHUB_TOKEN` or other environment variables automatically. This keeps token flow visible and avoids surprising secret use in the public core.
+
+If public GitHub collection fails, the CLI writes a readable fallback SVG instead of leaving a broken image behind.
+
+## Backend-Free Profile README Updates
+
+Buildmarks does not need a hosted backend for the first useful workflow. A profile README repository can generate a static SVG on a schedule and commit it back to the repository.
+
+See [examples/profile-readme.md](examples/profile-readme.md) and [examples/profile-readme-workflow.yml](examples/profile-readme-workflow.yml).
+
+The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg`, and commits only when the generated SVG changes.
+
+Minimal action usage:
+
+```yaml
+- uses: 0disoft/buildmarks@v0
+  with:
+    username: ${{ github.repository_owner }}
+    output: assets/buildmarks.svg
+    token: ${{ github.token }}
+```
+
+## Generate a Signal Gaps Card
+
+Buildmarks can also render a "What's Missing" card from the same local profile fixture:
+
+```bash
+bun run build:gaps-card
+```
+
+The gaps card is an improvement guide, not a score booster checklist. It only points out missing public repository signals such as tests, CI, licenses, changelogs, releases, or contribution guides.
+
+## Generate a Repository Signal Card
+
+Buildmarks can render a single repository card from the same profile fixture:
+
+```bash
+bun run build:repo-card
+```
+
+To choose another repository from a profile JSON file:
+
+```bash
+bun src/cli/render-repo-card.ts path/to/profile.json owner/repo out/repo-card.svg
+```
+
+Repository cards are useful inside project READMEs because they show one repository's maintainability, completeness, shipping, collaboration, consistency, and external validation signals without turning the owner profile into a leaderboard.
+
 ## Development
 
 Buildmarks uses Bun for the current v0 scaffold.
@@ -139,6 +210,8 @@ bun run check
 bun test
 bun run build
 bun run build:card
+bun run build:gaps-card
+bun run build:repo-card
 ```
 
 The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.

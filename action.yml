@@ -1,0 +1,53 @@
+name: Buildmarks
+description: Generate a static Buildmarks SVG card for a GitHub profile README.
+
+inputs:
+  username:
+    description: GitHub username to analyze.
+    required: true
+  output:
+    description: SVG output path, relative to the caller repository.
+    required: false
+    default: assets/buildmarks.svg
+  token:
+    description: Optional GitHub token for public-data rate limits. Private scopes are not needed.
+    required: false
+    default: ""
+  max-repositories-scanned:
+    description: Maximum public repositories to scan.
+    required: false
+    default: "30"
+  max-repositories-scored:
+    description: Maximum public repositories to summarize in the card.
+    required: false
+    default: "8"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Generate Buildmarks SVG
+      shell: bash
+      env:
+        BUILDMARKS_USERNAME: ${{ inputs.username }}
+        BUILDMARKS_OUTPUT: ${{ inputs.output }}
+        BUILDMARKS_TOKEN: ${{ inputs.token }}
+        BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
+        BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
+      run: |
+        args=(
+          "$BUILDMARKS_USERNAME"
+          "$BUILDMARKS_OUTPUT"
+          "--max-repositories-scanned"
+          "$BUILDMARKS_MAX_REPOSITORIES_SCANNED"
+          "--max-repositories-scored"
+          "$BUILDMARKS_MAX_REPOSITORIES_SCORED"
+        )
+
+        if [ -n "$BUILDMARKS_TOKEN" ]; then
+          args+=("--token" "$BUILDMARKS_TOKEN")
+        fi
+
+        bun "$GITHUB_ACTION_PATH/src/cli/render-github-card.ts" "${args[@]}"

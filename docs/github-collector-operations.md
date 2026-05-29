@@ -6,6 +6,8 @@ The executable source of truth is `defaultGitHubCollectorPolicy` in `src/collect
 
 The current adapter is `collectPublicGitHubProfile()` in `src/collector/github-client.ts`.
 
+The current username-to-card CLI is `src/cli/render-github-card.ts`. It uses the same adapter and writes a fallback SVG when collection or rendering fails.
+
 ## Collection Boundary
 
 - Collection is public-only.
@@ -14,6 +16,8 @@ The current adapter is `collectPublicGitHubProfile()` in `src/collector/github-c
 - Token mode must not require private repository or organization scopes.
 - Unauthenticated mode is allowed only for local/demo use, where low rate limits are acceptable.
 - Tokens are never loaded from environment variables by the public core. Callers must pass a token explicitly if they want a higher public-data limit.
+- The CLI follows the same rule: pass `--token <token>` explicitly if token mode is desired.
+- The CLI also supports `--max-repositories-scanned <n>` and `--max-repositories-scored <n>` so local demos can reduce GitHub API cost.
 
 ## Cache Policy
 
@@ -24,7 +28,7 @@ Default cache values:
 
 The profile report cache covers the normalized profile-level result used to render a card or JSON report.
 
-The repository file-signals cache covers slower file-presence checks such as README, LICENSE, CI workflows, tests, changelog, contribution guide, security policy, and package artifact signals.
+The repository file-signals cache covers slower file-presence checks such as README, LICENSE, CI workflows, tests, changelog, contribution guide, security policy, and package artifact signals. The v0 live collector derives most path-based file signals from one recursive tree response per repository instead of probing every candidate path separately.
 
 ## Repository Limits
 
@@ -43,7 +47,7 @@ The live collector uses GitHub REST API endpoints for:
 
 - public user repositories
 - public repository community profile metrics
-- public repository content existence checks
+- one recursive public repository tree lookup per scanned repository for file-presence signals
 - public repository README text for usage-guide detection
 - public releases and tags
 
@@ -76,6 +80,8 @@ The live local client should avoid being used as an uncached per-card hosted end
 GitHub currently documents unauthenticated REST requests as 60 requests per hour per originating IP address and authenticated REST requests as generally 5,000 requests per hour for a user token. It also documents secondary rate limits and recommends using rate-limit response headers. See the official [REST API rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) documentation for the current values.
 
 Before a hosted endpoint is added, it must define cache storage, abuse limits, stale-result behavior, and a way to avoid repeated uncached repository-content scans for the same profile.
+
+The backend-free profile README workflow avoids per-view GitHub API cost by committing a generated SVG into the profile repository. Viewers load a static file from GitHub instead of causing fresh collection work.
 
 ## API Version
 

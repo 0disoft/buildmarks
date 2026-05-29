@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
-import { scoreUserProfile } from "../src";
+import { analyzeSignalGaps, scoreUserProfile } from "../src";
 import type { ProfileInput } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
@@ -37,5 +37,36 @@ describe("profile scoring", () => {
     expect(report.overall).toBe(baseline.overall);
     expect(report.dimensions).toEqual(baseline.dimensions);
     expect(report.signalType).toBe(baseline.signalType);
+  });
+
+  test("keeps external validation finite when numeric inputs are not finite", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const poisoned = {
+      ...(fixture as ProfileInput),
+      repositories: [
+        {
+          ...sourceRepository,
+          stars: Number.NaN,
+          forks: Number.POSITIVE_INFINITY,
+          issueResponseCount: Number.NEGATIVE_INFINITY
+        }
+      ]
+    } as ProfileInput;
+
+    const report = scoreUserProfile(poisoned, { now });
+
+    expect(Number.isFinite(report.overall)).toBe(true);
+    expect(Number.isFinite(report.dimensions.externalValidation)).toBe(true);
+    expect(report.dimensions.externalValidation).toBeGreaterThanOrEqual(0);
+    expect(report.dimensions.externalValidation).toBeLessThanOrEqual(100);
+  });
+
+  test("finds public signal gaps without treating them as a ranking", () => {
+    const report = analyzeSignalGaps(fixture as ProfileInput, { now });
+
+    expect(report.username).toBe("example-builder");
+    expect(report.gaps.length).toBeGreaterThan(0);
+    expect(report.gaps.some((gap) => gap.repository === "small-experiment")).toBe(true);
+    expect(report.limitations).toContain("These are improvement hints, not a developer ranking.");
   });
 });

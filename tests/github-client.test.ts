@@ -48,6 +48,18 @@ describe("live public GitHub collector", () => {
     });
   });
 
+  test("uses one recursive tree request for repository file signals instead of content path probing", async () => {
+    const calls: string[] = [];
+    await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        onRequest: (url) => calls.push(url)
+      })
+    });
+
+    expect(calls.some((url) => url.includes("/git/trees/main?recursive=1"))).toBe(true);
+    expect(calls.some((url) => url.includes("/contents/"))).toBe(false);
+  });
+
   test("limits scanned repositories before per-repository collection", async () => {
     const calls: string[] = [];
     const fetcher = makeGitHubFetch({
@@ -186,24 +198,17 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
       return jsonResponse([]);
     }
 
-    if (contentPath(parsed.pathname) === ".github/workflows") {
-      return jsonResponse([{ name: "ci.yml", type: "file" }]);
-    }
-
-    if (contentPath(parsed.pathname) === "CHANGELOG.md") {
-      return jsonResponse({ name: "CHANGELOG.md", type: "file" });
-    }
-
-    if (contentPath(parsed.pathname) === "SECURITY.md") {
-      return jsonResponse({ name: "SECURITY.md", type: "file" });
-    }
-
-    if (contentPath(parsed.pathname) === "docs") {
-      return jsonResponse([{ name: "index.md", type: "file" }]);
-    }
-
-    if (contentPath(parsed.pathname) === "package.json") {
-      return jsonResponse({ name: "package.json", type: "file" });
+    if (parsed.pathname.endsWith("/git/trees/main")) {
+      return jsonResponse({
+        tree: [
+          { path: ".github/workflows/ci.yml" },
+          { path: "CHANGELOG.md" },
+          { path: "SECURITY.md" },
+          { path: "docs/index.md" },
+          { path: "package.json" }
+        ],
+        truncated: false
+      });
     }
 
     return jsonResponse({ message: "Not found" }, { status: 404 });
@@ -221,18 +226,9 @@ function makeRepositoryResponse(name: string) {
     forks_count: 7,
     created_at: "2025-01-01T00:00:00Z",
     pushed_at: "2026-05-27T00:00:00Z",
-    homepage: ""
+    homepage: "",
+    default_branch: "main"
   };
-}
-
-function contentPath(pathname: string): string | null {
-  const marker = "/contents/";
-  const index = pathname.indexOf(marker);
-  if (index === -1) {
-    return null;
-  }
-
-  return decodeURIComponent(pathname.slice(index + marker.length));
 }
 
 function jsonResponse(

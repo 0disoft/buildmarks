@@ -138,3 +138,17 @@ export interface UserSignalReport {
   evidence: Evidence[];
   limitations: string[];
 }
+
+export interface SignalGap {
+  repository: string;
+  dimension: SignalDimension;
+  missing: string[];
+  whyItMatters: string;
+}
+
+export interface UserSignalGapsReport {
+  username: string;
+  generatedAt: string;
+  gaps: SignalGap[];
+  limitations: string[];
+}

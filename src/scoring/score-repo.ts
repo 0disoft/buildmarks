@@ -123,7 +123,7 @@ function scoreExternalValidation(repository: RepositoryInput): DimensionScore {
   return {
     key: "externalValidation",
     label: dimensionLabels.externalValidation,
-    score,
+    score: clampScore(score),
     maxScore: 100,
     evidence: [
       createEvidence(
@@ -138,24 +138,24 @@ function scoreExternalValidation(repository: RepositoryInput): DimensionScore {
 
 function weightedOverall(dimensions: Record<SignalDimension, DimensionScore>): number {
   const score =
-    dimensions.maintainability.score * 0.25 +
-    dimensions.completeness.score * 0.2 +
-    dimensions.collaboration.score * 0.2 +
-    dimensions.shipping.score * 0.15 +
-    dimensions.consistency.score * 0.1 +
-    dimensions.externalValidation.score * 0.1;
+    clampScore(dimensions.maintainability.score) * 0.25 +
+    clampScore(dimensions.completeness.score) * 0.2 +
+    clampScore(dimensions.collaboration.score) * 0.2 +
+    clampScore(dimensions.shipping.score) * 0.15 +
+    clampScore(dimensions.consistency.score) * 0.1 +
+    clampScore(dimensions.externalValidation.score) * 0.1;
 
-  return Math.round(score);
+  return clampScore(Math.round(score));
 }
 
 function repoWeight(dimensions: Record<SignalDimension, DimensionScore>): number {
   return Number(
     (
       1 +
-      dimensions.completeness.score / 100 * 0.3 +
-      dimensions.maintainability.score / 100 * 0.3 +
-      dimensions.shipping.score / 100 * 0.25 +
-      dimensions.externalValidation.score / 100 * 0.15
+      clampScore(dimensions.completeness.score) / 100 * 0.3 +
+      clampScore(dimensions.maintainability.score) / 100 * 0.3 +
+      clampScore(dimensions.shipping.score) / 100 * 0.25 +
+      clampScore(dimensions.externalValidation.score) / 100 * 0.15
     ).toFixed(3)
   );
 }
@@ -165,7 +165,17 @@ function collectTopEvidence(dimensions: Record<SignalDimension, DimensionScore>)
 }
 
 function logCap(value: number, cap: number): number {
-  return Math.min(1, Math.log1p(Math.max(0, value)) / Math.log1p(cap));
+  const sanitizedValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+  const sanitizedCap = Number.isFinite(cap) && cap > 0 ? cap : 1;
+  return Math.min(1, Math.log1p(sanitizedValue) / Math.log1p(sanitizedCap));
+}
+
+function clampScore(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, value));
 }
 
 function wasRecentlyPushed(value: string | null, now: Date): boolean {

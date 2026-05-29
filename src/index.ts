@@ -9,6 +9,8 @@ export type {
   RepositoryInput,
   RepoSignal,
   SignalDimension,
+  SignalGap,
+  UserSignalGapsReport,
   UserSignalReport
 } from "./shared/types";
 export { dimensionLabels, signalDimensions } from "./shared/types";
@@ -28,5 +30,11 @@ export {
 } from "./collector/policy";
 export { scoreRepository } from "./scoring/score-repo";
 export { scoreUserProfile } from "./scoring/score-user";
+export { analyzeSignalGaps } from "./scoring/gaps";
 export { classifySignalType } from "./scoring/signal-type";
-export { renderFallbackCard, renderUserSignalCard } from "./renderer/svg";
+export {
+  renderFallbackCard,
+  renderRepositorySignalCard,
+  renderSignalGapsCard,
+  renderUserSignalCard
+} from "./renderer/svg";

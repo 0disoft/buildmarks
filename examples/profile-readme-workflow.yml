@@ -1,0 +1,36 @@
+name: Update Buildmarks card
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-card:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out profile repository
+        uses: actions/checkout@v4
+
+      - name: Generate Buildmarks SVG
+        uses: 0disoft/buildmarks@v0
+        with:
+          username: ${{ github.repository_owner }}
+          output: assets/buildmarks.svg
+          token: ${{ github.token }}
+
+      - name: Commit updated card
+        run: |
+          if git diff --quiet -- assets/buildmarks.svg; then
+            echo "Buildmarks card is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/buildmarks.svg
+          git commit -m "chore: update buildmarks card"
+          git push

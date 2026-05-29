@@ -54,15 +54,16 @@ function averageDimensions(repositories: readonly RepoSignal[]): Record<SignalDi
   }
 
   const totalWeight = repositories.reduce((total, repository) => total + repository.weight, 0);
+  const cappedWeights = repositories.map((repository) => cappedWeight(repository, totalWeight));
+  const cappedTotal = cappedWeights.reduce((total, weight) => total + weight, 0);
 
-  for (const dimension of signalDimensions) {
+  signalDimensions.forEach((dimension) => {
     const weighted = repositories.reduce(
-      (total, repository) => total + repository.dimensions[dimension].score * cappedWeight(repository, totalWeight),
+      (total, repository, index) => total + repository.dimensions[dimension].score * (cappedWeights[index] ?? 0),
       0
     );
-    const cappedTotal = repositories.reduce((total, repository) => total + cappedWeight(repository, totalWeight), 0);
     empty[dimension] = cappedTotal === 0 ? 0 : Math.round(weighted / cappedTotal);
-  }
+  });
 
   return empty;
 }

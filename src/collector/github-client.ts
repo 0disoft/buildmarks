@@ -138,7 +138,7 @@ class GitHubRestClient {
   async collectRepository(repository: GitHubRepositoryResponse): Promise<CollectedGitHubRepository> {
     const owner = repository.owner.login;
     const name = repository.name;
-    const [community, readmeText, hasReleasesOrTags, fileSignals] = await Promise.all([
+    const [community, readmeText, hasReleasesOrTags, treePaths] = await Promise.all([
       this.fetchJson<GitHubCommunityProfileResponse>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/community/profile`, {
         allowMissing: true
       }),
@@ -147,8 +147,9 @@ class GitHubRestClient {
         allowMissing: true
       }),
       this.hasReleasesOrTags(owner, name),
-      this.collectFileSignals(owner, name, repository)
+      this.fetchRepositoryTreePaths(owner, name, repository.default_branch)
     ]);
+    const fileSignals = this.collectFileSignals(treePaths, repository);
 
     const collected: CollectedGitHubRepository = {
       owner,
@@ -171,34 +172,40 @@ class GitHubRestClient {
     return collected;
   }
 
-  async collectFileSignals(
-    owner: string,
-    repo: string,
+  collectFileSignals(
+    treePaths: readonly string[],
     repository: GitHubRepositoryResponse
-  ): Promise<CollectedRepositoryFileSignals> {
-    const [hasCi, hasTests, hasChangelog, hasSecurityPolicy, hasDemoOrDocsPath, hasPackageArtifact] =
-      await Promise.all([
-        this.existsAnyContentPath(owner, repo, ciPaths),
-        this.existsAnyContentPath(owner, repo, testPaths),
-        this.existsAnyContentPath(owner, repo, changelogPaths),
-        this.existsAnyContentPath(owner, repo, securityPolicyPaths),
-        this.existsAnyContentPath(owner, repo, demoOrDocsPaths),
-        this.existsAnyContentPath(owner, repo, packageArtifactPaths)
-      ]);
-
+  ): CollectedRepositoryFileSignals {
     return {
       hasReadme: false,
       hasLicense: false,
       hasUsageGuide: false,
-      hasCi,
-      hasTests,
-      hasChangelog,
+      hasCi: treeHasAnyPath(treePaths, ciPaths),
+      hasTests: treeHasAnyPath(treePaths, testPaths),
+      hasChangelog: treeHasAnyPath(treePaths, changelogPaths),
       hasContributing: false,
       hasCodeOfConduct: false,
-      hasSecurityPolicy,
-      hasDemoOrDocs: hasDemoOrDocsPath || hasNonEmptyString(repository.homepage),
-      hasPackageArtifact
+      hasSecurityPolicy: treeHasAnyPath(treePaths, securityPolicyPaths),
+      hasDemoOrDocs: treeHasAnyPath(treePaths, demoOrDocsPaths) || hasNonEmptyString(repository.homepage),
+      hasPackageArtifact: treeHasAnyPath(treePaths, packageArtifactPaths)
     };
+  }
+
+  async fetchRepositoryTreePaths(owner: string, repo: string, branch: string): Promise<string[]> {
+    const tree = await this.fetchJson<GitHubTreeResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+      { allowMissing: true }
+    );
+
+    if (tree === null) {
+      return [];
+    }
+
+    if (!Array.isArray(tree.tree)) {
+      throw new GitHubCollectorError("invalid_github_response", "GitHub tree response was missing tree array.");
+    }
+
+    return tree.tree.flatMap((item) => (typeof item.path === "string" ? [item.path] : []));
   }
 
   async hasReleasesOrTags(owner: string, repo: string): Promise<boolean> {
@@ -212,25 +219,6 @@ class GitHubRestClient {
     ]);
 
     return arrayHasItems(releases) || arrayHasItems(tags);
-  }
-
-  async existsAnyContentPath(owner: string, repo: string, paths: readonly string[]): Promise<boolean> {
-    for (const path of paths) {
-      if (await this.contentExists(owner, repo, path)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  async contentExists(owner: string, repo: string, path: string): Promise<boolean> {
-    const content = await this.fetchJson<unknown>(
-      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodePath(path)}`,
-      { allowMissing: true }
-    );
-
-    return content !== null;
   }
 
   async fetchJson<T>(path: string, options: { allowMissing?: boolean } = {}): Promise<T | null> {
@@ -324,7 +312,8 @@ function asRepositoryResponse(value: unknown): GitHubRepositoryResponse {
     forks_count: requireNumber(record, "forks_count"),
     created_at: optionalNullableString(record, "created_at"),
     pushed_at: optionalNullableString(record, "pushed_at"),
-    homepage: optionalNullableString(record, "homepage")
+    homepage: optionalNullableString(record, "homepage"),
+    default_branch: requireString(record, "default_branch")
   };
 
   return repository;
@@ -383,15 +372,11 @@ function requireBoolean(record: Record<string, unknown>, key: string): boolean {
 
 function requireNumber(record: Record<string, unknown>, key: string): number {
   const value = record[key];
-  if (typeof value !== "number") {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new GitHubCollectorError("invalid_github_response", `GitHub repository response was missing ${key}.`);
   }
 
   return value;
-}
-
-function encodePath(path: string): string {
-  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 function hasNonEmptyString(value: string | null): boolean {
@@ -413,6 +398,7 @@ interface GitHubRepositoryResponse {
   created_at: string | null;
   pushed_at: string | null;
   homepage: string | null;
+  default_branch: string;
 }
 
 interface GitHubCommunityProfileResponse {
@@ -424,4 +410,29 @@ interface GitHubCommunityProfileResponse {
     license?: unknown;
     readme?: unknown;
   };
+}
+
+interface GitHubTreeResponse {
+  tree?: Array<{ path?: unknown }>;
+  truncated?: boolean;
+}
+
+function treeHasAnyPath(treePaths: readonly string[], candidatePaths: readonly string[]): boolean {
+  const normalizedTreePaths = new Set(treePaths.map(normalizeTreePath));
+
+  return candidatePaths.some((candidate) => {
+    const normalizedCandidate = normalizeTreePath(candidate);
+
+    for (const treePath of normalizedTreePaths) {
+      if (treePath === normalizedCandidate || treePath.startsWith(`${normalizedCandidate}/`)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+}
+
+function normalizeTreePath(path: string): string {
+  return path.replaceAll("\\", "/").replace(/^\/+/, "").toLowerCase();
 }
