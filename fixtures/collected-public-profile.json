@@ -1,0 +1,96 @@
+{
+  "username": "example-builder",
+  "collectedAt": "2026-05-28T00:00:00.000Z",
+  "repositories": [
+    {
+      "owner": "example-builder",
+      "name": "usable-toolkit",
+      "url": "https://github.com/example-builder/usable-toolkit",
+      "isFork": false,
+      "isArchived": false,
+      "stars": 128,
+      "forks": 18,
+      "createdAt": "2024-04-12T09:00:00.000Z",
+      "pushedAt": "2026-04-20T10:00:00.000Z",
+      "hasReleasesOrTags": true,
+      "files": {
+        "hasReadme": true,
+        "hasLicense": true,
+        "hasUsageGuide": true,
+        "hasCi": true,
+        "hasTests": true,
+        "hasChangelog": true,
+        "hasContributing": true,
+        "hasCodeOfConduct": false,
+        "hasSecurityPolicy": true,
+        "hasDemoOrDocs": true,
+        "hasPackageArtifact": true
+      },
+      "activity": {
+        "issueResponseCount": 14,
+        "pullRequestReviewCount": 6,
+        "externalContributorCount": 5
+      }
+    },
+    {
+      "owner": "example-builder",
+      "name": "forked-library",
+      "url": "https://github.com/example-builder/forked-library",
+      "isFork": true,
+      "isArchived": false,
+      "stars": 8000,
+      "forks": 900,
+      "createdAt": "2022-01-01T00:00:00.000Z",
+      "pushedAt": "2026-05-01T00:00:00.000Z",
+      "hasReleasesOrTags": true,
+      "files": {
+        "hasReadme": true,
+        "hasLicense": true,
+        "hasUsageGuide": true,
+        "hasCi": true,
+        "hasTests": true,
+        "hasChangelog": true,
+        "hasContributing": true,
+        "hasCodeOfConduct": true,
+        "hasSecurityPolicy": true,
+        "hasDemoOrDocs": true,
+        "hasPackageArtifact": true
+      },
+      "activity": {
+        "issueResponseCount": 60,
+        "pullRequestReviewCount": 30,
+        "externalContributorCount": 15
+      }
+    },
+    {
+      "owner": "example-builder",
+      "name": "archived-widget",
+      "url": "https://github.com/example-builder/archived-widget",
+      "isFork": false,
+      "isArchived": true,
+      "stars": 10000,
+      "forks": 2000,
+      "createdAt": "2020-01-01T00:00:00.000Z",
+      "pushedAt": "2020-02-01T00:00:00.000Z",
+      "hasReleasesOrTags": true,
+      "files": {
+        "hasReadme": true,
+        "hasLicense": true,
+        "hasUsageGuide": true,
+        "hasCi": true,
+        "hasTests": true,
+        "hasChangelog": true,
+        "hasContributing": true,
+        "hasCodeOfConduct": true,
+        "hasSecurityPolicy": true,
+        "hasDemoOrDocs": true,
+        "hasPackageArtifact": true
+      },
+      "activity": {
+        "issueResponseCount": 100,
+        "pullRequestReviewCount": 100,
+        "externalContributorCount": 100
+      }
+    }
+  ]
+}

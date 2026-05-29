@@ -14,7 +14,7 @@ Just public signals for maintainability, completeness, shipping evidence, collab
 
 ## Status
 
-Buildmarks is in early v0 scaffold stage. The repository currently includes fixture-based scoring, a static SVG renderer, documentation for the scoring philosophy, and Bun tests.
+Buildmarks is in early v0 scaffold stage. The repository currently includes fixture-based scoring, a static SVG renderer, a public GitHub collector contract, documentation for the scoring philosophy, and Bun tests.
 
 The intended license is 0BSD so the scoring rules, renderer, and self-host path can stay easy to reuse.
 
@@ -84,7 +84,7 @@ GET /api/report/user/{username}.json
 GET /api/report/repo/{owner}/{repo}.json
 ```
 
-These routes are not implemented yet. The current implementation starts with local scoring and SVG rendering so the card contract can stabilize before live GitHub API collection.
+These routes are not implemented yet. The current implementation starts with local scoring, SVG rendering, and a normalized public collector contract so the card contract can stabilize before live GitHub API collection.
 
 ## Candidate Hosted Domain
 
@@ -107,6 +107,8 @@ docs/
 ```
 
 Live GitHub collection, HTTP routing, cache storage, hosted billing, and deployment files are intentionally deferred.
+
+The public collector contract is documented in [docs/github-collector-contract.md](docs/github-collector-contract.md). It defines what future GitHub API code may collect and what it must not infer.
 
 ## Development
 

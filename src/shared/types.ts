@@ -63,6 +63,47 @@ export interface RepositoryInput {
   externalContributorCount: number;
 }
 
+export interface CollectedRepositoryFileSignals {
+  hasReadme: boolean;
+  hasLicense: boolean;
+  hasUsageGuide: boolean;
+  hasCi: boolean;
+  hasTests: boolean;
+  hasChangelog: boolean;
+  hasContributing: boolean;
+  hasCodeOfConduct: boolean;
+  hasSecurityPolicy: boolean;
+  hasDemoOrDocs: boolean;
+  hasPackageArtifact: boolean;
+}
+
+export interface CollectedRepositoryActivitySignals {
+  issueResponseCount: number;
+  pullRequestReviewCount: number;
+  externalContributorCount: number;
+}
+
+export interface CollectedGitHubRepository {
+  owner: string;
+  name: string;
+  url?: string;
+  isFork: boolean;
+  isArchived: boolean;
+  stars: number;
+  forks: number;
+  createdAt: string | null;
+  pushedAt: string | null;
+  hasReleasesOrTags: boolean;
+  files: CollectedRepositoryFileSignals;
+  activity: CollectedRepositoryActivitySignals;
+}
+
+export interface CollectedGitHubProfile {
+  username: string;
+  collectedAt?: string;
+  repositories: CollectedGitHubRepository[];
+}
+
 export interface ProfileInput {
   username: string;
   generatedAt?: string;
