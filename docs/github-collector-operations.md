@@ -1,8 +1,10 @@
 # GitHub Collector Operations
 
-Buildmarks does not have a live GitHub API client yet. This document defines the operations policy that a future client must follow.
+Buildmarks has a small local GitHub REST client for public-only collection. This document defines the operations policy that client must follow.
 
 The executable source of truth is `defaultGitHubCollectorPolicy` in `src/collector/policy.ts`.
+
+The current adapter is `collectPublicGitHubProfile()` in `src/collector/github-client.ts`.
 
 ## Collection Boundary
 
@@ -11,6 +13,7 @@ The executable source of truth is `defaultGitHubCollectorPolicy` in `src/collect
 - Private contributions are not inferred.
 - Token mode must not require private repository or organization scopes.
 - Unauthenticated mode is allowed only for local/demo use, where low rate limits are acceptable.
+- Tokens are never loaded from environment variables by the public core. Callers must pass a token explicitly if they want a higher public-data limit.
 
 ## Cache Policy
 
@@ -34,6 +37,20 @@ The scan limit protects GitHub API cost and local runtime. The score limit keeps
 
 The scan limit must be greater than or equal to the score limit.
 
+## Live Client v0 Scope
+
+The live collector uses GitHub REST API endpoints for:
+
+- public user repositories
+- public repository community profile metrics
+- public repository content existence checks
+- public repository README text for usage-guide detection
+- public releases and tags
+
+The adapter sets activity aggregate fields to zero in v0. Public issue-response, pull-request-review, and external-contributor aggregate collection remains deferred because those signals need separate API-cost and methodology rules.
+
+The adapter does not collect follower counts, language percentages, raw commit counts, contribution streaks, private repositories, private contributions, employer information, compensation, seniority, job fit, or hiring pass/fail signals.
+
 ## Token Policy
 
 The public core must not require tokens with private scopes.
@@ -54,6 +71,12 @@ Rejected token behavior:
 
 ## API Cost Policy
 
-A future live client should avoid per-card uncached GitHub calls.
+The live local client should avoid being used as an uncached per-card hosted endpoint.
 
-Before a hosted endpoint exists, the implementation should keep collection explicit and local. Before a hosted endpoint is added, it must define cache storage, abuse limits, and stale-result behavior.
+GitHub currently documents unauthenticated REST requests as 60 requests per hour per originating IP address and authenticated REST requests as generally 5,000 requests per hour for a user token. It also documents secondary rate limits and recommends using rate-limit response headers. See the official [REST API rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) documentation for the current values.
+
+Before a hosted endpoint is added, it must define cache storage, abuse limits, stale-result behavior, and a way to avoid repeated uncached repository-content scans for the same profile.
+
+## API Version
+
+The live adapter sends `X-GitHub-Api-Version: 2026-03-10`, which is listed in GitHub's [REST API versions](https://docs.github.com/en/rest/about-the-rest-api/api-versions) documentation at the time this document was updated on 2026-05-29.

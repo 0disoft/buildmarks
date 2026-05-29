@@ -14,6 +14,13 @@ export type {
 export { dimensionLabels, signalDimensions } from "./shared/types";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile";
 export {
+  collectPublicGitHubProfile,
+  GitHubCollectorError,
+  type CollectPublicGitHubProfileOptions,
+  type GitHubCollectorErrorCode,
+  type GitHubCollectorFetch
+} from "./collector/github-client";
+export {
   defaultGitHubCollectorPolicy,
   validateGitHubCollectorPolicy,
   type GitHubCollectorPolicy,

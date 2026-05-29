@@ -14,7 +14,7 @@ Just public signals for maintainability, completeness, shipping evidence, collab
 
 ## Status
 
-Buildmarks is in early v0 scaffold stage. The repository currently includes fixture-based scoring, a static SVG renderer, a public GitHub collector contract, documentation for the scoring philosophy, and Bun tests.
+Buildmarks is in early v0 scaffold stage. The repository currently includes fixture-based scoring, a static SVG renderer, a public-only GitHub collector, documentation for the scoring philosophy, and Bun tests.
 
 The intended license is 0BSD so the scoring rules, renderer, and self-host path can stay easy to reuse.
 
@@ -84,7 +84,7 @@ GET /api/report/user/{username}.json
 GET /api/report/repo/{owner}/{repo}.json
 ```
 
-These routes are not implemented yet. The current implementation starts with local scoring, SVG rendering, and a normalized public collector contract so the card contract can stabilize before live GitHub API collection.
+These routes are not implemented yet. The current implementation starts with local scoring, SVG rendering, and a normalized public collector contract so the card contract can stabilize before hosted API routing.
 
 ## Candidate Hosted Domain
 
@@ -106,11 +106,29 @@ docs/
   anti-gaming.md
 ```
 
-Live GitHub collection, HTTP routing, cache storage, hosted billing, and deployment files are intentionally deferred.
+HTTP routing, cache storage, hosted billing, and deployment files are intentionally deferred.
 
 The public collector contract is documented in [docs/github-collector-contract.md](docs/github-collector-contract.md). It defines what future GitHub API code may collect and what it must not infer.
 
-The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults before any live GitHub client is added.
+The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults for the live public GitHub collector.
+
+## Collect from Public GitHub Data
+
+Buildmarks can collect a normalized profile report from public GitHub REST API responses:
+
+```ts
+import { collectPublicGitHubProfile, normalizePublicGitHubProfile, scoreUserProfile } from "buildmarks";
+
+const collected = await collectPublicGitHubProfile("octocat", {
+  token: "optional-public-data-token"
+});
+const profile = normalizePublicGitHubProfile(collected);
+const report = scoreUserProfile(profile);
+```
+
+The token is optional and must be passed explicitly. Buildmarks does not read tokens from environment variables. The collector is public-only and does not collect private repositories, follower counts, language percentages, contribution streaks, or raw commit counts.
+
+The live collector is still a local library surface, not a hosted endpoint. It intentionally has no cache storage, Redis/KV binding, Cloudflare Worker, billing, or web server in this repository.
 
 ## Development
 
@@ -123,7 +141,7 @@ bun run build
 bun run build:card
 ```
 
-The current tests use `fixtures/example-public-profile.json` and do not call the GitHub API.
+The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.
 
 ## Generate a Local SVG Card
 

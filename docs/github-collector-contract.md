@@ -42,8 +42,10 @@ These types are converted into `ProfileInput` through `normalizePublicGitHubProf
 
 ## Live API Status
 
-This contract does not call GitHub APIs. It only defines what a future API client is allowed to produce.
+This contract is now produced by the local `collectPublicGitHubProfile()` REST adapter.
 
-Before a live GitHub client is added, Buildmarks must document cache behavior, rate limits, token handling, and GitHub API cost.
+The live adapter is intentionally narrow. It collects public repository metadata, public community profile file signals, selected public content-path signals, and release or tag presence. It does not collect private data, raw commit counts, contribution streaks, follower counts, language percentages, employer data, or hiring suitability signals.
 
-Those operational rules are defined in [GitHub Collector Operations](github-collector-operations.md).
+Activity aggregate fields are currently set to zero by the live adapter. Public issue-response, pull-request-review, and external-contributor aggregate collection is deferred until those API-cost and methodology rules are designed.
+
+Operational rules are defined in [GitHub Collector Operations](github-collector-operations.md).
