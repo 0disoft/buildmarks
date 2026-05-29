@@ -33,6 +33,34 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Validate Buildmarks inputs
+      shell: bash
+      env:
+        BUILDMARKS_GENERATE_REPORT: ${{ inputs.generate-report }}
+        BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
+        BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
+      run: |
+        set -euo pipefail
+
+        case "$BUILDMARKS_GENERATE_REPORT" in
+          true|false)
+            ;;
+          *)
+            echo "::error title=Invalid generate-report::Expected generate-report to be exactly 'true' or 'false'."
+            exit 1
+            ;;
+        esac
+
+        if [[ ! "$BUILDMARKS_MAX_REPOSITORIES_SCANNED" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error title=Invalid max-repositories-scanned::Expected a positive integer."
+          exit 1
+        fi
+
+        if [[ ! "$BUILDMARKS_MAX_REPOSITORIES_SCORED" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error title=Invalid max-repositories-scored::Expected a positive integer."
+          exit 1
+        fi
+
     - name: Set up Bun
       uses: oven-sh/setup-bun@v2
 
@@ -47,6 +75,8 @@ runs:
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
       run: |
+        set -euo pipefail
+
         args=(
           "$BUILDMARKS_USERNAME"
           "$BUILDMARKS_OUTPUT"
@@ -73,6 +103,8 @@ runs:
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
       run: |
+        set -euo pipefail
+
         args=(
           "$BUILDMARKS_USERNAME"
           "$BUILDMARKS_OUTPUT"

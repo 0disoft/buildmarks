@@ -58,6 +58,8 @@ That workflow uses the official composite action, generates `assets/buildmarks.s
 
 The composite action generates files only. The workflow around it owns checkout, repository write permission, staging, commit, and push. The example stages generated artifacts before checking for changes, so the first run commits new files correctly.
 
+Use exact string values for action booleans. `generate-report` accepts `"true"` or `"false"` only, and repository limits must be positive integers.
+
 Minimal action step:
 
 ```yaml

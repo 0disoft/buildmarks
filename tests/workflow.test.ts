@@ -21,4 +21,15 @@ describe("profile README workflow example", () => {
     expect(action).not.toContain("git push");
     expect(action).not.toContain("contents: write");
   });
+
+  test("validates action inputs before generating artifacts", async () => {
+    const action = await readFile("action.yml", "utf8");
+
+    expect(action).toContain("Validate Buildmarks inputs");
+    expect(action).toContain("Expected generate-report to be exactly 'true' or 'false'.");
+    expect(action).toContain("Invalid max-repositories-scanned");
+    expect(action).toContain("Invalid max-repositories-scored");
+    expect(action).toContain("set -euo pipefail");
+    expect(action.indexOf("Validate Buildmarks inputs")).toBeLessThan(action.indexOf("Set up Bun"));
+  });
 });

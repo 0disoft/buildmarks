@@ -183,6 +183,8 @@ Minimal action usage:
 
 Set `generate-report: "false"` when you only want the SVG card.
 
+Action inputs are intentionally strict: `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
+
 ## Generate a Signal Gaps Card
 
 Buildmarks can also render a "What's Missing" card from the same local profile fixture:
