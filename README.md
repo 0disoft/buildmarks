@@ -159,11 +159,11 @@ If public GitHub collection fails, the CLI writes a readable fallback SVG instea
 
 ## Backend-Free Profile README Updates
 
-Buildmarks does not need a hosted backend for the first useful workflow. A profile README repository can generate a static SVG on a schedule and commit it back to the repository.
+Buildmarks does not need a hosted backend for the first useful workflow. A profile README repository can generate a static SVG plus an inspectable HTML/JSON report on a schedule and commit those artifacts back to the repository.
 
 See [examples/profile-readme.md](examples/profile-readme.md) and [examples/profile-readme-workflow.yml](examples/profile-readme-workflow.yml).
 
-The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg`, and commits only when the generated SVG changes.
+The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile.
 
 Minimal action usage:
 
@@ -172,8 +172,12 @@ Minimal action usage:
   with:
     username: ${{ github.repository_owner }}
     output: assets/buildmarks.svg
+    generate-report: "true"
+    report-output: assets/buildmarks-report
     token: ${{ github.token }}
 ```
+
+Set `generate-report: "false"` when you only want the SVG card.
 
 ## Generate a Signal Gaps Card
 
@@ -217,6 +221,14 @@ out/report/buildmarks-report.json
 ```
 
 The report shows dimension scores, evidence, signal gaps, repository-level signals, and limitations. It is designed to sit next to generated SVG cards in a profile README repository or static site.
+
+To generate the same report directly from public GitHub data:
+
+```bash
+bun src/cli/render-github-report.ts octocat out/report --token "public-data-token"
+```
+
+Like the SVG GitHub CLI, the report CLI requires tokens to be passed explicitly and writes fallback HTML/JSON files if collection fails.
 
 ## Development
 

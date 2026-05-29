@@ -1,5 +1,5 @@
 name: Buildmarks
-description: Generate a static Buildmarks SVG card for a GitHub profile README.
+description: Generate static Buildmarks profile README artifacts from public GitHub data.
 
 inputs:
   username:
@@ -9,6 +9,14 @@ inputs:
     description: SVG output path, relative to the caller repository.
     required: false
     default: assets/buildmarks.svg
+  generate-report:
+    description: Whether to generate the inspectable HTML and JSON report next to the SVG.
+    required: false
+    default: "true"
+  report-output:
+    description: Static report output directory, relative to the caller repository.
+    required: false
+    default: assets/buildmarks-report
   token:
     description: Optional GitHub token for public-data rate limits. Private scopes are not needed.
     required: false
@@ -28,7 +36,35 @@ runs:
     - name: Set up Bun
       uses: oven-sh/setup-bun@v2
 
+    - name: Generate Buildmarks artifacts
+      if: ${{ inputs.generate-report == 'true' }}
+      shell: bash
+      env:
+        BUILDMARKS_USERNAME: ${{ inputs.username }}
+        BUILDMARKS_OUTPUT: ${{ inputs.output }}
+        BUILDMARKS_REPORT_OUTPUT: ${{ inputs.report-output }}
+        BUILDMARKS_TOKEN: ${{ inputs.token }}
+        BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
+        BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
+      run: |
+        args=(
+          "$BUILDMARKS_USERNAME"
+          "$BUILDMARKS_OUTPUT"
+          "$BUILDMARKS_REPORT_OUTPUT"
+          "--max-repositories-scanned"
+          "$BUILDMARKS_MAX_REPOSITORIES_SCANNED"
+          "--max-repositories-scored"
+          "$BUILDMARKS_MAX_REPOSITORIES_SCORED"
+        )
+
+        if [ -n "$BUILDMARKS_TOKEN" ]; then
+          args+=("--token" "$BUILDMARKS_TOKEN")
+        fi
+
+        bun "$GITHUB_ACTION_PATH/src/cli/render-github-artifacts.ts" "${args[@]}"
+
     - name: Generate Buildmarks SVG
+      if: ${{ inputs.generate-report != 'true' }}
       shell: bash
       env:
         BUILDMARKS_USERNAME: ${{ inputs.username }}

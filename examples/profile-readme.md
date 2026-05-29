@@ -22,6 +22,12 @@ Generate a card directly from public GitHub data:
 bun src/cli/render-github-card.ts YOUR_USERNAME assets/buildmarks.svg --token "optional-public-data-token"
 ```
 
+Generate the matching static evidence report from the same public data:
+
+```bash
+bun src/cli/render-github-report.ts YOUR_USERNAME assets/buildmarks-report --token "optional-public-data-token"
+```
+
 For quick unauthenticated demos, keep the scan small:
 
 ```bash
@@ -32,6 +38,8 @@ Then reference the checked-in SVG from your profile README:
 
 ```md
 ![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
+
+[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)
 ```
 
 The token is optional for local experiments, but authenticated requests are much less likely to hit GitHub's low unauthenticated REST API limit. Buildmarks does not read tokens from environment variables automatically; pass a token explicitly when you want one used.
@@ -40,7 +48,7 @@ The token is optional for local experiments, but authenticated requests are much
 
 Copy [profile-readme-workflow.yml](profile-readme-workflow.yml) into your profile README repository as `.github/workflows/update-buildmarks-card.yml`.
 
-That workflow uses the official composite action, generates `assets/buildmarks.svg`, and commits the SVG only when it changes. This keeps the profile README backend-free: GitHub serves the SVG as a normal repository asset.
+That workflow uses the official composite action, generates `assets/buildmarks.svg` plus `assets/buildmarks-report/`, and commits the generated artifacts only when they change. This keeps the profile README backend-free: GitHub serves the SVG and report as normal repository assets.
 
 Minimal action step:
 
@@ -49,6 +57,8 @@ Minimal action step:
   with:
     username: ${{ github.repository_owner }}
     output: assets/buildmarks.svg
+    generate-report: "true"
+    report-output: assets/buildmarks-report
     token: ${{ github.token }}
 ```
 

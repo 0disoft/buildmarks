@@ -4,8 +4,10 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
 import { createStaticReport, renderStaticReportHtml } from "../src";
+import { renderGitHubArtifacts } from "../src/cli/render-github-artifacts";
+import { renderGitHubReportFiles } from "../src/cli/render-github-report";
 import { renderReportFiles } from "../src/cli/render-report";
-import type { ProfileInput } from "../src";
+import type { GitHubCollectorFetch, ProfileInput } from "../src";
 
 const tempDirectories: string[] = [];
 
@@ -47,10 +49,145 @@ describe("static report", () => {
     expect(html).toContain("Buildmarks static report");
     expect(json.version).toBe(1);
   });
+
+  test("writes HTML and JSON reports from public GitHub data", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderGitHubReportFiles("example-builder", directory, {
+      fetcher: makeGitHubFetch()
+    });
+    const html = await readFile(result.htmlPath, "utf8");
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
+      version: number;
+      profile: { username: string };
+    };
+
+    expect(result.ok).toBe(true);
+    expect(html).toContain("Buildmarks static report");
+    expect(html).toContain("example-builder");
+    expect(json.version).toBe(1);
+    expect(json.profile.username).toBe("example-builder");
+  });
+
+  test("writes SVG and static reports from one public GitHub collection", async () => {
+    const directory = await makeTempDirectory();
+    const baseFetch = makeGitHubFetch();
+    let repositoryListRequests = 0;
+    const fetcher: GitHubCollectorFetch = async (url, init) => {
+      const parsed = new URL(url);
+      if (parsed.pathname === "/users/example-builder/repos") {
+        repositoryListRequests += 1;
+      }
+      return baseFetch(url, init);
+    };
+
+    const result = await renderGitHubArtifacts("example-builder", join(directory, "buildmarks.svg"), join(directory, "report"), {
+      fetcher
+    });
+    const svg = await readFile(result.svgPath, "utf8");
+    const html = await readFile(result.htmlPath, "utf8");
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
+      version: number;
+      profile: { username: string };
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.fallback).toBe(false);
+    expect(repositoryListRequests).toBe(1);
+    expect(svg).toContain("Buildmarks");
+    expect(html).toContain("Buildmarks static report");
+    expect(json.version).toBe(1);
+    expect(json.profile.username).toBe("example-builder");
+  });
+
+  test("writes fallback report files when public GitHub collection fails", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderGitHubReportFiles("example-builder", directory, {
+      fetcher: async () => jsonResponse({ message: "rate limited" }, { status: 403 })
+    });
+    const html = await readFile(result.htmlPath, "utf8");
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as { ok: boolean; error: string };
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeDefined();
+    expect(html).toContain("Buildmarks GitHub report unavailable");
+    expect(json.ok).toBe(false);
+    expect(json.error).toBeDefined();
+  });
 });
 
 async function makeTempDirectory(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "buildmarks-report-"));
   tempDirectories.push(directory);
   return directory;
+}
+
+function makeGitHubFetch(): GitHubCollectorFetch {
+  return async (url) => {
+    const parsed = new URL(url);
+
+    if (parsed.pathname === "/users/example-builder/repos") {
+      return jsonResponse([
+        {
+          owner: { login: "example-builder" },
+          name: "usable-toolkit",
+          html_url: "https://github.com/example-builder/usable-toolkit",
+          fork: false,
+          archived: false,
+          stargazers_count: 42,
+          forks_count: 7,
+          created_at: "2025-01-01T00:00:00Z",
+          pushed_at: "2026-05-27T00:00:00Z",
+          homepage: "",
+          default_branch: "main"
+        }
+      ]);
+    }
+
+    if (parsed.pathname.endsWith("/community/profile")) {
+      return jsonResponse({
+        documentation: { html_url: "https://docs.example.test" },
+        files: {
+          license: {},
+          readme: {}
+        }
+      });
+    }
+
+    if (parsed.pathname.endsWith("/readme")) {
+      return new Response("Install and usage examples.", {
+        headers: { "content-type": "text/plain" }
+      });
+    }
+
+    if (parsed.pathname.endsWith("/releases")) {
+      return jsonResponse([{ name: "v0.1.0" }]);
+    }
+
+    if (parsed.pathname.endsWith("/tags")) {
+      return jsonResponse([]);
+    }
+
+    if (parsed.pathname.endsWith("/git/trees/main")) {
+      return jsonResponse({
+        tree: [
+          { path: ".github/workflows/ci.yml" },
+          { path: "tests/score.test.ts" },
+          { path: "package.json" }
+        ],
+        truncated: false
+      });
+    }
+
+    return jsonResponse({ message: "Not found" }, { status: 404 });
+  };
+}
+
+function jsonResponse(body: unknown, options: { status?: number; headers?: HeadersInit } = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status: options.status ?? 200,
+    headers: {
+      "content-type": "application/json",
+      ...options.headers
+    }
+  });
 }
