@@ -56,6 +56,8 @@ Copy [profile-readme-workflow.yml](profile-readme-workflow.yml) into your profil
 
 That workflow uses the official composite action, generates `assets/buildmarks.svg` plus `assets/buildmarks-report/`, links the SVG to the HTML report, and commits the generated artifacts only when they change. This keeps the profile README backend-free: GitHub serves the SVG and report as normal repository assets.
 
+The composite action generates files only. The workflow around it owns checkout, repository write permission, staging, commit, and push. The example stages generated artifacts before checking for changes, so the first run commits new files correctly.
+
 Minimal action step:
 
 ```yaml

@@ -165,6 +165,10 @@ See [examples/profile-readme.md](examples/profile-readme.md) and [examples/profi
 
 The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile. The generated SVG includes a `View evidence` link to the checked-in HTML report.
 
+The composite action only generates artifacts. The caller workflow owns checkout, `contents: write` permission, commit, and push behavior. The example keeps that boundary explicit so profile repositories can adapt branch protection, commit messages, or review policy without Buildmarks hiding those decisions.
+
+The example workflow uses `concurrency` to avoid overlapping scheduled updates. It stages generated files before checking for changes, so the first run commits newly created `assets/` files as well as later updates.
+
 Minimal action usage:
 
 ```yaml
