@@ -45,3 +45,5 @@ These types are converted into `ProfileInput` through `normalizePublicGitHubProf
 This contract does not call GitHub APIs. It only defines what a future API client is allowed to produce.
 
 Before a live GitHub client is added, Buildmarks must document cache behavior, rate limits, token handling, and GitHub API cost.
+
+Those operational rules are defined in [GitHub Collector Operations](github-collector-operations.md).

@@ -110,6 +110,8 @@ Live GitHub collection, HTTP routing, cache storage, hosted billing, and deploym
 
 The public collector contract is documented in [docs/github-collector-contract.md](docs/github-collector-contract.md). It defines what future GitHub API code may collect and what it must not infer.
 
+The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults before any live GitHub client is added.
+
 ## Development
 
 Buildmarks uses Bun for the current v0 scaffold.

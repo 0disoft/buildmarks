@@ -13,6 +13,12 @@ export type {
 } from "./shared/types";
 export { dimensionLabels, signalDimensions } from "./shared/types";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile";
+export {
+  defaultGitHubCollectorPolicy,
+  validateGitHubCollectorPolicy,
+  type GitHubCollectorPolicy,
+  type GitHubCollectorPolicyValidation
+} from "./collector/policy";
 export { scoreRepository } from "./scoring/score-repo";
 export { scoreUserProfile } from "./scoring/score-user";
 export { classifySignalType } from "./scoring/signal-type";
