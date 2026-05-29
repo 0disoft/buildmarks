@@ -4,9 +4,12 @@ import {
   renderFallbackCard,
   renderUserSignalCard,
   scoreUserProfile,
+  type RenderCardOptions,
   type ProfileInput,
   type RepositoryInput
 } from "../index";
+
+export interface RenderCardFileOptions extends RenderCardOptions {}
 
 export interface RenderCardFileResult {
   ok: boolean;
@@ -18,7 +21,8 @@ export interface RenderCardFileResult {
 
 export async function renderCardFile(
   inputPath: string,
-  outputPath: string
+  outputPath: string,
+  options: RenderCardFileOptions = {}
 ): Promise<RenderCardFileResult> {
   const resolvedInputPath = resolve(inputPath);
   const resolvedOutputPath = resolve(outputPath);
@@ -29,7 +33,7 @@ export async function renderCardFile(
     const rawInput = await readFile(resolvedInputPath, "utf8");
     const profile = parseProfileInput(JSON.parse(rawInput));
     const report = scoreUserProfile(profile);
-    const svg = renderUserSignalCard(report);
+    const svg = renderUserSignalCard(report, options);
 
     await writeFile(resolvedOutputPath, svg, "utf8");
 
@@ -56,15 +60,18 @@ export async function renderCardFile(
 }
 
 async function main(args: readonly string[]): Promise<void> {
-  const [inputPath, outputPath] = args;
+  const parsed = parseArgs(args);
 
-  if (inputPath === undefined || outputPath === undefined) {
-    console.error("Usage: bun src/cli/render-card.ts <profile.json> <output.svg>");
+  if (parsed.ok === false) {
+    console.error(parsed.message);
+    console.error("Usage: bun src/cli/render-card.ts <profile.json> <output.svg> [--report-href <href>]");
     process.exitCode = 2;
     return;
   }
 
-  const result = await renderCardFile(inputPath, outputPath);
+  const result = await renderCardFile(parsed.inputPath, parsed.outputPath, {
+    reportHref: parsed.reportHref
+  });
 
   if (!result.ok) {
     console.error(`Buildmarks wrote fallback SVG: ${result.error ?? "unknown render failure"}`);
@@ -73,6 +80,48 @@ async function main(args: readonly string[]): Promise<void> {
   }
 
   console.log(`Buildmarks SVG written: ${result.outputPath}`);
+}
+
+function parseArgs(args: readonly string[]):
+  | { ok: true; inputPath: string; outputPath: string; reportHref?: string }
+  | { ok: false; message: string } {
+  const positional: string[] = [];
+  let reportHref: string | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) {
+      continue;
+    }
+
+    if (arg === "--report-href") {
+      const value = args[index + 1];
+      if (value === undefined || value.trim() === "") {
+        return { ok: false, message: "Missing value for --report-href." };
+      }
+      reportHref = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--")) {
+      return { ok: false, message: `Unknown option: ${arg}` };
+    }
+
+    positional.push(arg);
+  }
+
+  const [inputPath, outputPath] = positional;
+  if (inputPath === undefined || inputPath.trim() === "") {
+    return { ok: false, message: "Profile JSON path is required." };
+  }
+  if (outputPath === undefined || outputPath.trim() === "") {
+    return { ok: false, message: "Output SVG path is required." };
+  }
+
+  return reportHref === undefined
+    ? { ok: true, inputPath, outputPath }
+    : { ok: true, inputPath, outputPath, reportHref };
 }
 
 if (import.meta.main) {

@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import {
   collectPublicGitHubProfile,
   createStaticReport,
@@ -44,8 +44,9 @@ export async function renderGitHubArtifacts(
     const profile = normalizePublicGitHubProfile(collected);
     const userReport = scoreUserProfile(profile);
     const staticReport = createStaticReport(profile);
+    const reportHref = toSvgRelativeHref(resolvedSvgPath, htmlPath);
 
-    await writeFile(resolvedSvgPath, renderUserSignalCard(userReport), "utf8");
+    await writeFile(resolvedSvgPath, renderUserSignalCard(userReport, { reportHref }), "utf8");
     await writeFile(htmlPath, renderStaticReportHtml(staticReport), "utf8");
     await writeFile(jsonPath, `${JSON.stringify(staticReport, null, 2)}\n`, "utf8");
 
@@ -228,6 +229,13 @@ function parsePositiveIntegerOption(name: string, rawValue: string | undefined):
   }
 
   return value;
+}
+
+function toSvgRelativeHref(svgPath: string, reportHtmlPath: string): string {
+  const relativePath = relative(dirname(svgPath), reportHtmlPath).replaceAll("\\", "/");
+  const href = relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
+
+  return encodeURI(href);
 }
 
 if (import.meta.main) {

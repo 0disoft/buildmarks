@@ -28,6 +28,12 @@ Generate the matching static evidence report from the same public data:
 bun src/cli/render-github-report.ts YOUR_USERNAME assets/buildmarks-report --token "optional-public-data-token"
 ```
 
+Add the report link to the SVG when generating the card manually:
+
+```bash
+bun src/cli/render-github-card.ts YOUR_USERNAME assets/buildmarks.svg --report-href ./buildmarks-report/buildmarks-report.html --token "optional-public-data-token"
+```
+
 For quick unauthenticated demos, keep the scan small:
 
 ```bash
@@ -48,7 +54,7 @@ The token is optional for local experiments, but authenticated requests are much
 
 Copy [profile-readme-workflow.yml](profile-readme-workflow.yml) into your profile README repository as `.github/workflows/update-buildmarks-card.yml`.
 
-That workflow uses the official composite action, generates `assets/buildmarks.svg` plus `assets/buildmarks-report/`, and commits the generated artifacts only when they change. This keeps the profile README backend-free: GitHub serves the SVG and report as normal repository assets.
+That workflow uses the official composite action, generates `assets/buildmarks.svg` plus `assets/buildmarks-report/`, links the SVG to the HTML report, and commits the generated artifacts only when they change. This keeps the profile README backend-free: GitHub serves the SVG and report as normal repository assets.
 
 Minimal action step:
 

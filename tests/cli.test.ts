@@ -30,6 +30,20 @@ describe("render-card CLI", () => {
     expect(svg).toContain("Public data only");
   });
 
+  test("renders a local profile card with an inspectable report link", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "cards", "example-card.svg");
+
+    const result = await renderCardFile("fixtures/example-public-profile.json", outputPath, {
+      reportHref: "./report/buildmarks-report.html"
+    });
+    const svg = await readFile(outputPath, "utf8");
+
+    expect(result.ok).toBe(true);
+    expect(svg).toContain("<a href=\"./report/buildmarks-report.html\"");
+    expect(svg).toContain("View evidence");
+  });
+
   test("writes a fallback SVG when the input JSON is invalid", async () => {
     const directory = await makeTempDirectory();
     const inputPath = join(directory, "invalid-profile.json");
@@ -78,6 +92,21 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Not a ranking");
     expect(svg).toContain("Public data only");
+  });
+
+  test("renders a GitHub profile card with an inspectable report link", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "cards", "github-card.svg");
+
+    const result = await renderGitHubCardFile("example-builder", outputPath, {
+      fetcher: makeGitHubFetch(),
+      reportHref: "./buildmarks-report/buildmarks-report.html"
+    });
+    const svg = await readFile(outputPath, "utf8");
+
+    expect(result.ok).toBe(true);
+    expect(svg).toContain("<a href=\"./buildmarks-report/buildmarks-report.html\"");
+    expect(svg).toContain("View evidence");
   });
 
   test("writes a fallback SVG when GitHub collection fails", async () => {

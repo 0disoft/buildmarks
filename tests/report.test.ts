@@ -94,6 +94,8 @@ describe("static report", () => {
     expect(result.fallback).toBe(false);
     expect(repositoryListRequests).toBe(1);
     expect(svg).toContain("Buildmarks");
+    expect(svg).toContain("<a href=\"./report/buildmarks-report.html\"");
+    expect(svg).toContain("View evidence");
     expect(html).toContain("Buildmarks static report");
     expect(json.version).toBe(1);
     expect(json.profile.username).toBe("example-builder");

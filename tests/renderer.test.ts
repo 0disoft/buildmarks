@@ -37,6 +37,28 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("<script");
   });
 
+  test("renders a safe evidence report link when provided", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard(report, {
+      reportHref: "./assets/buildmarks-report/buildmarks-report.html"
+    });
+
+    expect(svg).toContain("<a href=\"./assets/buildmarks-report/buildmarks-report.html\"");
+    expect(svg).toContain("View evidence");
+    expect(svg).toContain("Open the inspectable Buildmarks evidence report");
+  });
+
+  test("drops executable evidence report links", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard(report, {
+      reportHref: "javascript:alert(1)"
+    });
+
+    expect(svg).not.toContain("<a href=");
+    expect(svg).not.toContain("javascript:");
+    expect(svg).not.toContain("View evidence");
+  });
+
   test("renders a fallback card for failed generation", () => {
     const svg = renderFallbackCard("GitHub API limit reached");
 

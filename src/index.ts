@@ -36,7 +36,8 @@ export {
   renderFallbackCard,
   renderRepositorySignalCard,
   renderSignalGapsCard,
-  renderUserSignalCard
+  renderUserSignalCard,
+  type RenderCardOptions
 } from "./renderer/svg";
 export {
   createStaticReport,

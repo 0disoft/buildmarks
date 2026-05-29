@@ -7,10 +7,11 @@ import {
   renderFallbackCard,
   renderUserSignalCard,
   scoreUserProfile,
-  type CollectPublicGitHubProfileOptions
+  type CollectPublicGitHubProfileOptions,
+  type RenderCardOptions
 } from "../index";
 
-export interface RenderGitHubCardFileOptions extends CollectPublicGitHubProfileOptions {}
+export interface RenderGitHubCardFileOptions extends CollectPublicGitHubProfileOptions, RenderCardOptions {}
 
 export interface RenderGitHubCardFileResult {
   ok: boolean;
@@ -33,7 +34,7 @@ export async function renderGitHubCardFile(
     const collected = await collectPublicGitHubProfile(username, options);
     const profile = normalizePublicGitHubProfile(collected);
     const report = scoreUserProfile(profile);
-    const svg = renderUserSignalCard(report);
+    const svg = renderUserSignalCard(report, options);
 
     await writeFile(resolvedOutputPath, svg, "utf8");
 
@@ -64,7 +65,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>]"
+      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--report-href <href>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>]"
     );
     process.exitCode = 2;
     return;
@@ -72,6 +73,7 @@ async function main(args: readonly string[]): Promise<void> {
 
   const result = await renderGitHubCardFile(parsed.username, parsed.outputPath, {
     token: parsed.token,
+    reportHref: parsed.reportHref,
     policy: {
       ...defaultGitHubCollectorPolicy,
       limits: {
@@ -98,12 +100,14 @@ function parseArgs(args: readonly string[]):
       token?: string;
       maxRepositoriesScanned: number;
       maxRepositoriesScored: number;
+      reportHref?: string;
     }
   | { ok: false; message: string } {
   const positional: string[] = [];
   let token: string | undefined;
   let maxRepositoriesScanned = defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile;
   let maxRepositoriesScored = defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile;
+  let reportHref: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -141,6 +145,16 @@ function parseArgs(args: readonly string[]):
       continue;
     }
 
+    if (arg === "--report-href") {
+      const value = args[index + 1];
+      if (value === undefined || value.trim() === "") {
+        return { ok: false, message: "Missing value for --report-href." };
+      }
+      reportHref = value;
+      index += 1;
+      continue;
+    }
+
     if (arg.startsWith("--")) {
       return { ok: false, message: `Unknown option: ${arg}` };
     }
@@ -157,8 +171,12 @@ function parseArgs(args: readonly string[]):
   }
 
   return token === undefined
-    ? { ok: true, username, outputPath, maxRepositoriesScanned, maxRepositoriesScored }
-    : { ok: true, username, outputPath, token, maxRepositoriesScanned, maxRepositoriesScored };
+    ? reportHref === undefined
+      ? { ok: true, username, outputPath, maxRepositoriesScanned, maxRepositoriesScored }
+      : { ok: true, username, outputPath, reportHref, maxRepositoriesScanned, maxRepositoriesScored }
+    : reportHref === undefined
+      ? { ok: true, username, outputPath, token, maxRepositoriesScanned, maxRepositoriesScored }
+      : { ok: true, username, outputPath, token, reportHref, maxRepositoriesScanned, maxRepositoriesScored };
 }
 
 function parsePositiveIntegerOption(name: string, rawValue: string | undefined): number | string {

@@ -8,6 +8,7 @@ import {
 } from "../shared/types";
 
 export interface RenderCardOptions {
+  reportHref?: string;
   theme?: "auto" | "dark" | "light";
 }
 
@@ -30,6 +31,7 @@ export function renderUserSignalCard(
   const signalType = fitText(coerceString(report.signalType, "Public Signal Profile"), 42);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
+  const reportLink = renderReportLink(options.reportHref);
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension]), rowStartY + index * rowGap)
   );
@@ -60,6 +62,7 @@ export function renderUserSignalCard(
   ${chips.join("")}
   </g>
   <text x="36" y="390" class="footer">Not a ranking · Public data only · Updated ${escapeXml(generatedDate)}</text>
+  ${reportLink}
 </svg>`;
 }
 
@@ -178,6 +181,18 @@ function renderEvidenceChip(label: string, index: number): string {
       <rect x="${x}" y="350" width="${chipWidth}" height="28" rx="6" class="chip-bg" />
       <text x="${x + 12}" y="369" class="chip">+ ${escapeXml(label)}</text>
     </g>`;
+}
+
+function renderReportLink(href: string | undefined): string {
+  const safeHref = sanitizeHref(href);
+  if (safeHref === null) {
+    return "";
+  }
+
+  return `
+  <a href="${escapeXml(safeHref)}" target="_top" aria-label="Open the inspectable Buildmarks evidence report">
+    <text x="724" y="390" class="link-text">View evidence</text>
+  </a>`;
 }
 
 function renderGapRow(repository: string, dimension: SignalDimension, missing: string[], y: number): string {
@@ -299,6 +314,7 @@ function renderStyles(): string {
     .bar-low { fill: url(#barLow); }
     .chip-bg { fill: var(--chip-bg); stroke: var(--panel-border); stroke-width: 1; }
     .chip { fill: var(--chip-text); font: 600 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .link-text { fill: var(--chip-text); font: 700 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: end; text-decoration: underline; }
     .fallback-box { fill: var(--chip-bg); stroke: var(--panel-border); stroke-width: 1; }
     .fallback-title { fill: var(--text); font: 750 22px ui-sans-serif, system-ui, sans-serif; }
     .fallback-body { fill: var(--muted); font: 500 15px ui-sans-serif, system-ui, sans-serif; }
@@ -336,6 +352,27 @@ function escapeXml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
+}
+
+function sanitizeHref(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed === "" || /[\u0000-\u001f\u007f]/.test(trimmed)) {
+    return null;
+  }
+
+  const schemeMatch = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.exec(trimmed);
+  if (schemeMatch !== null) {
+    const scheme = schemeMatch[0].slice(0, -1).toLowerCase();
+    if (scheme !== "http" && scheme !== "https") {
+      return null;
+    }
+  }
+
+  return trimmed;
 }
 
 function coerceString(value: unknown, fallback: string): string {

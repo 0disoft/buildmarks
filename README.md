@@ -163,7 +163,7 @@ Buildmarks does not need a hosted backend for the first useful workflow. A profi
 
 See [examples/profile-readme.md](examples/profile-readme.md) and [examples/profile-readme-workflow.yml](examples/profile-readme-workflow.yml).
 
-The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile.
+The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile. The generated SVG includes a `View evidence` link to the checked-in HTML report.
 
 Minimal action usage:
 
@@ -229,6 +229,12 @@ bun src/cli/render-github-report.ts octocat out/report --token "public-data-toke
 ```
 
 Like the SVG GitHub CLI, the report CLI requires tokens to be passed explicitly and writes fallback HTML/JSON files if collection fails.
+
+To generate a GitHub SVG with an evidence link manually:
+
+```bash
+bun src/cli/render-github-card.ts octocat out/octocat-card.svg --report-href ./report/buildmarks-report.html
+```
 
 ## Development
 
