@@ -2,6 +2,32 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 
 describe("profile README workflow example", () => {
+  test("keeps community health templates aligned with project boundaries", async () => {
+    const bugReport = await readFile(".github/ISSUE_TEMPLATE/bug_report.yml", "utf8");
+    const featureRequest = await readFile(".github/ISSUE_TEMPLATE/feature_request.yml", "utf8");
+    const pullRequest = await readFile(".github/pull_request_template.md", "utf8");
+    const security = await readFile("SECURITY.md", "utf8");
+    const readme = await readFile("README.md", "utf8");
+    const combined = [bugReport, featureRequest, pullRequest, security, readme].join("\n");
+
+    expect(bugReport).toContain("Reproduction");
+    expect(bugReport).toContain("Expected behavior");
+    expect(bugReport).toContain("Actual behavior");
+    expect(bugReport).toContain("Environment");
+    expect(featureRequest).toContain("Proposed behavior");
+    expect(featureRequest).toContain("Boundary check");
+    expect(pullRequest).toContain("dist/");
+    expect(pullRequest).toContain("out/");
+    expect(security).toContain("Please do not open public issues for sensitive vulnerabilities.");
+    expect(security).toContain("GitHub Security Advisories");
+    expect(readme).toContain("Contributing and Security");
+    expect(readme).toContain("SECURITY.md");
+    expect(combined).toContain("private GitHub data");
+    expect(combined).toContain("secrets");
+    expect(combined).toContain("developer ranking");
+    expect(security).not.toContain("mailto:");
+  });
+
   test("keeps repository CI read-only while validating core commands", async () => {
     const workflow = await readFile(".github/workflows/ci.yml", "utf8");
 

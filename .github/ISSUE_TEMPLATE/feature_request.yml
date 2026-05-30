@@ -1,0 +1,55 @@
+name: Feature request
+description: Propose a Buildmarks improvement within the public-data, self-hostable core.
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Buildmarks values transparent public GitHub evidence over vanity metrics.
+
+        Please do not propose features that require private repositories, follower scoring, language percentage scoring, raw commit count scoring, hiring suitability, telemetry, or hosted secrets.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or maintainer problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest behavior or output change.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Primary surface
+      options:
+        - Scoring or evidence
+        - SVG card rendering
+        - Static report generation
+        - GitHub collector
+        - GitHub Action or workflow
+        - Documentation or examples
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Boundary check
+      description: Explain how the feature stays public-only, explainable, and self-hostable.
+    validations:
+      required: true
+  - type: checkboxes
+    id: non_goals
+    attributes:
+      label: Non-goals
+      options:
+        - label: This does not turn Buildmarks into a developer ranking, hiring filter, or elite tier badge.
+          required: true
+        - label: This does not require private GitHub data, secrets, telemetry, or a hosted backend.
+          required: true

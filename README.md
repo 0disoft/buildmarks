@@ -290,6 +290,12 @@ The current tests use local fixtures and mocked fetch calls. They do not call th
 
 Repository CI runs the core test, build, sample SVG, and sample report commands on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.
 
+## Contributing and Security
+
+Use the issue and pull request templates in `.github/` when reporting bugs, proposing features, or opening changes. Keep reports public-data only: do not include secrets, tokens, private GitHub data, private repository names, or personal data.
+
+Sensitive vulnerabilities should not be reported in public issues. See [SECURITY.md](SECURITY.md) for the private reporting path and supported version policy.
+
 ## Generate a Local SVG Card
 
 Buildmarks can render a local profile JSON fixture into an SVG file:
