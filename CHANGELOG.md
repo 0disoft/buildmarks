@@ -6,6 +6,9 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+- Shift SVG card front matter from a large `/100` overall score to a `Signals Found` count with checked repository coverage.
+- Rename the card evidence section and report link to `Found Signals` and `View report` to keep the front card less defensive.
+
 ## v0.1.2 - 2026-05-30
 
 - Add an explicit private-local repository signal contract for owner-supplied private evidence.

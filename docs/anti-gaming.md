@@ -14,7 +14,7 @@ Buildmarks should be useful because it refuses easy vanity metrics.
 8. One popular repository must not dominate the whole profile.
 9. Low public activity must never produce a harsh personal label.
 10. Every score must expose evidence and limitations.
-11. The card must state that it uses public data only.
+11. Generated cards and reports must disclose their data scope.
 
 ## Labels
 

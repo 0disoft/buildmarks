@@ -9,7 +9,7 @@
 ```md
 ![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
 
-[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)
+[View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)
 ```
 
 3. Run the workflow once from GitHub Actions using the manual `workflow_dispatch` button.
@@ -46,7 +46,7 @@ Generate a card directly from public GitHub data:
 bun src/cli/render-github-card.ts YOUR_USERNAME assets/buildmarks.svg --token "optional-public-data-token"
 ```
 
-Generate the matching static evidence report from the same public data:
+Generate the matching static report from the same public data:
 
 ```bash
 bun src/cli/render-github-report.ts YOUR_USERNAME assets/buildmarks-report --token "optional-public-data-token"
@@ -69,7 +69,7 @@ Then reference the checked-in SVG from your profile README:
 ```md
 ![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
 
-[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)
+[View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)
 ```
 
 The token is optional for local experiments, but authenticated requests are much less likely to hit GitHub's low unauthenticated REST API limit. Buildmarks does not read tokens from environment variables automatically; pass a token explicitly when you want one used.
@@ -159,7 +159,7 @@ bun run build:report
 Then link to the static report from your README:
 
 ```md
-[View the Buildmarks evidence report](./out/report/buildmarks-report.html)
+[View the Buildmarks report](./out/report/buildmarks-report.html)
 ```
 
 For a hosted version, replace the checked-in SVG path with the future card endpoint once that service exists.

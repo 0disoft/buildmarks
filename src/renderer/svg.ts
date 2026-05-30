@@ -31,14 +31,16 @@ export function renderUserSignalCard(
   const signalType = fitText(coerceString(report.signalType, "Public Signal Profile"), 42);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
+  const signalCount = countProfileSignals(report);
+  const repoCount = report.topRepos.length;
   const disclosure = report.signalVisibility;
   const signalScopeLabel = disclosure?.cardLabel ?? "Public GitHub signals";
   const subtitle = disclosure?.privateRepositoriesIncluded === true
     ? "Owner-supplied GitHub signals"
     : "Public GitHub signals";
-  const evidenceLabel = disclosure?.privateRepositoriesIncluded === true
-    ? "Top owner-supplied evidence"
-    : "Top public evidence";
+  const signalsLabel = disclosure?.privateRepositoriesIncluded === true
+    ? "Top owner-supplied signals"
+    : "Top public signals";
   const footerScope = disclosure?.privateRepositoriesIncluded === true
     ? "Private Included"
     : "Public Signals";
@@ -68,14 +70,15 @@ export function renderUserSignalCard(
   <text x="36" y="80" class="subtitle">${escapeXml(subtitle)}</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
   <text x="36" y="136" class="type">${escapeXml(`${signalScopeLabel} · ${signalType}`)}</text>
-  <text x="604" y="72" class="subtitle">Overall Signal</text>
-  <text x="604" y="122" class="overall">${overall}</text>
-  <text x="690" y="122" class="overall-unit">/100</text>
+  <text x="604" y="72" class="subtitle">Signals Found</text>
+  <text x="604" y="122" class="overall">${signalCount}</text>
+  <text x="690" y="122" class="overall-unit">found</text>
+  <text x="604" y="142" class="metric-note">${repoCount} repos checked</text>
   <g aria-label="Dimension scores out of 100">
   ${rows.join("")}
   </g>
-  <text x="36" y="338" class="section-label">Evidence</text>
-  <g aria-label="${escapeXml(evidenceLabel)}">
+  <text x="36" y="338" class="section-label">Found Signals</text>
+  <g aria-label="${escapeXml(signalsLabel)}">
   ${chips.join("")}
   </g>
   <text x="36" y="390" class="footer">Buildmarks Profile · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
@@ -127,7 +130,7 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="36" y="80" class="subtitle">Signal gaps from public GitHub evidence</text>
+  <text x="36" y="80" class="subtitle">Missing public GitHub signals</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
   <text x="36" y="136" class="type">What's Missing</text>
   <g aria-label="Signal gaps detected from public repository evidence">
@@ -142,6 +145,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   const repoNameRaw = `${report.owner}/${report.name}`;
   const repoName = fitText(repoNameRaw, 38);
   const overall = safeScore(report.overall);
+  const signalCount = countRepositorySignals(report);
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
   );
@@ -161,14 +165,15 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <text x="36" y="80" class="subtitle">Repository GitHub signals</text>
   <text x="36" y="112" class="name">${escapeXml(repoName)}</text>
   <text x="36" y="136" class="type">Repository Signal Card</text>
-  <text x="604" y="72" class="subtitle">Repo Signal</text>
-  <text x="604" y="122" class="overall">${overall}</text>
-  <text x="690" y="122" class="overall-unit">/100</text>
+  <text x="604" y="72" class="subtitle">Signals Found</text>
+  <text x="604" y="122" class="overall">${signalCount}</text>
+  <text x="690" y="122" class="overall-unit">found</text>
+  <text x="604" y="142" class="metric-note">repo checked</text>
   <g aria-label="Repository dimension scores out of 100">
   ${rows.join("")}
   </g>
-  <text x="36" y="338" class="section-label">Evidence</text>
-  <g aria-label="Top public repository evidence">
+  <text x="36" y="338" class="section-label">Found Signals</text>
+  <g aria-label="Top public repository signals">
   ${chips.join("")}
   </g>
   <text x="36" y="390" class="footer">Buildmarks Repo · Public Signals</text>
@@ -208,7 +213,7 @@ function renderEvidenceChip(label: string, index: number): string {
   const x = 36 + index * (chipWidth + chipGap);
 
   return `
-    <g role="img" aria-label="${escapeXml(`Evidence: ${label}`)}">
+    <g role="img" aria-label="${escapeXml(`Signal found: ${label}`)}">
       <rect x="${x}" y="350" width="${chipWidth}" height="28" rx="6" class="chip-bg" />
       <text x="${x + 12}" y="369" class="chip">+ ${escapeXml(label)}</text>
     </g>`;
@@ -221,8 +226,8 @@ function renderReportLink(href: string | undefined): string {
   }
 
   return `
-  <a href="${escapeXml(safeHref)}" target="_top" aria-label="Open the inspectable Buildmarks evidence report">
-    <text x="724" y="390" class="link-text">View evidence</text>
+  <a href="${escapeXml(safeHref)}" target="_top" aria-label="Open the Buildmarks report">
+    <text x="724" y="390" class="link-text">View report</text>
   </a>`;
 }
 
@@ -332,7 +337,7 @@ function renderStyles(): string {
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
     .title { fill: var(--text); font: 750 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .subtitle, .footer, .section-label { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .subtitle, .footer, .section-label, .metric-note { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .name { fill: var(--text); font: 750 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .overall { fill: var(--warning); font: 800 44px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -362,24 +367,61 @@ function renderStyles(): string {
 
 function buildDescription(report: UserSignalReport, overall: number): string {
   const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
+  const signalCount = countProfileSignals(report);
   const scores = signalDimensions
     .filter((dimension) => !unavailableDimensions.has(dimension))
     .map((dimension) => `${dimensionLabels[dimension]} ${safeScore(report.dimensions[dimension])} out of 100`)
     .join(", ");
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
-    return `Overall signal ${overall} out of 100. ${scores}. Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}. Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
   }
 
-  return `Overall signal ${overall} out of 100. ${scores}. Public GitHub data only; not a developer ranking.`;
+  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
 }
 
 function buildRepositoryDescription(report: RepoSignal, overall: number): string {
+  const signalCount = countRepositorySignals(report);
   const scores = signalDimensions
     .map((dimension) => `${dimensionLabels[dimension]} ${safeScore(report.dimensions[dimension].score)} out of 100`)
     .join(", ");
 
-  return `Repository signal for ${report.owner}/${report.name}: ${overall} out of 100. ${scores}. Public GitHub data only; not a developer ranking.`;
+  return `Repository signal for ${report.owner}/${report.name}: ${signalCount} signals found. Overall signal ${overall} out of 100 is available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
+}
+
+function countProfileSignals(report: UserSignalReport): number {
+  const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
+  const keys = new Set<string>();
+
+  report.topRepos.forEach((repository) => {
+    signalDimensions.forEach((dimension) => {
+      if (unavailableDimensions.has(dimension)) {
+        return;
+      }
+
+      repository.dimensions[dimension].evidence.forEach((item) => {
+        if (item.level === "positive") {
+          keys.add(`${item.source}:${item.label}`);
+        }
+      });
+    });
+  });
+
+  return keys.size;
+}
+
+function countRepositorySignals(report: RepoSignal): number {
+  const keys = new Set<string>();
+
+  signalDimensions.forEach((dimension) => {
+    report.dimensions[dimension].evidence.forEach((item) => {
+      if (item.level === "positive") {
+        keys.add(`${report.owner}/${report.name}:${item.source}:${item.label}`);
+      }
+    });
+  });
+
+  return keys.size;
 }
 
 function escapeXml(value: string): string {

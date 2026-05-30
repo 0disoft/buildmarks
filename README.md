@@ -21,7 +21,7 @@ Just public signals for maintainability, completeness, shipping evidence, collab
 ```md
 ![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
 
-[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)
+[View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)
 ```
 
 3. Run the workflow once from the GitHub Actions `workflow_dispatch` button.
@@ -47,7 +47,7 @@ The intended license is 0BSD so the scoring rules, renderer, and self-host path 
 - Generate SVG cards that can be embedded in GitHub profile READMEs.
 - Explain public engineering signals instead of producing vanity stats.
 - Keep scoring rules transparent and inspectable.
-- Return JSON reports with the same evidence shown in cards.
+- Return JSON reports with the same signals summarized in cards.
 - Provide a self-hostable core before any hosted service layer.
 - Define a safe opt-in private-local mode for owners who want to include private repository signals without changing the public-only default.
 
@@ -72,10 +72,10 @@ project completeness
 shipping evidence
 collaboration traces
 consistency
-external validation with strict caps
+public adoption with strict caps
 ```
 
-Examples of evidence:
+Examples of signals:
 
 - README with installation or usage guidance
 - LICENSE file
@@ -96,7 +96,7 @@ Examples of evidence:
 - One popular repository must not dominate the whole profile.
 - Low public activity must never produce a harsh personal label.
 - Every score must show evidence and limitations.
-- Every card must clearly state that it uses public data only.
+- Generated cards and reports must clearly disclose the data scope.
 
 ## Planned Surfaces
 
@@ -206,7 +206,7 @@ Buildmarks does not need a hosted backend for the first useful workflow. A profi
 
 See [examples/profile-readme.md](examples/profile-readme.md) and [examples/profile-readme-workflow.yml](examples/profile-readme-workflow.yml).
 
-The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile. The generated SVG includes a `View evidence` link to the checked-in HTML report.
+The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile. The generated SVG includes a `View report` link to the checked-in HTML report.
 
 The composite action only generates artifacts. The caller workflow owns checkout, `contents: write` permission, commit, and push behavior. The example keeps that boundary explicit so profile repositories can adapt branch protection, commit messages, or review policy without Buildmarks hiding those decisions.
 

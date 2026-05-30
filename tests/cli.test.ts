@@ -27,6 +27,8 @@ describe("render-card CLI", () => {
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks Profile · Public Signals");
+    expect(svg).toContain("Signals Found");
+    expect(svg).toContain("Found Signals");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
@@ -41,7 +43,7 @@ describe("render-card CLI", () => {
 
     expect(result.ok).toBe(true);
     expect(svg).toContain("<a href=\"./report/buildmarks-report.html\"");
-    expect(svg).toContain("View evidence");
+    expect(svg).toContain("View report");
   });
 
   test("writes a fallback SVG when the input JSON is invalid", async () => {
@@ -91,6 +93,7 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks Profile · Public Signals");
+    expect(svg).toContain("Signals Found");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
@@ -106,7 +109,7 @@ describe("render-github-card CLI", () => {
 
     expect(result.ok).toBe(true);
     expect(svg).toContain("<a href=\"./buildmarks-report/buildmarks-report.html\"");
-    expect(svg).toContain("View evidence");
+    expect(svg).toContain("View report");
   });
 
   test("writes a fallback SVG when GitHub collection fails", async () => {
@@ -139,6 +142,7 @@ describe("render-gaps-card CLI", () => {
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("What's Missing");
     expect(svg).toContain("Buildmarks Gaps · Public Signals");
+    expect(svg).toContain("Missing public GitHub signals");
   });
 });
 
@@ -155,6 +159,7 @@ describe("render-repo-card CLI", () => {
     expect(svg).toContain("Repository Signal Card");
     expect(svg).toContain("example-builder/usable-toolkit");
     expect(svg).toContain("Buildmarks Repo · Public Signals");
+    expect(svg).toContain("Signals Found");
   });
 
   test("writes a fallback SVG when the requested repository is missing", async () => {

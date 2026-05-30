@@ -132,7 +132,7 @@ describe("profile README workflow example", () => {
       expect(document).toContain("assets/buildmarks-report/buildmarks-report.html");
       expect(document).toContain("assets/buildmarks-report/buildmarks-report.json");
       expect(document).toContain("![Buildmarks public GitHub signal card](./assets/buildmarks.svg)");
-      expect(document).toContain("[View the Buildmarks evidence report](./assets/buildmarks-report/buildmarks-report.html)");
+      expect(document).toContain("[View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)");
     }
   });
 
