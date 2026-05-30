@@ -81,7 +81,7 @@
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
     .title { fill: var(--text); font: 750 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .subtitle, .footer, .section-label, .metric-note { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .name { fill: var(--text); font: 750 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .overall { fill: var(--warning); font: 800 44px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -114,48 +114,57 @@
   <text x="36" y="80" class="subtitle">Repository GitHub signals</text>
   <text x="36" y="112" class="name">example-builder/usable-toolkit</text>
   <text x="36" y="136" class="type">Repository Signal Card</text>
-  <text x="604" y="72" class="subtitle">Signals Found</text>
-  <text x="604" y="122" class="overall">21</text>
-  <text x="690" y="122" class="overall-unit">found</text>
-  <text x="604" y="142" class="metric-note">repo checked</text>
+  <text x="604" y="72" class="subtitle">Project Care</text>
+  <text x="604" y="122" class="overall">94</text>
+  <text x="690" y="122" class="overall-unit">/100</text>
+  <text x="604" y="142" class="metric-note">21 signals found</text>
   <g aria-label="Repository dimension scores out of 100">
 
     <g role="img" aria-label="Maintainability: 95 points out of 100">
-      <text x="36" y="158" class="label">Maintainability</text>
-      <text x="268" y="158" class="score">95/100</text>
-      <rect x="324" y="147" width="238" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="147" width="226" height="10" rx="5" class="bar bar-strong" role="progressbar" aria-label="Maintainability score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="95" />
+      <text x="36" y="156" class="label">Maintainability</text>
+      <text x="268" y="156" class="score">95/100</text>
+      <rect x="324" y="147" width="238" height="5" rx="3" class="track" aria-hidden="true" />
+      <rect x="324" y="147" width="226" height="5" rx="3" class="bar bar-strong" role="progressbar" aria-label="Maintainability score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="95" />
     </g>
     <g role="img" aria-label="Project Completeness: 100 points out of 100">
       <text x="36" y="185" class="label">Project Completeness</text>
       <text x="268" y="185" class="score">100/100</text>
-      <rect x="324" y="174" width="238" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="174" width="238" height="10" rx="5" class="bar bar-strong" role="progressbar" aria-label="Project Completeness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
+      <rect x="324" y="176" width="238" height="5" rx="3" class="track" aria-hidden="true" />
+      <rect x="324" y="176" width="238" height="5" rx="3" class="bar bar-strong" role="progressbar" aria-label="Project Completeness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
     <g role="img" aria-label="Collaboration: 90 points out of 100">
-      <text x="36" y="212" class="label">Collaboration</text>
-      <text x="268" y="212" class="score">90/100</text>
-      <rect x="324" y="201" width="238" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="201" width="214" height="10" rx="5" class="bar bar-strong" role="progressbar" aria-label="Collaboration score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="90" />
+      <text x="36" y="214" class="label">Collaboration</text>
+      <text x="268" y="214" class="score">90/100</text>
+      <rect x="324" y="205" width="238" height="5" rx="3" class="track" aria-hidden="true" />
+      <rect x="324" y="205" width="214" height="5" rx="3" class="bar bar-strong" role="progressbar" aria-label="Collaboration score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="90" />
     </g>
     <g role="img" aria-label="Shipping Evidence: 100 points out of 100">
-      <text x="36" y="239" class="label">Shipping Evidence</text>
-      <text x="268" y="239" class="score">100/100</text>
-      <rect x="324" y="228" width="238" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="228" width="238" height="10" rx="5" class="bar bar-strong" role="progressbar" aria-label="Shipping Evidence score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
+      <text x="36" y="243" class="label">Shipping Evidence</text>
+      <text x="268" y="243" class="score">100/100</text>
+      <rect x="324" y="234" width="238" height="5" rx="3" class="track" aria-hidden="true" />
+      <rect x="324" y="234" width="238" height="5" rx="3" class="bar bar-strong" role="progressbar" aria-label="Shipping Evidence score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
     <g role="img" aria-label="Consistency: 100 points out of 100">
-      <text x="36" y="266" class="label">Consistency</text>
-      <text x="268" y="266" class="score">100/100</text>
-      <rect x="324" y="255" width="238" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="255" width="238" height="10" rx="5" class="bar bar-strong" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
+      <text x="36" y="272" class="label">Consistency</text>
+      <text x="268" y="272" class="score">100/100</text>
+      <rect x="324" y="263" width="238" height="5" rx="3" class="track" aria-hidden="true" />
+      <rect x="324" y="263" width="238" height="5" rx="3" class="bar bar-strong" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
     <g role="img" aria-label="Public Adoption: 69 points out of 100">
-      <text x="36" y="293" class="label">Public Adoption</text>
-      <text x="268" y="293" class="score">69/100</text>
-      <rect x="324" y="282" width="238" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="282" width="164" height="10" rx="5" class="bar bar-middle" role="progressbar" aria-label="Public Adoption score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="69" />
+      <text x="36" y="301" class="label">Public Adoption</text>
+      <text x="268" y="301" class="score">69/100</text>
+      <rect x="324" y="292" width="238" height="5" rx="3" class="track" aria-hidden="true" />
+      <rect x="324" y="292" width="164" height="5" rx="3" class="bar bar-middle" role="progressbar" aria-label="Public Adoption score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="69" />
     </g>
+  </g>
+
+  <g aria-label="Score color legend">
+    <rect x="324" y="312" width="28" height="5" rx="3" class="bar bar-strong" />
+    <text x="358" y="318" class="legend">75+</text>
+    <rect x="396" y="312" width="28" height="5" rx="3" class="bar bar-middle" />
+    <text x="430" y="318" class="legend">50-74</text>
+    <rect x="478" y="312" width="28" height="5" rx="3" class="bar bar-low" />
+    <text x="512" y="318" class="legend">0-49</text>
   </g>
   <text x="36" y="338" class="section-label">Found Signals</text>
   <g aria-label="Top public repository signals">

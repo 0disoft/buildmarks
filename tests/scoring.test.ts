@@ -94,6 +94,45 @@ describe("profile scoring", () => {
     );
   });
 
+  test("treats public collaboration as context for independent-builder profiles", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const report = scoreUserProfile(
+      {
+        username: "solo-builder",
+        repositories: [
+          {
+            ...sourceRepository,
+            hasContributing: false,
+            hasCodeOfConduct: false,
+            hasReleases: false,
+            pushedAt: "2025-01-01T00:00:00.000Z",
+            issueResponseCount: 0,
+            pullRequestReviewCount: 0,
+            externalContributorCount: 0
+          }
+        ]
+      },
+      { now }
+    );
+    const scoredDimensions = [
+      report.dimensions.maintainability,
+      report.dimensions.completeness,
+      report.dimensions.shipping,
+      report.dimensions.consistency,
+      report.dimensions.externalValidation
+    ];
+    const expectedOverall = Math.round(
+      scoredDimensions.reduce((total, score) => total + score, 0) / scoredDimensions.length
+    );
+
+    expect(report.signalType).toBe("Independent Builder");
+    expect(report.dimensions.collaboration).toBeLessThan(40);
+    expect(report.overall).toBe(expectedOverall);
+    expect(report.limitations).toContain(
+      "Public collaboration is treated as context for independent-builder profiles."
+    );
+  });
+
   test("finds public signal gaps without treating them as a ranking", () => {
     const report = analyzeSignalGaps(fixture as ProfileInput, { now });
 

@@ -27,7 +27,7 @@ describe("render-card CLI", () => {
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks Profile · Public Signals");
-    expect(svg).toContain("Signals Found");
+    expect(svg).toContain("Project Care");
     expect(svg).toContain("Found Signals");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
@@ -93,7 +93,7 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks Profile · Public Signals");
-    expect(svg).toContain("Signals Found");
+    expect(svg).toContain("Project Care");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
@@ -159,7 +159,7 @@ describe("render-repo-card CLI", () => {
     expect(svg).toContain("Repository Signal Card");
     expect(svg).toContain("example-builder/usable-toolkit");
     expect(svg).toContain("Buildmarks Repo · Public Signals");
-    expect(svg).toContain("Signals Found");
+    expect(svg).toContain("Project Care");
   });
 
   test("writes a fallback SVG when the requested repository is missing", async () => {

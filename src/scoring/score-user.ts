@@ -27,12 +27,16 @@ export function scoreUserProfile(
     .slice(0, MAX_REPOSITORIES);
 
   const dimensions = averageDimensions(topRepos);
+  const signalType = classifySignalType(dimensions);
   const overallDimensions = includesPrivateSignals
     ? signalDimensions.filter((dimension) => dimension !== "externalValidation")
     : signalDimensions;
+  const contextualOverallDimensions = signalType === "Independent Builder"
+    ? overallDimensions.filter((dimension) => dimension !== "collaboration")
+    : overallDimensions;
   const overall = Math.round(
-    overallDimensions.reduce((total, dimension) => total + dimensions[dimension], 0) /
-      overallDimensions.length
+    contextualOverallDimensions.reduce((total, dimension) => total + dimensions[dimension], 0) /
+      contextualOverallDimensions.length
   );
 
   return {
@@ -41,7 +45,7 @@ export function scoreUserProfile(
     ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
     ...(includesPrivateSignals ? { unavailableDimensions: ["externalValidation" as const] } : {}),
     overall,
-    signalType: classifySignalType(dimensions),
+    signalType,
     dimensions,
     topRepos,
     evidence: collectProfileEvidence(topRepos),
@@ -49,7 +53,8 @@ export function scoreUserProfile(
       input.repositories.length,
       eligibleRepositories.length,
       topRepos.length,
-      includesPrivateSignals
+      includesPrivateSignals,
+      signalType
     )
   };
 }
@@ -91,7 +96,13 @@ function collectProfileEvidence(repositories: readonly RepoSignal[]): Evidence[]
   return repositories.flatMap((repository) => repository.evidence).slice(0, 6);
 }
 
-function buildLimitations(total: number, eligible: number, scored: number, includesPrivateSignals: boolean): string[] {
+function buildLimitations(
+  total: number,
+  eligible: number,
+  scored: number,
+  includesPrivateSignals: boolean,
+  signalType: string
+): string[] {
   const limitations = [
     includesPrivateSignals
       ? "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
@@ -104,6 +115,10 @@ function buildLimitations(total: number, eligible: number, scored: number, inclu
 
   if (includesPrivateSignals) {
     limitations.push("Public adoption is shown as N/A because private repository adoption is not publicly verifiable.");
+  }
+
+  if (signalType === "Independent Builder") {
+    limitations.push("Public collaboration is treated as context for independent-builder profiles.");
   }
 
   if (total !== eligible) {

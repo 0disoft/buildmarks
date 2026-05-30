@@ -15,8 +15,9 @@ export interface RenderCardOptions {
 const cardWidth = 760;
 const cardHeight = 420;
 const barMaxWidth = 238;
-const rowStartY = 158;
-const rowGap = 27;
+const barHeight = 5;
+const rowStartY = 156;
+const rowGap = 29;
 const chipWidth = 208;
 const chipGap = 16;
 
@@ -33,6 +34,7 @@ export function renderUserSignalCard(
   const overall = safeScore(report.overall);
   const signalCount = countProfileSignals(report);
   const repoCount = report.topRepos.length;
+  const context = buildProfileCardContext(report);
   const disclosure = report.signalVisibility;
   const signalScopeLabel = disclosure?.cardLabel ?? "Public GitHub signals";
   const subtitle = disclosure?.privateRepositoriesIncluded === true
@@ -51,7 +53,9 @@ export function renderUserSignalCard(
       dimension,
       safeScore(report.dimensions[dimension]),
       rowStartY + index * rowGap,
-      unavailableDimensions.has(dimension)
+      context.contextualDimensions.has(dimension),
+      context.rowLabels[dimension],
+      context.rowValues[dimension]
     )
   );
   const chips = evidence.map((item, index) => renderEvidenceChip(fitText(item.label, 28), index));
@@ -70,13 +74,14 @@ export function renderUserSignalCard(
   <text x="36" y="80" class="subtitle">${escapeXml(subtitle)}</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
   <text x="36" y="136" class="type">${escapeXml(`${signalScopeLabel} · ${signalType}`)}</text>
-  <text x="604" y="72" class="subtitle">Signals Found</text>
-  <text x="604" y="122" class="overall">${signalCount}</text>
-  <text x="690" y="122" class="overall-unit">found</text>
-  <text x="604" y="142" class="metric-note">${repoCount} repos checked</text>
+  <text x="604" y="72" class="subtitle">Project Care</text>
+  <text x="604" y="122" class="overall">${overall}</text>
+  <text x="690" y="122" class="overall-unit">/100</text>
+  <text x="604" y="142" class="metric-note">${signalCount} signals · ${repoCount} repos checked</text>
   <g aria-label="Dimension scores out of 100">
   ${rows.join("")}
   </g>
+  ${renderLegend(318)}
   <text x="36" y="338" class="section-label">Found Signals</text>
   <g aria-label="${escapeXml(signalsLabel)}">
   ${chips.join("")}
@@ -165,13 +170,14 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <text x="36" y="80" class="subtitle">Repository GitHub signals</text>
   <text x="36" y="112" class="name">${escapeXml(repoName)}</text>
   <text x="36" y="136" class="type">Repository Signal Card</text>
-  <text x="604" y="72" class="subtitle">Signals Found</text>
-  <text x="604" y="122" class="overall">${signalCount}</text>
-  <text x="690" y="122" class="overall-unit">found</text>
-  <text x="604" y="142" class="metric-note">repo checked</text>
+  <text x="604" y="72" class="subtitle">Project Care</text>
+  <text x="604" y="122" class="overall">${overall}</text>
+  <text x="690" y="122" class="overall-unit">/100</text>
+  <text x="604" y="142" class="metric-note">${signalCount} signals found</text>
   <g aria-label="Repository dimension scores out of 100">
   ${rows.join("")}
   </g>
+  ${renderLegend(318)}
   <text x="36" y="338" class="section-label">Found Signals</text>
   <g aria-label="Top public repository signals">
   ${chips.join("")}
@@ -184,19 +190,25 @@ function renderDimensionRow(
   dimension: SignalDimension,
   score: number,
   labelY: number,
-  unavailable = false
+  unavailable = false,
+  labelOverride?: string,
+  unavailableText = "N/A"
 ): string {
   const width = Math.max(0, Math.min(barMaxWidth, Math.round(score / 100 * barMaxWidth)));
-  const label = dimensionLabels[dimension];
+  const label = labelOverride ?? dimensionLabels[dimension];
   const tone = score >= 75 ? "strong" : score >= 50 ? "middle" : "low";
-  const barY = labelY - 11;
+  const barY = labelY - 9;
 
   if (unavailable) {
+    const ariaLabel = unavailableText === "N/A"
+      ? `${label}: not available for this card`
+      : `${label}: ${unavailableText}`;
+
     return `
-    <g role="img" aria-label="${escapeXml(`${label}: not available for this card`)}">
+    <g role="img" aria-label="${escapeXml(ariaLabel)}">
       <text x="36" y="${labelY}" class="label">${escapeXml(label)}</text>
-      <text x="268" y="${labelY}" class="score">N/A</text>
-      <rect x="324" y="${barY}" width="${barMaxWidth}" height="10" rx="5" class="track" aria-hidden="true" />
+      <text x="268" y="${labelY}" class="score">${escapeXml(unavailableText)}</text>
+      <rect x="324" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
     </g>`;
   }
 
@@ -204,9 +216,21 @@ function renderDimensionRow(
     <g role="img" aria-label="${escapeXml(`${label}: ${score} points out of 100`)}">
       <text x="36" y="${labelY}" class="label">${escapeXml(label)}</text>
       <text x="268" y="${labelY}" class="score">${score}/100</text>
-      <rect x="324" y="${barY}" width="${barMaxWidth}" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="${barY}" width="${width}" height="10" rx="5" class="bar bar-${tone}" role="progressbar" aria-label="${escapeXml(label)} score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}" />
+      <rect x="324" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
+      <rect x="324" y="${barY}" width="${width}" height="${barHeight}" rx="3" class="bar bar-${tone}" role="progressbar" aria-label="${escapeXml(label)} score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}" />
     </g>`;
+}
+
+function renderLegend(y: number): string {
+  return `
+  <g aria-label="Score color legend">
+    <rect x="324" y="${y - 6}" width="28" height="${barHeight}" rx="3" class="bar bar-strong" />
+    <text x="358" y="${y}" class="legend">75+</text>
+    <rect x="396" y="${y - 6}" width="28" height="${barHeight}" rx="3" class="bar bar-middle" />
+    <text x="430" y="${y}" class="legend">50-74</text>
+    <rect x="478" y="${y - 6}" width="28" height="${barHeight}" rx="3" class="bar bar-low" />
+    <text x="512" y="${y}" class="legend">0-49</text>
+  </g>`;
 }
 
 function renderEvidenceChip(label: string, index: number): string {
@@ -337,7 +361,7 @@ function renderStyles(): string {
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
     .title { fill: var(--text); font: 750 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .subtitle, .footer, .section-label, .metric-note { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .name { fill: var(--text); font: 750 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .overall { fill: var(--warning); font: 800 44px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -366,18 +390,41 @@ function renderStyles(): string {
 }
 
 function buildDescription(report: UserSignalReport, overall: number): string {
-  const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
+  const context = buildProfileCardContext(report);
   const signalCount = countProfileSignals(report);
   const scores = signalDimensions
-    .filter((dimension) => !unavailableDimensions.has(dimension))
+    .filter((dimension) => !context.contextualDimensions.has(dimension))
     .map((dimension) => `${dimensionLabels[dimension]} ${safeScore(report.dimensions[dimension])} out of 100`)
     .join(", ");
+  const collaborationContext = context.contextualDimensions.has("collaboration")
+    ? " Collaboration is shown as solo context on the card."
+    : "";
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
-    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}. Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}.${collaborationContext} Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
   }
 
-  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
+  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}.${collaborationContext} Public GitHub data only; not a developer ranking.`;
+}
+
+type ProfileCardContext = {
+  contextualDimensions: Set<SignalDimension>;
+  rowLabels: Partial<Record<SignalDimension, string>>;
+  rowValues: Partial<Record<SignalDimension, string>>;
+};
+
+function buildProfileCardContext(report: UserSignalReport): ProfileCardContext {
+  const contextualDimensions = new Set(report.unavailableDimensions ?? []);
+  const rowLabels: Partial<Record<SignalDimension, string>> = {};
+  const rowValues: Partial<Record<SignalDimension, string>> = {};
+
+  if (report.signalType === "Independent Builder" && safeScore(report.dimensions.collaboration) < 40) {
+    contextualDimensions.add("collaboration");
+    rowLabels.collaboration = "Collaboration Context";
+    rowValues.collaboration = "solo";
+  }
+
+  return { contextualDimensions, rowLabels, rowValues };
 }
 
 function buildRepositoryDescription(report: RepoSignal, overall: number): string {

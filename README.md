@@ -75,6 +75,8 @@ consistency
 public adoption with strict caps
 ```
 
+For independent-builder profiles, low public collaboration samples are treated as context on the card instead of a front-card penalty. The detailed report still keeps the underlying dimension scores inspectable.
+
 Examples of signals:
 
 - README with installation or usage guidance

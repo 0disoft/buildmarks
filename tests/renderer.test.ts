@@ -29,7 +29,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Public GitHub signals");
     expect(svg).toContain("example &lt;builder&gt;");
     expect(svg).toContain("Buildmarks Profile · Public Signals");
-    expect(svg).toContain("Signals Found");
+    expect(svg).toContain("Project Care");
     expect(svg).toContain("repos checked");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
     expect(svg).toContain("@media (prefers-color-scheme: dark)");
@@ -84,12 +84,29 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Owner-supplied GitHub signals");
     expect(svg).toContain("Public + Private Signals");
     expect(svg).toContain("Buildmarks Profile · Private Included");
-    expect(svg).toContain("Signals Found");
+    expect(svg).toContain("Project Care");
     expect(svg).toContain("Public Adoption");
     expect(svg).toContain(">N/A</text>");
     expect(svg).toContain("Public Adoption: not available for this card");
     expect(svg).toContain("not independently verifiable from public GitHub");
     expect(svg).not.toContain("Public data only · Updated");
+  });
+
+  test("contextualizes low collaboration for independent builders", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard({
+      ...report,
+      signalType: "Independent Builder",
+      dimensions: {
+        ...report.dimensions,
+        collaboration: 7
+      }
+    });
+
+    expect(svg).toContain("Collaboration Context");
+    expect(svg).toContain(">solo</text>");
+    expect(svg).toContain("Collaboration Context: solo");
+    expect(svg).not.toContain("Collaboration: 7 points out of 100");
   });
 
   test("renders a fallback card for failed generation", () => {
@@ -139,7 +156,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Repository Signal Card");
     expect(svg).toContain("example-builder/usable-toolkit");
     expect(svg).toContain("Repository GitHub signals");
-    expect(svg).toContain("Signals Found");
+    expect(svg).toContain("Project Care");
     expect(svg).toContain("Buildmarks Repo · Public Signals");
     expect(svg).toContain("role=\"progressbar\"");
   });
