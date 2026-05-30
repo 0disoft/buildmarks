@@ -114,6 +114,12 @@ These routes are not implemented yet. The current implementation supports local 
 
 `buildmarks.xyz` is a candidate domain for a hosted service or public documentation site. Until the domain is actually owned and deployed, it must be treated as a candidate only.
 
+## Release Readiness
+
+Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact generator. Package and Action metadata point to the GitHub repository at `https://github.com/0disoft/buildmarks` while `buildmarks.xyz` remains candidate-only.
+
+The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
+
 ## Repository Shape
 
 The current implementation starts small:

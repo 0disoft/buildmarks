@@ -3,6 +3,24 @@
   "version": "0.1.0",
   "description": "Public GitHub engineering signal cards for profile READMEs.",
   "license": "0BSD",
+  "keywords": [
+    "github",
+    "profile-readme",
+    "svg",
+    "developer-tools",
+    "oss",
+    "0bsd",
+    "maintenance",
+    "github-actions"
+  ],
+  "homepage": "https://github.com/0disoft/buildmarks",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0disoft/buildmarks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/0disoft/buildmarks/issues"
+  },
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

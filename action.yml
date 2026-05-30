@@ -1,5 +1,8 @@
 name: Buildmarks
 description: Generate static Buildmarks profile README artifacts from public GitHub data.
+branding:
+  icon: activity
+  color: green
 
 inputs:
   username:
