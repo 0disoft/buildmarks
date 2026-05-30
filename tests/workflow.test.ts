@@ -62,9 +62,11 @@ describe("profile README workflow example", () => {
       license?: string;
       repository?: { type?: string; url?: string };
       scripts?: Record<string, string>;
+      version?: string;
     };
 
     expect(metadata.license).toBe("0BSD");
+    expect(metadata.version).toBe("0.1.1");
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -109,7 +111,8 @@ describe("profile README workflow example", () => {
     expect(changelog).toContain("## Unreleased");
     expect(changelog).toContain("## v0.1.0 - 2026-05-30");
     expect(changelog).toContain("First public Buildmarks foundation release");
-    expect(changelog).toContain("npm packaging decision");
+    expect(changelog).toContain("## v0.1.1 - 2026-05-30");
+    expect(changelog).toContain("Published the `buildmarks` npm package as a library package");
     expect(changelog).toContain("0disoft/buildmarks@v0");
     expect(changelog).toContain("no developer ranking");
     expect(readme).toContain("[CHANGELOG.md](CHANGELOG.md)");
@@ -144,16 +147,18 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("The CI workflow is read-only");
   });
 
-  test("documents npm packaging as deferred while preserving dry-run inspection", async () => {
+  test("documents npm publishing while preserving the no-bin CLI boundary", async () => {
     const readme = await readFile("README.md", "utf8");
     const npmPackaging = await readFile("docs/npm-packaging.md", "utf8");
     const combined = [readme, npmPackaging].join("\n");
 
     expect(readme).toContain("[docs/npm-packaging.md](docs/npm-packaging.md)");
-    expect(readme).toContain("Buildmarks is not published to npm in v0");
-    expect(readme).toContain("The package has no `bin` entry yet");
+    expect(readme).toContain("Buildmarks is published to npm as `buildmarks`");
+    expect(readme).toContain("the package has no `bin` entry yet");
     expect(readme).toContain("npm pack --dry-run");
-    expect(npmPackaging).toContain("Do not publish to npm yet");
+    expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
+    expect(npmPackaging).toContain("npm package name: `buildmarks`");
+    expect(npmPackaging).toContain("Current package version: `0.1.1`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");

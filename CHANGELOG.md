@@ -6,11 +6,17 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
-- Document the v0 npm packaging decision and package dry-run contract.
 - Document the real profile README adoption smoke-test path.
 - Add methodology notes for deferred public issue, pull request, and external contributor aggregates.
 - Add a storage-neutral cache contract before any hosted endpoint work.
 - Add committed example SVG assets for profile, repository, and signal gaps cards.
+
+## v0.1.1 - 2026-05-30
+
+- Published the `buildmarks` npm package as a library package.
+- Kept the GitHub Action as the recommended v0 profile README adoption path.
+- Documented that npm has no official `bin` command contract yet.
+- Added npm package dry-run checks to CI.
 
 ## v0.1.0 - 2026-05-30
 

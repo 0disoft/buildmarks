@@ -120,9 +120,9 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`, which points at the latest v0-compatible release.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.1`.
 
-Buildmarks is not published to npm in v0. The package has no `bin` entry yet, so `npm install buildmarks`, `npx buildmarks`, and `bunx buildmarks` are not official adoption paths. The npm packaging decision and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
+Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
 
 ## Repository Shape
 
@@ -151,7 +151,7 @@ The collector operations policy is documented in [docs/github-collector-operatio
 
 Deferred public activity aggregates are documented in [docs/activity-aggregate-methodology.md](docs/activity-aggregate-methodology.md). The storage-neutral cache boundary is documented in [docs/cache-contract.md](docs/cache-contract.md).
 
-The npm packaging decision is documented in [docs/npm-packaging.md](docs/npm-packaging.md). The v0 package can be inspected with `npm pack --dry-run`, but it is not published to npm yet.
+The npm packaging status is documented in [docs/npm-packaging.md](docs/npm-packaging.md). The v0 package can be inspected with `npm pack --dry-run`.
 
 ## Collect from Public GitHub Data
 
