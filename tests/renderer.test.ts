@@ -59,6 +59,30 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("View evidence");
   });
 
+  test("discloses owner-supplied private signals when included", () => {
+    const report = scoreUserProfile(
+      {
+        ...(fixture as ProfileInput),
+        signalVisibility: {
+          scope: "public-and-owner-supplied-private",
+          privateRepositoriesIncluded: true,
+          privateRepositoryNamesRedacted: true,
+          independentlyVerifiable: false,
+          cardLabel: "Public + Private Signals",
+          reportVisibility: "private-local"
+        }
+      },
+      { now }
+    );
+    const svg = renderUserSignalCard(report);
+
+    expect(svg).toContain("Owner-supplied GitHub signals, not a ranking");
+    expect(svg).toContain("Public + Private Signals");
+    expect(svg).toContain("Private repositories included by owner");
+    expect(svg).toContain("not independently verifiable from public GitHub");
+    expect(svg).not.toContain("Public data only · Updated");
+  });
+
   test("renders a fallback card for failed generation", () => {
     const svg = renderFallbackCard("GitHub API limit reached");
 

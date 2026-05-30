@@ -172,6 +172,7 @@ export interface RepoSignal {
 export interface UserSignalReport {
   username: string;
   generatedAt: string;
+  signalVisibility?: SignalVisibilityDisclosure;
   overall: number;
   signalType: string;
   dimensions: Record<SignalDimension, number>;

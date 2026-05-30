@@ -34,12 +34,18 @@ export function scoreUserProfile(
   return {
     username: input.username,
     generatedAt,
+    ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
     overall,
     signalType: classifySignalType(dimensions),
     dimensions,
     topRepos,
     evidence: collectProfileEvidence(topRepos),
-    limitations: buildLimitations(input.repositories.length, eligibleRepositories.length, topRepos.length)
+    limitations: buildLimitations(
+      input.repositories.length,
+      eligibleRepositories.length,
+      topRepos.length,
+      input.signalVisibility?.privateRepositoriesIncluded === true
+    )
   };
 }
 
@@ -80,10 +86,14 @@ function collectProfileEvidence(repositories: readonly RepoSignal[]): Evidence[]
   return repositories.flatMap((repository) => repository.evidence).slice(0, 6);
 }
 
-function buildLimitations(total: number, eligible: number, scored: number): string[] {
+function buildLimitations(total: number, eligible: number, scored: number, includesPrivateSignals: boolean): string[] {
   const limitations = [
-    "Public GitHub data only.",
-    "Private repositories, employer work, code review outside GitHub, and design work are not inferred.",
+    includesPrivateSignals
+      ? "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
+      : "Public GitHub data only.",
+    includesPrivateSignals
+      ? "Employer work, code review outside GitHub, and design work are not inferred."
+      : "Private repositories, employer work, code review outside GitHub, and design work are not inferred.",
     "Raw commit counts, contribution streaks, follower counts, and language percentages are not primary scores."
   ];
 

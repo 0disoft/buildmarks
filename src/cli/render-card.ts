@@ -151,6 +151,11 @@ export function parseProfileInput(value: unknown): ProfileInput {
     profile.generatedAt = record.generatedAt;
   }
 
+  const signalVisibility = parseSignalVisibility(record.signalVisibility);
+  if (signalVisibility !== undefined) {
+    profile.signalVisibility = signalVisibility;
+  }
+
   return profile;
 }
 
@@ -190,7 +195,46 @@ function parseRepositoryInput(value: unknown): RepositoryInput {
     repository.url = record.url;
   }
 
+  if (record.visibility === "public" || record.visibility === "private") {
+    repository.visibility = record.visibility;
+  }
+
+  if (typeof record.redactedName === "boolean") {
+    repository.redactedName = record.redactedName;
+  }
+
   return repository;
+}
+
+function parseSignalVisibility(value: unknown): ProfileInput["signalVisibility"] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "object" || value === null) {
+    throw new Error("signalVisibility must be an object");
+  }
+
+  const record = value as Record<string, unknown>;
+  const scope = record.scope;
+  const reportVisibility = record.reportVisibility;
+
+  if (scope !== "public-only" && scope !== "public-and-owner-supplied-private") {
+    throw new Error("signalVisibility.scope is invalid");
+  }
+
+  if (reportVisibility !== "public-safe" && reportVisibility !== "private-local") {
+    throw new Error("signalVisibility.reportVisibility is invalid");
+  }
+
+  return {
+    scope,
+    privateRepositoriesIncluded: requireBoolean(record, "privateRepositoriesIncluded"),
+    privateRepositoryNamesRedacted: requireBoolean(record, "privateRepositoryNamesRedacted"),
+    independentlyVerifiable: requireBoolean(record, "independentlyVerifiable"),
+    cardLabel: requireString(record, "cardLabel"),
+    reportVisibility
+  };
 }
 
 function requireString(record: Record<string, unknown>, key: string): string {

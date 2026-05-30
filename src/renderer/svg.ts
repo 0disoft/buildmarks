@@ -31,6 +31,17 @@ export function renderUserSignalCard(
   const signalType = fitText(coerceString(report.signalType, "Public Signal Profile"), 42);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
+  const disclosure = report.signalVisibility;
+  const signalScopeLabel = disclosure?.cardLabel ?? "Public GitHub signals";
+  const subtitle = disclosure?.privateRepositoriesIncluded === true
+    ? "Owner-supplied GitHub signals, not a ranking"
+    : "Public GitHub engineering signals, not a ranking";
+  const evidenceLabel = disclosure?.privateRepositoriesIncluded === true
+    ? "Top owner-supplied evidence traces"
+    : "Top public evidence traces";
+  const footerScope = disclosure?.privateRepositoriesIncluded === true
+    ? "Private repositories included by owner"
+    : "Public data only";
   const reportLink = renderReportLink(options.reportHref);
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension]), rowStartY + index * rowGap)
@@ -40,7 +51,7 @@ export function renderUserSignalCard(
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
-  <title id="title">Buildmarks public GitHub signal card for ${escapeXml(usernameRaw)}</title>
+  <title id="title">Buildmarks GitHub signal card for ${escapeXml(usernameRaw)}</title>
   <desc id="desc">${escapeXml(desc)}</desc>
   ${renderDefs()}
   <style>${renderStyles()}</style>
@@ -48,9 +59,9 @@ export function renderUserSignalCard(
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="36" y="80" class="subtitle">Public GitHub engineering signals, not a ranking</text>
+  <text x="36" y="80" class="subtitle">${escapeXml(subtitle)}</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
-  <text x="36" y="136" class="type">${escapeXml(signalType)}</text>
+  <text x="36" y="136" class="type">${escapeXml(`${signalScopeLabel} · ${signalType}`)}</text>
   <text x="604" y="72" class="subtitle">Overall Signal</text>
   <text x="604" y="122" class="overall">${overall}</text>
   <text x="690" y="122" class="overall-unit">/100</text>
@@ -58,10 +69,10 @@ export function renderUserSignalCard(
   ${rows.join("")}
   </g>
   <text x="36" y="338" class="section-label">Evidence</text>
-  <g aria-label="Top public evidence traces">
+  <g aria-label="${escapeXml(evidenceLabel)}">
   ${chips.join("")}
   </g>
-  <text x="36" y="390" class="footer">Not a ranking · Public data only · Updated ${escapeXml(generatedDate)}</text>
+  <text x="36" y="390" class="footer">Not a ranking · ${escapeXml(footerScope)} · Updated ${escapeXml(generatedDate)}</text>
   ${reportLink}
 </svg>`;
 }
@@ -333,6 +344,10 @@ function buildDescription(report: UserSignalReport, overall: number): string {
   const scores = signalDimensions
     .map((dimension) => `${dimensionLabels[dimension]} ${safeScore(report.dimensions[dimension])} out of 100`)
     .join(", ");
+
+  if (report.signalVisibility?.privateRepositoriesIncluded === true) {
+    return `Overall signal ${overall} out of 100. ${scores}. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+  }
 
   return `Overall signal ${overall} out of 100. ${scores}. Public GitHub data only; not a developer ranking.`;
 }
