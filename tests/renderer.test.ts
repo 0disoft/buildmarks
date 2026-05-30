@@ -26,9 +26,10 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("<svg");
     expect(svg).toContain("Buildmarks");
-    expect(svg).toContain("Public GitHub engineering signals");
+    expect(svg).toContain("Public GitHub signals");
     expect(svg).toContain("example &lt;builder&gt;");
-    expect(svg).toContain("Not a ranking");
+    expect(svg).toContain("Buildmarks Profile · Public Signals");
+    expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
     expect(svg).toContain("@media (prefers-color-scheme: dark)");
     expect(svg).toContain("role=\"progressbar\"");
     expect(svg).toContain("Project Completeness:");
@@ -76,9 +77,12 @@ describe("SVG renderer", () => {
     );
     const svg = renderUserSignalCard(report);
 
-    expect(svg).toContain("Owner-supplied GitHub signals, not a ranking");
+    expect(svg).toContain("Owner-supplied GitHub signals");
     expect(svg).toContain("Public + Private Signals");
-    expect(svg).toContain("Private repositories included by owner");
+    expect(svg).toContain("Buildmarks Profile · Private Included");
+    expect(svg).toContain("Public Adoption");
+    expect(svg).toContain(">N/A</text>");
+    expect(svg).toContain("Public Adoption: not available for this card");
     expect(svg).toContain("not independently verifiable from public GitHub");
     expect(svg).not.toContain("Public data only · Updated");
   });
@@ -107,7 +111,7 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("example-builder-with-a-very-long");
     expect(svg).toContain("…");
-    expect(svg).toContain("Updated ");
+    expect(svg).toContain("Buildmarks Profile · Public Signals");
     expect(svg).not.toContain("undefined");
   });
 
@@ -118,7 +122,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("What's Missing");
     expect(svg).toContain("Signal gaps from public GitHub evidence");
     expect(svg).toContain("missing:");
-    expect(svg).toContain("Improvement hints");
+    expect(svg).toContain("Buildmarks Gaps · Public Signals");
     expect(svg).toContain("not a ranking");
   });
 
@@ -129,9 +133,9 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("Repository Signal Card");
     expect(svg).toContain("example-builder/usable-toolkit");
-    expect(svg).toContain("Repository public engineering signals");
+    expect(svg).toContain("Repository GitHub signals");
     expect(svg).toContain("Repo Signal");
-    expect(svg).toContain("Repository signal · Public data only · Not a ranking");
+    expect(svg).toContain("Buildmarks Repo · Public Signals");
     expect(svg).toContain("role=\"progressbar\"");
   });
 });

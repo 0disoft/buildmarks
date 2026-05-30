@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
   <title id="title">Buildmarks repository signal card for example-builder/usable-toolkit</title>
-  <desc id="desc">Repository signal for example-builder/usable-toolkit: 94 out of 100. Maintainability 95 out of 100, Project Completeness 100 out of 100, Collaboration 90 out of 100, Shipping Evidence 100 out of 100, Consistency 100 out of 100, External Validation 69 out of 100. Public GitHub data only; not a developer ranking.</desc>
+  <desc id="desc">Repository signal for example-builder/usable-toolkit: 94 out of 100. Maintainability 95 out of 100, Project Completeness 100 out of 100, Collaboration 90 out of 100, Shipping Evidence 100 out of 100, Consistency 100 out of 100, Public Adoption 69 out of 100. Public GitHub data only; not a developer ranking.</desc>
   <defs>
     <linearGradient id="panelStroke" x1="18" y1="18" x2="742" y2="402" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="stroke-start" />
@@ -111,7 +111,7 @@
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="36" y="80" class="subtitle">Repository public engineering signals</text>
+  <text x="36" y="80" class="subtitle">Repository GitHub signals</text>
   <text x="36" y="112" class="name">example-builder/usable-toolkit</text>
   <text x="36" y="136" class="type">Repository Signal Card</text>
   <text x="604" y="72" class="subtitle">Repo Signal</text>
@@ -149,15 +149,15 @@
       <rect x="324" y="255" width="238" height="10" rx="5" class="track" aria-hidden="true" />
       <rect x="324" y="255" width="238" height="10" rx="5" class="bar bar-strong" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
-    <g role="img" aria-label="External Validation: 69 points out of 100">
-      <text x="36" y="293" class="label">External Validation</text>
+    <g role="img" aria-label="Public Adoption: 69 points out of 100">
+      <text x="36" y="293" class="label">Public Adoption</text>
       <text x="268" y="293" class="score">69/100</text>
       <rect x="324" y="282" width="238" height="10" rx="5" class="track" aria-hidden="true" />
-      <rect x="324" y="282" width="164" height="10" rx="5" class="bar bar-middle" role="progressbar" aria-label="External Validation score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="69" />
+      <rect x="324" y="282" width="164" height="10" rx="5" class="bar bar-middle" role="progressbar" aria-label="Public Adoption score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="69" />
     </g>
   </g>
   <text x="36" y="338" class="section-label">Evidence</text>
-  <g aria-label="Top public repository evidence traces">
+  <g aria-label="Top public repository evidence">
 
     <g role="img" aria-label="Evidence: Test signal found">
       <rect x="36" y="350" width="208" height="28" rx="6" class="chip-bg" />
@@ -172,5 +172,5 @@
       <text x="496" y="369" class="chip">+ Changelog or release notes …</text>
     </g>
   </g>
-  <text x="36" y="390" class="footer">Repository signal · Public data only · Not a ranking</text>
+  <text x="36" y="390" class="footer">Buildmarks Repo · Public Signals</text>
 </svg>

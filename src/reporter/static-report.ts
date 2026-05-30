@@ -152,7 +152,7 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
 
     <section>
       <h2>What's Missing</h2>
-      <p class="muted">Improvement hints, not a score booster checklist.</p>
+      <p class="muted">Improvement hints based on missing public signals.</p>
       <ul>${gaps}</ul>
     </section>
 
@@ -171,6 +171,14 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
 }
 
 function renderDimension(report: UserSignalReport, dimension: SignalDimension): string {
+  if (report.unavailableDimensions?.includes(dimension) === true) {
+    return `<article class="item">
+    <h3>${escapeHtml(dimensionLabels[dimension])}</h3>
+    <p><strong>N/A</strong></p>
+    <p class="muted">Not available for this card.</p>
+  </article>`;
+  }
+
   const score = safeScore(report.dimensions[dimension]);
 
   return `<article class="item">

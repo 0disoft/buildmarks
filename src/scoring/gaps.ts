@@ -34,7 +34,7 @@ function repositorySignalGaps(repository: RepositoryInput): SignalGap[] {
     [!repository.hasCi, "CI workflow"],
     [!repository.hasChangelog, "changelog"],
     [!repository.hasSecurityPolicy, "security policy"]
-  ], "Maintenance signals are easier to trust when tests, automation, and change history are visible.");
+  ], "Tests, automation, and change history improve maintenance confidence.");
 
   pushGap(gaps, repository, "completeness", [
     [!repository.hasReadme, "README"],
@@ -47,14 +47,14 @@ function repositorySignalGaps(repository: RepositoryInput): SignalGap[] {
     [!repository.hasReleases, "release or tag"],
     [!repository.hasPackageArtifact, "package manifest"],
     [!repository.hasDemoOrDocs, "docs or demo"]
-  ], "Shipping signals show that the repository can be used beyond source browsing.");
+  ], "Shipping signals show the project is usable, not just browsable.");
 
   pushGap(gaps, repository, "collaboration", [
     [!repository.hasContributing, "contribution guide"],
     [!repository.hasCodeOfConduct, "code of conduct"],
     [repository.issueResponseCount === 0, "public issue response trace"],
     [repository.pullRequestReviewCount === 0, "public review trace"]
-  ], "Collaboration signals make it easier for outsiders to participate safely and predictably.");
+  ], "Collaboration signals help external contributors participate.");
 
   return gaps;
 }

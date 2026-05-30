@@ -31,7 +31,7 @@ export function scoreRepository(
       part(repository.hasReadme, 3, "README found", "file", repository.name),
       part(repository.hasUsageGuide, 4, "README includes usage guidance", "file", repository.name),
       part(repository.hasLicense, 2, "License file found", "file", repository.name),
-      part(repository.hasReleases, 3, "Release or tag trace found", "release", repository.name),
+      part(repository.hasReleases, 3, "Release or tag found", "release", repository.name),
       part(repository.hasDemoOrDocs, 3, "Demo or documentation link found", "repository", repository.name),
       part(repository.hasPackageArtifact, 3, "Package or installable artifact found", "repository", repository.name)
     ]),
@@ -42,28 +42,28 @@ export function scoreRepository(
       part(repository.hasContributing, 2, "Contribution guide found", "file", repository.name),
       part(repository.hasCodeOfConduct, 1, "Code of conduct found", "file", repository.name),
       part(repository.hasSecurityPolicy, 1, "Security policy found", "file", repository.name),
-      part(wasRecentlyPushed(repository.pushedAt, now), 3, "Recent maintenance trace found", "repository", repository.name)
+      part(wasRecentlyPushed(repository.pushedAt, now), 3, "Recent maintenance activity", "repository", repository.name)
     ]),
     collaboration: scoreBooleanDimension("collaboration", [
-      part(repository.pullRequestReviewCount > 0, 4, "Public PR review trace found", "pull_request", repository.name),
-      part(repository.issueResponseCount > 0, 4, "Public issue response trace found", "issue", repository.name),
-      part(repository.hasContributing, 3, "Contribution guide supports collaboration", "file", repository.name),
-      part(repository.hasCodeOfConduct, 2, "Code of conduct supports collaboration", "file", repository.name),
-      part(repository.externalContributorCount > 0, 4, "External contributor trace found", "repository", repository.name),
-      part(repository.pullRequestReviewCount >= 3, 3, "Multiple public review traces found", "pull_request", repository.name)
+      part(repository.pullRequestReviewCount > 0, 4, "Public PR review activity", "pull_request", repository.name),
+      part(repository.issueResponseCount > 0, 4, "Public issue response activity", "issue", repository.name),
+      part(repository.hasContributing, 3, "Contribution guide found", "file", repository.name),
+      part(repository.hasCodeOfConduct, 2, "Code of conduct found", "file", repository.name),
+      part(repository.externalContributorCount > 0, 4, "External contributor activity", "repository", repository.name),
+      part(repository.pullRequestReviewCount >= 3, 3, "Multiple public reviews found", "pull_request", repository.name)
     ]),
     shipping: scoreBooleanDimension("shipping", [
-      part(repository.hasReleases, 4, "Release or tag trace found", "release", repository.name),
+      part(repository.hasReleases, 4, "Release or tag found", "release", repository.name),
       part(repository.hasPackageArtifact, 3, "Package or installable artifact found", "repository", repository.name),
       part(repository.hasDemoOrDocs, 3, "Demo or documentation link found", "repository", repository.name),
-      part(wasRecentlyPushed(repository.pushedAt, now), 2, "Recent shipping or maintenance trace found", "repository", repository.name),
+      part(wasRecentlyPushed(repository.pushedAt, now), 2, "Recent shipping or maintenance activity", "repository", repository.name),
       part(repository.hasSecurityPolicy, 1, "Security policy found", "file", repository.name)
     ]),
     consistency: scoreBooleanDimension("consistency", [
-      part(hasLivedAtLeast(repository.createdAt, now, RECENT_DAYS), 4, "Repository has a longer-lived public history", "repository", repository.name),
+      part(hasLivedAtLeast(repository.createdAt, now, RECENT_DAYS), 4, "Public history over 180 days", "repository", repository.name),
       part(wasRecentlyPushed(repository.pushedAt, now), 3, "Repository has recent public activity", "repository", repository.name),
-      part(repository.hasChangelog, 1, "Changelog trace found", "file", repository.name),
-      part(repository.hasReleases, 2, "Release trace found", "release", repository.name)
+      part(repository.hasChangelog, 1, "Changelog found", "file", repository.name),
+      part(repository.hasReleases, 2, "Release found", "release", repository.name)
     ]),
     externalValidation: scoreExternalValidation(repository)
   } satisfies Record<SignalDimension, DimensionScore>;
@@ -128,7 +128,7 @@ function scoreExternalValidation(repository: RepositoryInput): DimensionScore {
     evidence: [
       createEvidence(
         "neutral",
-        "Stars, forks, and public participation are capped weak signals",
+        "Stars, forks, and public participation use strict caps",
         "repository",
         repository.name
       )

@@ -8,7 +8,7 @@ Buildmarks should be useful because it refuses easy vanity metrics.
 2. Contribution streak is not scored.
 3. Follower count is not scored.
 4. Language percentages are not treated as engineering quality.
-5. Stars and forks are capped weak adoption signals.
+5. Stars and forks are adoption signals with strict caps.
 6. Forked repositories are excluded by default.
 7. Archived repositories are excluded by default.
 8. One popular repository must not dominate the whole profile.
@@ -25,9 +25,9 @@ Use labels such as:
 - Maintainer-Builder
 - Builder
 - Collaborator
-- Quiet Professional
-- Popular Project Owner
-- Public Signal Explorer
+- Independent Builder
+- High-Adoption Project
+- General Signal Profile
 
 Avoid labels such as:
 

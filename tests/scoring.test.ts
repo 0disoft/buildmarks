@@ -61,6 +61,39 @@ describe("profile scoring", () => {
     expect(report.dimensions.externalValidation).toBeLessThanOrEqual(100);
   });
 
+  test("does not score public adoption against private-local profiles", () => {
+    const report = scoreUserProfile(
+      {
+        ...(fixture as ProfileInput),
+        signalVisibility: {
+          scope: "public-and-owner-supplied-private",
+          privateRepositoriesIncluded: true,
+          privateRepositoryNamesRedacted: true,
+          independentlyVerifiable: false,
+          cardLabel: "Public + Private Signals",
+          reportVisibility: "private-local"
+        }
+      },
+      { now }
+    );
+    const scoredDimensions = [
+      report.dimensions.maintainability,
+      report.dimensions.completeness,
+      report.dimensions.collaboration,
+      report.dimensions.shipping,
+      report.dimensions.consistency
+    ];
+    const expectedOverall = Math.round(
+      scoredDimensions.reduce((total, score) => total + score, 0) / scoredDimensions.length
+    );
+
+    expect(report.unavailableDimensions).toContain("externalValidation");
+    expect(report.overall).toBe(expectedOverall);
+    expect(report.limitations).toContain(
+      "Public adoption is shown as N/A because private repository adoption is not publicly verifiable."
+    );
+  });
+
   test("finds public signal gaps without treating them as a ranking", () => {
     const report = analyzeSignalGaps(fixture as ProfileInput, { now });
 

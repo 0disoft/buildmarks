@@ -26,8 +26,8 @@ describe("render-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Not a ranking");
-    expect(svg).toContain("Public data only");
+    expect(svg).toContain("Buildmarks Profile · Public Signals");
+    expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
   test("renders a local profile card with an inspectable report link", async () => {
@@ -90,8 +90,8 @@ describe("render-github-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Not a ranking");
-    expect(svg).toContain("Public data only");
+    expect(svg).toContain("Buildmarks Profile · Public Signals");
+    expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
   test("renders a GitHub profile card with an inspectable report link", async () => {
@@ -138,7 +138,7 @@ describe("render-gaps-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("What's Missing");
-    expect(svg).toContain("Improvement hints");
+    expect(svg).toContain("Buildmarks Gaps · Public Signals");
   });
 });
 
@@ -154,7 +154,7 @@ describe("render-repo-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Repository Signal Card");
     expect(svg).toContain("example-builder/usable-toolkit");
-    expect(svg).toContain("Not a ranking");
+    expect(svg).toContain("Buildmarks Repo · Public Signals");
   });
 
   test("writes a fallback SVG when the requested repository is missing", async () => {

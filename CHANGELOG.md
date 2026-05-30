@@ -10,6 +10,7 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Add an explicit private-local repository signal contract for owner-supplied private evidence.
 - Render private-local cards with `Public + Private Signals` disclosure instead of public-only wording.
+- Show public adoption as `N/A` on private-local cards and exclude it from the overall score.
 - Document the real profile README adoption smoke-test path.
 - Add methodology notes for deferred public issue, pull request, and external contributor aggregates.
 - Add a storage-neutral cache contract before any hosted endpoint work.

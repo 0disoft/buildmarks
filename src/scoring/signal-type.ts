@@ -14,12 +14,12 @@ export function classifySignalType(dimensions: Record<SignalDimension, number>):
   }
 
   if (dimensions.externalValidation >= 75) {
-    return "Popular Project Owner";
+    return "High-Adoption Project";
   }
 
   if (dimensions.completeness >= 65 && dimensions.collaboration < 40) {
-    return "Quiet Professional";
+    return "Independent Builder";
   }
 
-  return "Public Signal Explorer";
+  return "General Signal Profile";
 }

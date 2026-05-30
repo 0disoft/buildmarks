@@ -268,7 +268,7 @@ Buildmarks can also render a "What's Missing" card from the same local profile f
 bun run build:gaps-card
 ```
 
-The gaps card is an improvement guide, not a score booster checklist. It only points out missing public repository signals such as tests, CI, licenses, changelogs, releases, or contribution guides.
+The gaps card is an improvement guide based on missing public repository signals such as tests, CI, licenses, changelogs, releases, or contribution guides.
 
 ## Generate a Repository Signal Card
 

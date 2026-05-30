@@ -19,6 +19,7 @@ export function scoreUserProfile(
   options: ScoreRepoOptions = {}
 ): UserSignalReport {
   const generatedAt = input.generatedAt ?? (options.now ?? new Date()).toISOString();
+  const includesPrivateSignals = input.signalVisibility?.privateRepositoriesIncluded === true;
   const eligibleRepositories = input.repositories.filter((repository) => !repository.isFork && !repository.isArchived);
   const topRepos = eligibleRepositories
     .map((repository) => scoreRepository(repository, options))
@@ -26,15 +27,19 @@ export function scoreUserProfile(
     .slice(0, MAX_REPOSITORIES);
 
   const dimensions = averageDimensions(topRepos);
+  const overallDimensions = includesPrivateSignals
+    ? signalDimensions.filter((dimension) => dimension !== "externalValidation")
+    : signalDimensions;
   const overall = Math.round(
-    signalDimensions.reduce((total, dimension) => total + dimensions[dimension], 0) /
-      signalDimensions.length
+    overallDimensions.reduce((total, dimension) => total + dimensions[dimension], 0) /
+      overallDimensions.length
   );
 
   return {
     username: input.username,
     generatedAt,
     ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
+    ...(includesPrivateSignals ? { unavailableDimensions: ["externalValidation" as const] } : {}),
     overall,
     signalType: classifySignalType(dimensions),
     dimensions,
@@ -44,7 +49,7 @@ export function scoreUserProfile(
       input.repositories.length,
       eligibleRepositories.length,
       topRepos.length,
-      input.signalVisibility?.privateRepositoriesIncluded === true
+      includesPrivateSignals
     )
   };
 }
@@ -94,15 +99,19 @@ function buildLimitations(total: number, eligible: number, scored: number, inclu
     includesPrivateSignals
       ? "Employer work, code review outside GitHub, and design work are not inferred."
       : "Private repositories, employer work, code review outside GitHub, and design work are not inferred.",
-    "Raw commit counts, contribution streaks, follower counts, and language percentages are not primary scores."
+    "Raw commit counts, contribution streaks, follower counts, and language percentages are not scored directly."
   ];
+
+  if (includesPrivateSignals) {
+    limitations.push("Public adoption is shown as N/A because private repository adoption is not publicly verifiable.");
+  }
 
   if (total !== eligible) {
     limitations.push("Forked and archived repositories are excluded by default.");
   }
 
   if (eligible > scored) {
-    limitations.push(`Only the strongest ${scored} eligible repositories are summarized in this card.`);
+    limitations.push(`Only the highest-signal ${scored} eligible repositories are summarized in this card.`);
   }
 
   return limitations;

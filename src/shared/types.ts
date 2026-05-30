@@ -15,7 +15,7 @@ export const dimensionLabels: Record<SignalDimension, string> = {
   collaboration: "Collaboration",
   shipping: "Shipping Evidence",
   consistency: "Consistency",
-  externalValidation: "External Validation"
+  externalValidation: "Public Adoption"
 };
 
 export type EvidenceLevel = "positive" | "neutral" | "negative";
@@ -173,6 +173,7 @@ export interface UserSignalReport {
   username: string;
   generatedAt: string;
   signalVisibility?: SignalVisibilityDisclosure;
+  unavailableDimensions?: SignalDimension[];
   overall: number;
   signalType: string;
   dimensions: Record<SignalDimension, number>;

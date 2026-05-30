@@ -34,17 +34,23 @@ export function renderUserSignalCard(
   const disclosure = report.signalVisibility;
   const signalScopeLabel = disclosure?.cardLabel ?? "Public GitHub signals";
   const subtitle = disclosure?.privateRepositoriesIncluded === true
-    ? "Owner-supplied GitHub signals, not a ranking"
-    : "Public GitHub engineering signals, not a ranking";
+    ? "Owner-supplied GitHub signals"
+    : "Public GitHub signals";
   const evidenceLabel = disclosure?.privateRepositoriesIncluded === true
-    ? "Top owner-supplied evidence traces"
-    : "Top public evidence traces";
+    ? "Top owner-supplied evidence"
+    : "Top public evidence";
   const footerScope = disclosure?.privateRepositoriesIncluded === true
-    ? "Private repositories included by owner"
-    : "Public data only";
+    ? "Private Included"
+    : "Public Signals";
+  const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
   const reportLink = renderReportLink(options.reportHref);
   const rows = signalDimensions.map((dimension, index) =>
-    renderDimensionRow(dimension, safeScore(report.dimensions[dimension]), rowStartY + index * rowGap)
+    renderDimensionRow(
+      dimension,
+      safeScore(report.dimensions[dimension]),
+      rowStartY + index * rowGap,
+      unavailableDimensions.has(dimension)
+    )
   );
   const chips = evidence.map((item, index) => renderEvidenceChip(fitText(item.label, 28), index));
   const desc = buildDescription(report, overall);
@@ -72,7 +78,7 @@ export function renderUserSignalCard(
   <g aria-label="${escapeXml(evidenceLabel)}">
   ${chips.join("")}
   </g>
-  <text x="36" y="390" class="footer">Not a ranking · ${escapeXml(footerScope)} · Updated ${escapeXml(generatedDate)}</text>
+  <text x="36" y="390" class="footer">Buildmarks Profile · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
   ${reportLink}
 </svg>`;
 }
@@ -90,11 +96,11 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="58" class="title">Buildmarks</text>
-  <text x="36" y="82" class="subtitle">Public GitHub engineering signals, not a ranking</text>
+  <text x="36" y="82" class="subtitle">Public GitHub signals</text>
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
   <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
   <text x="62" y="228" class="fallback-body">${escapeXml(safeMessage)}</text>
-  <text x="36" y="390" class="footer">Public GitHub signals only · Not a developer ranking</text>
+  <text x="36" y="390" class="footer">Buildmarks Profile · Public Signals</text>
 </svg>`;
 }
 
@@ -127,7 +133,7 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   <g aria-label="Signal gaps detected from public repository evidence">
   ${rows.join("")}
   </g>
-  <text x="36" y="390" class="footer">Improvement hints · Public data only · Updated ${escapeXml(generatedDate)}</text>
+  <text x="36" y="390" class="footer">Buildmarks Gaps · Public Signals · ${escapeXml(generatedDate)}</text>
 </svg>`;
 }
 
@@ -152,7 +158,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="36" y="80" class="subtitle">Repository public engineering signals</text>
+  <text x="36" y="80" class="subtitle">Repository GitHub signals</text>
   <text x="36" y="112" class="name">${escapeXml(repoName)}</text>
   <text x="36" y="136" class="type">Repository Signal Card</text>
   <text x="604" y="72" class="subtitle">Repo Signal</text>
@@ -162,18 +168,32 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   ${rows.join("")}
   </g>
   <text x="36" y="338" class="section-label">Evidence</text>
-  <g aria-label="Top public repository evidence traces">
+  <g aria-label="Top public repository evidence">
   ${chips.join("")}
   </g>
-  <text x="36" y="390" class="footer">Repository signal · Public data only · Not a ranking</text>
+  <text x="36" y="390" class="footer">Buildmarks Repo · Public Signals</text>
 </svg>`;
 }
 
-function renderDimensionRow(dimension: SignalDimension, score: number, labelY: number): string {
+function renderDimensionRow(
+  dimension: SignalDimension,
+  score: number,
+  labelY: number,
+  unavailable = false
+): string {
   const width = Math.max(0, Math.min(barMaxWidth, Math.round(score / 100 * barMaxWidth)));
   const label = dimensionLabels[dimension];
   const tone = score >= 75 ? "strong" : score >= 50 ? "middle" : "low";
   const barY = labelY - 11;
+
+  if (unavailable) {
+    return `
+    <g role="img" aria-label="${escapeXml(`${label}: not available for this card`)}">
+      <text x="36" y="${labelY}" class="label">${escapeXml(label)}</text>
+      <text x="268" y="${labelY}" class="score">N/A</text>
+      <rect x="324" y="${barY}" width="${barMaxWidth}" height="10" rx="5" class="track" aria-hidden="true" />
+    </g>`;
+  }
 
   return `
     <g role="img" aria-label="${escapeXml(`${label}: ${score} points out of 100`)}">
@@ -341,12 +361,14 @@ function renderStyles(): string {
 }
 
 function buildDescription(report: UserSignalReport, overall: number): string {
+  const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
   const scores = signalDimensions
+    .filter((dimension) => !unavailableDimensions.has(dimension))
     .map((dimension) => `${dimensionLabels[dimension]} ${safeScore(report.dimensions[dimension])} out of 100`)
     .join(", ");
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
-    return `Overall signal ${overall} out of 100. ${scores}. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+    return `Overall signal ${overall} out of 100. ${scores}. Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
   }
 
   return `Overall signal ${overall} out of 100. ${scores}. Public GitHub data only; not a developer ranking.`;

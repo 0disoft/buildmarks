@@ -13,9 +13,9 @@ Buildmarks summarizes six dimensions:
 - Collaboration
 - Shipping Evidence
 - Consistency
-- External Validation
+- Public Adoption
 
-Each repository receives a dimension score from 0 to 100. A profile report summarizes the strongest eligible repositories, excluding forks and archived repositories by default.
+Each repository receives a dimension score from 0 to 100. A profile report summarizes the highest-signal eligible repositories, excluding forks and archived repositories by default.
 
 ## Overall Weighting
 
@@ -26,7 +26,7 @@ The v0 overall repository score uses this weighting:
 - Collaboration: 20%
 - Shipping Evidence: 15%
 - Consistency: 10%
-- External Validation: 10%
+- Public Adoption: 10%
 
 The weighting intentionally keeps stars and forks weak. Popularity is useful context, not proof of engineering quality.
 
