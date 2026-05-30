@@ -43,6 +43,7 @@ describe("profile README workflow example", () => {
     expect(workflow).toContain("run: bun run build");
     expect(workflow).toContain("run: bun run build:card");
     expect(workflow).toContain("run: bun run build:report");
+    expect(workflow).toContain("run: npm pack --dry-run");
     expect(workflow).not.toContain("git commit");
     expect(workflow).not.toContain("git push");
     expect(workflow).not.toContain("contents: write");
@@ -60,6 +61,7 @@ describe("profile README workflow example", () => {
       keywords?: string[];
       license?: string;
       repository?: { type?: string; url?: string };
+      scripts?: Record<string, string>;
     };
 
     expect(metadata.license).toBe("0BSD");
@@ -83,6 +85,19 @@ describe("profile README workflow example", () => {
     ]) {
       expect(metadata.keywords).toContain(keyword);
     }
+    for (const packagedPath of [
+      "src",
+      "docs",
+      "examples",
+      "fixtures",
+      "action.yml",
+      "CHANGELOG.md",
+      "README.md",
+      "LICENSE"
+    ]) {
+      expect(metadata.files).toContain(packagedPath);
+    }
+    expect(metadata.scripts?.["pack:dry-run"]).toBe("npm pack --dry-run");
     expect(metadata.files).toContain("CHANGELOG.md");
     expect(metadata.bin).toBeUndefined();
   });
@@ -94,6 +109,7 @@ describe("profile README workflow example", () => {
     expect(changelog).toContain("## Unreleased");
     expect(changelog).toContain("## v0.1.0 - 2026-05-30");
     expect(changelog).toContain("First public Buildmarks foundation release");
+    expect(changelog).toContain("npm packaging decision");
     expect(changelog).toContain("0disoft/buildmarks@v0");
     expect(changelog).toContain("no developer ranking");
     expect(readme).toContain("[CHANGELOG.md](CHANGELOG.md)");
@@ -124,8 +140,24 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("candidate-only");
     expect(readme).toContain("backend-free profile README generation");
     expect(readme).toContain("The composite action generates artifacts only");
-    expect(readme).toContain("Repository CI runs the core test, build, sample SVG, and sample report commands");
+    expect(readme).toContain("Repository CI runs the core test, build, sample SVG, sample report, and npm package dry-run checks");
     expect(readme).toContain("The CI workflow is read-only");
+  });
+
+  test("documents npm packaging as deferred while preserving dry-run inspection", async () => {
+    const readme = await readFile("README.md", "utf8");
+    const npmPackaging = await readFile("docs/npm-packaging.md", "utf8");
+    const combined = [readme, npmPackaging].join("\n");
+
+    expect(readme).toContain("[docs/npm-packaging.md](docs/npm-packaging.md)");
+    expect(readme).toContain("Buildmarks is not published to npm in v0");
+    expect(readme).toContain("The package has no `bin` entry yet");
+    expect(readme).toContain("npm pack --dry-run");
+    expect(npmPackaging).toContain("Do not publish to npm yet");
+    expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
+    expect(npmPackaging).toContain("npm pack --dry-run");
+    expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");
+    expect(npmPackaging).toContain("not official adoption paths");
   });
 
   test("serializes scheduled updates and commits newly generated artifacts", async () => {

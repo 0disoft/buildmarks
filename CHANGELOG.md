@@ -6,6 +6,7 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+- Document the v0 npm packaging decision and package dry-run contract.
 - Document the real profile README adoption smoke-test path.
 - Add methodology notes for deferred public issue, pull request, and external contributor aggregates.
 - Add a storage-neutral cache contract before any hosted endpoint work.

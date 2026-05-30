@@ -42,6 +42,7 @@
     "build:card": "bun src/cli/render-card.ts fixtures/example-public-profile.json out/example-card.svg",
     "build:gaps-card": "bun src/cli/render-gaps-card.ts fixtures/example-public-profile.json out/example-gaps-card.svg",
     "build:repo-card": "bun src/cli/render-repo-card.ts fixtures/example-public-profile.json usable-toolkit out/example-repo-card.svg",
-    "build:report": "bun src/cli/render-report.ts fixtures/example-public-profile.json out/report"
+    "build:report": "bun src/cli/render-report.ts fixtures/example-public-profile.json out/report",
+    "pack:dry-run": "npm pack --dry-run"
   }
 }

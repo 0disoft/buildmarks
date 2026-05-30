@@ -32,3 +32,6 @@ jobs:
 
       - name: Generate sample report
         run: bun run build:report
+
+      - name: Check npm package contents
+        run: npm pack --dry-run

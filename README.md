@@ -122,6 +122,8 @@ The primary v0 adoption path is backend-free profile README generation: `assets/
 
 Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`, which points at the latest v0-compatible release.
 
+Buildmarks is not published to npm in v0. The package has no `bin` entry yet, so `npm install buildmarks`, `npx buildmarks`, and `bunx buildmarks` are not official adoption paths. The npm packaging decision and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
+
 ## Repository Shape
 
 The current implementation starts small:
@@ -148,6 +150,8 @@ The public collector contract is documented in [docs/github-collector-contract.m
 The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults for the live public GitHub collector.
 
 Deferred public activity aggregates are documented in [docs/activity-aggregate-methodology.md](docs/activity-aggregate-methodology.md). The storage-neutral cache boundary is documented in [docs/cache-contract.md](docs/cache-contract.md).
+
+The npm packaging decision is documented in [docs/npm-packaging.md](docs/npm-packaging.md). The v0 package can be inspected with `npm pack --dry-run`, but it is not published to npm yet.
 
 ## Collect from Public GitHub Data
 
@@ -320,11 +324,12 @@ bun run build:card
 bun run build:gaps-card
 bun run build:repo-card
 bun run build:report
+npm pack --dry-run
 ```
 
 The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.
 
-Repository CI runs the core test, build, sample SVG, and sample report commands on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.
+Repository CI runs the core test, build, sample SVG, sample report, and npm package dry-run checks on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.
 
 ## Contributing and Security
 
