@@ -2,6 +2,29 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 
 describe("profile README workflow example", () => {
+  test("keeps repository CI read-only while validating core commands", async () => {
+    const workflow = await readFile(".github/workflows/ci.yml", "utf8");
+
+    expect(workflow).toContain("name: CI");
+    expect(workflow).toContain("push:");
+    expect(workflow).toContain("- main");
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("permissions:");
+    expect(workflow).toContain("contents: read");
+    expect(workflow).toContain("actions/checkout@v4");
+    expect(workflow).toContain("oven-sh/setup-bun@v2");
+    expect(workflow).toContain("run: bun test");
+    expect(workflow).toContain("run: bun run build");
+    expect(workflow).toContain("run: bun run build:card");
+    expect(workflow).toContain("run: bun run build:report");
+    expect(workflow).not.toContain("git commit");
+    expect(workflow).not.toContain("git push");
+    expect(workflow).not.toContain("contents: write");
+    expect(workflow).not.toContain("gh release");
+    expect(workflow).not.toContain("GITHUB_TOKEN");
+    expect(workflow).not.toContain("secrets.");
+  });
+
   test("declares public package metadata for release readiness", async () => {
     const metadata = JSON.parse(await readFile("package.json", "utf8")) as {
       bugs?: { url?: string };
@@ -60,6 +83,8 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("candidate-only");
     expect(readme).toContain("backend-free profile README generation");
     expect(readme).toContain("The composite action generates artifacts only");
+    expect(readme).toContain("Repository CI runs the core test, build, sample SVG, and sample report commands");
+    expect(readme).toContain("The CI workflow is read-only");
   });
 
   test("serializes scheduled updates and commits newly generated artifacts", async () => {

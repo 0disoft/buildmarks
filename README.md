@@ -288,6 +288,8 @@ bun run build:report
 
 The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.
 
+Repository CI runs the core test, build, sample SVG, and sample report commands on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.
+
 ## Generate a Local SVG Card
 
 Buildmarks can render a local profile JSON fixture into an SVG file:
