@@ -29,6 +29,14 @@ The collector must not collect or infer:
 - language percentage as a quality signal
 - compensation, seniority, job fit, hiring pass/fail, or developer worth
 
+## Private Repository Boundary
+
+The live public collector remains public-only. Private repositories are not part of `collectPublicGitHubProfile()`.
+
+Owner-supplied private repository signals may be designed as a separate opt-in private-local mode. That mode must be explicit, local/self-hosted, token-provided by the owner, redacted by default, and labeled separately from public-only cards.
+
+The private-local boundary is defined in [Private Repository Signal Contract](private-repository-signal-contract.md).
+
 ## Normalized Shape
 
 The normalized contract is represented by:

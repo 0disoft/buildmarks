@@ -77,6 +77,8 @@ Rejected token behavior:
 - `security_events`
 - organization admin or private organization scopes
 
+Private repository support, if added, must be a separate opt-in private-local mode rather than a change to the public collector. That boundary is documented in [Private Repository Signal Contract](private-repository-signal-contract.md).
+
 ## API Cost Policy
 
 The live local client should avoid being used as an uncached per-card hosted endpoint.

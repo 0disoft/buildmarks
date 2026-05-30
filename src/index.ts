@@ -6,14 +6,23 @@ export type {
   DimensionScore,
   Evidence,
   ProfileInput,
+  ProfileSignalScope,
   RepositoryInput,
+  RepositoryVisibility,
   RepoSignal,
+  SignalReportVisibility,
+  SignalVisibilityDisclosure,
   SignalDimension,
   SignalGap,
   UserSignalGapsReport,
   UserSignalReport
 } from "./shared/types";
-export { dimensionLabels, signalDimensions } from "./shared/types";
+export {
+  dimensionLabels,
+  privateLocalSignalVisibility,
+  publicOnlySignalVisibility,
+  signalDimensions
+} from "./shared/types";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile";
 export {
   collectPublicGitHubProfile,
@@ -28,6 +37,14 @@ export {
   type GitHubCollectorPolicy,
   type GitHubCollectorPolicyValidation
 } from "./collector/policy";
+export {
+  privateLocalRepositorySignalContract,
+  publicOnlyPrivateRepositorySignalContract,
+  validatePrivateRepositorySignalContract,
+  type PrivateRepositoryEvidenceKind,
+  type PrivateRepositorySignalContract,
+  type PrivateRepositorySignalContractValidation
+} from "./collector/private-signal-contract";
 export { scoreRepository } from "./scoring/score-repo";
 export { scoreUserProfile } from "./scoring/score-user";
 export { analyzeSignalGaps } from "./scoring/gaps";

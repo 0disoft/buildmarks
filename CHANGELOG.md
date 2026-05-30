@@ -6,6 +6,9 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.2 - 2026-05-30
+
+- Add an explicit private-local repository signal contract for owner-supplied private evidence.
 - Document the real profile README adoption smoke-test path.
 - Add methodology notes for deferred public issue, pull request, and external contributor aggregates.
 - Add a storage-neutral cache contract before any hosted endpoint work.

@@ -40,6 +40,8 @@ export interface RepositoryInput {
   owner: string;
   name: string;
   url?: string;
+  visibility?: RepositoryVisibility;
+  redactedName?: boolean;
   isFork: boolean;
   isArchived: boolean;
   stars: number;
@@ -87,6 +89,8 @@ export interface CollectedGitHubRepository {
   owner: string;
   name: string;
   url?: string;
+  visibility?: RepositoryVisibility;
+  redactedName?: boolean;
   isFork: boolean;
   isArchived: boolean;
   stars: number;
@@ -101,14 +105,51 @@ export interface CollectedGitHubRepository {
 export interface CollectedGitHubProfile {
   username: string;
   collectedAt?: string;
+  signalVisibility?: SignalVisibilityDisclosure;
   repositories: CollectedGitHubRepository[];
 }
 
 export interface ProfileInput {
   username: string;
   generatedAt?: string;
+  signalVisibility?: SignalVisibilityDisclosure;
   repositories: RepositoryInput[];
 }
+
+export type RepositoryVisibility = "public" | "private";
+
+export type ProfileSignalScope =
+  | "public-only"
+  | "public-and-owner-supplied-private";
+
+export type SignalReportVisibility = "public-safe" | "private-local";
+
+export interface SignalVisibilityDisclosure {
+  scope: ProfileSignalScope;
+  privateRepositoriesIncluded: boolean;
+  privateRepositoryNamesRedacted: boolean;
+  independentlyVerifiable: boolean;
+  cardLabel: string;
+  reportVisibility: SignalReportVisibility;
+}
+
+export const publicOnlySignalVisibility = {
+  scope: "public-only",
+  privateRepositoriesIncluded: false,
+  privateRepositoryNamesRedacted: false,
+  independentlyVerifiable: true,
+  cardLabel: "Public GitHub signals",
+  reportVisibility: "public-safe"
+} satisfies SignalVisibilityDisclosure;
+
+export const privateLocalSignalVisibility = {
+  scope: "public-and-owner-supplied-private",
+  privateRepositoriesIncluded: true,
+  privateRepositoryNamesRedacted: true,
+  independentlyVerifiable: false,
+  cardLabel: "Public + Private Signals",
+  reportVisibility: "private-local"
+} satisfies SignalVisibilityDisclosure;
 
 export interface DimensionScore {
   key: SignalDimension;

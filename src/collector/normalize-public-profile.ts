@@ -4,6 +4,7 @@ export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): P
   return {
     username: profile.username,
     generatedAt: profile.collectedAt,
+    ...(profile.signalVisibility ? { signalVisibility: profile.signalVisibility } : {}),
     repositories: profile.repositories.map(normalizePublicGitHubRepository)
   };
 }
@@ -13,6 +14,8 @@ function normalizePublicGitHubRepository(repository: CollectedGitHubProfile["rep
     owner: repository.owner,
     name: repository.name,
     url: repository.url,
+    ...(repository.visibility ? { visibility: repository.visibility } : {}),
+    ...(repository.redactedName === undefined ? {} : { redactedName: repository.redactedName }),
     isFork: repository.isFork,
     isArchived: repository.isArchived,
     stars: repository.stars,
