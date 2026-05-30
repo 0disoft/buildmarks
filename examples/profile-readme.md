@@ -96,6 +96,30 @@ Minimal action step:
     token: ${{ github.token }}
 ```
 
+Action inputs:
+
+| Input | Default | Notes |
+| --- | --- | --- |
+| `username` | required | GitHub username to analyze. |
+| `output` | `assets/buildmarks.svg` | SVG artifact path in the caller repository. |
+| `generate-report` | `"true"` | Must be exactly `"true"` or `"false"`. |
+| `report-output` | `assets/buildmarks-report` | HTML and JSON report directory. |
+| `token` | empty | Optional public-data token. Private scopes are not needed. |
+| `max-repositories-scanned` | `30` | Positive integer public repository scan limit. |
+| `max-repositories-scored` | `8` | Positive integer profile summary limit. |
+
+See [profile-smoke-test.md](profile-smoke-test.md) for the real v0 adoption smoke-test checklist.
+
+## Example Card Assets
+
+Committed sample SVGs are available in [assets](assets) for quick visual inspection:
+
+```md
+![Buildmarks public GitHub signal card](./assets/example-card.svg)
+![Buildmarks public signal gaps card](./assets/example-gaps-card.svg)
+![Buildmarks repository signal card](./assets/example-repo-card.svg)
+```
+
 ## Signal Gaps Card
 
 Generate a static "What's Missing" card from the local fixture:

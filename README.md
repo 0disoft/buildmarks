@@ -120,6 +120,8 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`, which points at the latest v0-compatible release.
+
 ## Repository Shape
 
 The current implementation starts small:
@@ -144,6 +146,8 @@ HTTP routing, cache storage, hosted billing, and deployment files are intentiona
 The public collector contract is documented in [docs/github-collector-contract.md](docs/github-collector-contract.md). It defines what future GitHub API code may collect and what it must not infer.
 
 The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults for the live public GitHub collector.
+
+Deferred public activity aggregates are documented in [docs/activity-aggregate-methodology.md](docs/activity-aggregate-methodology.md). The storage-neutral cache boundary is documented in [docs/cache-contract.md](docs/cache-contract.md).
 
 ## Collect from Public GitHub Data
 
@@ -214,6 +218,38 @@ Minimal action usage:
 Set `generate-report: "false"` when you only want the SVG card.
 
 Action inputs are intentionally strict: `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
+
+| Input | Default | Notes |
+| --- | --- | --- |
+| `username` | required | GitHub username to analyze. |
+| `output` | `assets/buildmarks.svg` | SVG artifact path in the caller repository. |
+| `generate-report` | `"true"` | Must be exactly `"true"` or `"false"`. |
+| `report-output` | `assets/buildmarks-report` | HTML and JSON report directory. |
+| `token` | empty | Optional public-data token. Private scopes are not needed. |
+| `max-repositories-scanned` | `30` | Positive integer public repository scan limit. |
+| `max-repositories-scored` | `8` | Positive integer profile summary limit. |
+
+## Example Card Assets
+
+Committed sample SVGs live under [examples/assets](examples/assets) so readers can inspect the generated shapes without running Bun first.
+
+Profile card:
+
+```md
+![Buildmarks public GitHub signal card](./examples/assets/example-card.svg)
+```
+
+Signal gaps card:
+
+```md
+![Buildmarks public signal gaps card](./examples/assets/example-gaps-card.svg)
+```
+
+Repository card:
+
+```md
+![Buildmarks repository signal card](./examples/assets/example-repo-card.svg)
+```
 
 ## Generate a Signal Gaps Card
 

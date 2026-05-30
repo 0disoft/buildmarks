@@ -30,6 +30,8 @@ The profile report cache covers the normalized profile-level result used to rend
 
 The repository file-signals cache covers slower file-presence checks such as README, LICENSE, CI workflows, tests, changelog, contribution guide, security policy, and package artifact signals. The v0 live collector derives most path-based file signals from one recursive tree response per repository instead of probing every candidate path separately.
 
+The storage-neutral cache contract is documented in [Cache Contract](cache-contract.md). Buildmarks v0 does not ship Redis, KV, database, filesystem, or hosted cache storage.
+
 ## Repository Limits
 
 Default repository limits:
@@ -52,6 +54,8 @@ The live collector uses GitHub REST API endpoints for:
 - public releases and tags
 
 The adapter sets activity aggregate fields to zero in v0. Public issue-response, pull-request-review, and external-contributor aggregate collection remains deferred because those signals need separate API-cost and methodology rules.
+
+The deferred methodology is documented in [Activity Aggregate Methodology](activity-aggregate-methodology.md).
 
 The adapter does not collect follower counts, language percentages, raw commit counts, contribution streaks, private repositories, private contributions, employer information, compensation, seniority, job fit, or hiring pass/fail signals.
 

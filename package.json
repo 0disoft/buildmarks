@@ -31,6 +31,7 @@
     "examples",
     "fixtures",
     "action.yml",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ],

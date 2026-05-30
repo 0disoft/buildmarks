@@ -55,6 +55,7 @@ describe("profile README workflow example", () => {
     const metadata = JSON.parse(await readFile("package.json", "utf8")) as {
       bugs?: { url?: string };
       bin?: unknown;
+      files?: string[];
       homepage?: string;
       keywords?: string[];
       license?: string;
@@ -82,7 +83,21 @@ describe("profile README workflow example", () => {
     ]) {
       expect(metadata.keywords).toContain(keyword);
     }
+    expect(metadata.files).toContain("CHANGELOG.md");
     expect(metadata.bin).toBeUndefined();
+  });
+
+  test("keeps the changelog as the release source of truth", async () => {
+    const changelog = await readFile("CHANGELOG.md", "utf8");
+    const readme = await readFile("README.md", "utf8");
+
+    expect(changelog).toContain("## Unreleased");
+    expect(changelog).toContain("## v0.1.0 - 2026-05-30");
+    expect(changelog).toContain("First public Buildmarks foundation release");
+    expect(changelog).toContain("0disoft/buildmarks@v0");
+    expect(changelog).toContain("no developer ranking");
+    expect(readme).toContain("[CHANGELOG.md](CHANGELOG.md)");
+    expect(readme).toContain("0disoft/buildmarks@v0");
   });
 
   test("documents the profile README quick start paths", async () => {
@@ -134,6 +149,80 @@ describe("profile README workflow example", () => {
     expect(action).not.toContain("git commit");
     expect(action).not.toContain("git push");
     expect(action).not.toContain("contents: write");
+  });
+
+  test("documents every composite action input without changing action boundaries", async () => {
+    const action = await readFile("action.yml", "utf8");
+    const readme = await readFile("README.md", "utf8");
+    const example = await readFile("examples/profile-readme.md", "utf8");
+
+    for (const input of [
+      "username",
+      "output",
+      "generate-report",
+      "report-output",
+      "token",
+      "max-repositories-scanned",
+      "max-repositories-scored"
+    ]) {
+      expect(action).toContain(`  ${input}:`);
+      expect(readme).toContain(`| \`${input}\``);
+      expect(example).toContain(`| \`${input}\``);
+    }
+
+    expect(readme).toContain('Must be exactly `"true"` or `"false"`');
+    expect(example).toContain('Must be exactly `"true"` or `"false"`');
+    expect(readme).toContain("Private scopes are not needed");
+    expect(example).toContain("Private scopes are not needed");
+  });
+
+  test("documents deferred activity aggregates and storage-neutral cache boundaries", async () => {
+    const activity = await readFile("docs/activity-aggregate-methodology.md", "utf8");
+    const cache = await readFile("docs/cache-contract.md", "utf8");
+    const operations = await readFile("docs/github-collector-operations.md", "utf8");
+    const combined = [activity, cache, operations].join("\n");
+
+    expect(activity).toContain("public issue response traces");
+    expect(activity).toContain("public pull request review traces");
+    expect(activity).toContain("public external contributor traces");
+    expect(activity).toContain("raw commit count");
+    expect(activity).toContain("private contributions");
+    expect(activity).toContain("hiring suitability");
+    expect(cache).toContain("profile-report:v1:{username}:{policyHash}");
+    expect(cache).toContain("repo-file-signals:v1:{owner}/{repo}:{defaultBranch}:{policyHash}");
+    expect(cache).toContain("6 hours");
+    expect(cache).toContain("24 hours");
+    expect(cache).toContain("storage-neutral");
+    expect(combined).toContain("private tokens");
+    expect(combined).toContain("hosted endpoint");
+    expect(operations).toContain("cache-contract.md");
+    expect(operations).toContain("activity-aggregate-methodology.md");
+  });
+
+  test("keeps example assets and real smoke-test documentation discoverable", async () => {
+    const readme = await readFile("README.md", "utf8");
+    const example = await readFile("examples/profile-readme.md", "utf8");
+    const smokeTest = await readFile("examples/profile-smoke-test.md", "utf8");
+    const profileCard = await readFile("examples/assets/example-card.svg", "utf8");
+    const gapsCard = await readFile("examples/assets/example-gaps-card.svg", "utf8");
+    const repoCard = await readFile("examples/assets/example-repo-card.svg", "utf8");
+
+    expect(readme).toContain("examples/assets");
+    expect(example).toContain("[assets](assets)");
+    for (const document of [readme, example]) {
+      expect(document).toContain("example-card.svg");
+      expect(document).toContain("example-gaps-card.svg");
+      expect(document).toContain("example-repo-card.svg");
+    }
+
+    expect(smokeTest).toContain("0disoft/0disoft");
+    expect(smokeTest).toContain(".github/workflows/update-buildmarks-card.yml");
+    expect(smokeTest).toContain("assets/buildmarks.svg");
+    expect(smokeTest).toContain("assets/buildmarks-report/buildmarks-report.html");
+    expect(smokeTest).toContain("assets/buildmarks-report/buildmarks-report.json");
+    expect(profileCard).toContain("Buildmarks");
+    expect(gapsCard).toContain("What's Missing");
+    expect(repoCard).toContain("Repository Signal Card");
   });
 
   test("validates action inputs before generating artifacts", async () => {
