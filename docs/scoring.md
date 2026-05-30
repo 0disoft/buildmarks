@@ -38,6 +38,7 @@ Signals come from public repository evidence such as:
 - LICENSE
 - CI workflows
 - tests
+- coarse codebase shape signals from the Git tree
 - changelog or release notes
 - releases or tags
 - demo, documentation, or package links
@@ -49,6 +50,21 @@ Signals come from public repository evidence such as:
 - external contributor traces
 
 Every score must expose evidence. If a future implementation cannot explain a score, it should not render that score.
+
+## Codebase Shape Signals
+
+Buildmarks uses a small codebase-shape signal inside Maintainability. It is not a separate quality grade.
+
+The public collector reads the Git tree metadata that GitHub already returns for a repository. It does not read source file contents or count lines. From that tree it can summarize:
+
+- source file count
+- test file count and test-to-source ratio
+- example or fixture file count
+- median source file size in bytes
+- 90th percentile source file size in bytes
+- count of source files above the large-file threshold
+
+Generated, vendor, dependency, build-output, lockfile, minified, and sourcemap paths are excluded from these shape calculations. These checks are intentionally coarse. They can suggest whether a repository is split into manageable source files and has visible test or example surface, but they do not prove code quality.
 
 ## Exclusions
 

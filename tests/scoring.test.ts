@@ -39,6 +39,101 @@ describe("profile scoring", () => {
     expect(report.signalType).toBe(baseline.signalType);
   });
 
+  test("uses codebase shape as a small maintainability signal without reading lines", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const withoutShape = scoreUserProfile(
+      {
+        username: "shape-baseline",
+        repositories: [
+          {
+            ...sourceRepository,
+            codebaseShape: {
+              sourceFileCount: 0,
+              testFileCount: 0,
+              exampleFileCount: 0,
+              medianSourceFileBytes: 0,
+              p90SourceFileBytes: 0,
+              oversizedSourceFileCount: 0,
+              testToSourceRatio: 0
+            }
+          }
+        ]
+      },
+      { now }
+    );
+    const withShape = scoreUserProfile(
+      {
+        username: "shape-aware",
+        repositories: [
+          {
+            ...sourceRepository,
+            codebaseShape: {
+              sourceFileCount: 24,
+              testFileCount: 4,
+              exampleFileCount: 2,
+              medianSourceFileBytes: 3200,
+              p90SourceFileBytes: 12000,
+              oversizedSourceFileCount: 0,
+              testToSourceRatio: 0.167
+            }
+          }
+        ]
+      },
+      { now }
+    );
+
+    expect(withShape.dimensions.maintainability).toBeGreaterThan(withoutShape.dimensions.maintainability);
+    expect(withShape.evidence.some((item) => item.label === "Compact source file shape")).toBe(true);
+    expect(withShape.evidence.some((item) => item.label.includes("line"))).toBe(false);
+  });
+
+  test("does not reward tiny or oversized codebase shape samples", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const tinyShape = scoreUserProfile(
+      {
+        username: "tiny-shape",
+        repositories: [
+          {
+            ...sourceRepository,
+            codebaseShape: {
+              sourceFileCount: 2,
+              testFileCount: 1,
+              exampleFileCount: 1,
+              medianSourceFileBytes: 1200,
+              p90SourceFileBytes: 1400,
+              oversizedSourceFileCount: 0,
+              testToSourceRatio: 0.5
+            }
+          }
+        ]
+      },
+      { now }
+    );
+    const oversizedShape = scoreUserProfile(
+      {
+        username: "oversized-shape",
+        repositories: [
+          {
+            ...sourceRepository,
+            codebaseShape: {
+              sourceFileCount: 24,
+              testFileCount: 4,
+              exampleFileCount: 1,
+              medianSourceFileBytes: 14000,
+              p90SourceFileBytes: 80000,
+              oversizedSourceFileCount: 10,
+              testToSourceRatio: 0.167
+            }
+          }
+        ]
+      },
+      { now }
+    );
+
+    expect(tinyShape.evidence.some((item) => item.label === "Compact source file shape")).toBe(false);
+    expect(oversizedShape.evidence.some((item) => item.label === "Compact source file shape")).toBe(false);
+  });
+
   test("keeps external validation finite when numeric inputs are not finite", () => {
     const sourceRepository = (fixture as ProfileInput).repositories[0]!;
     const poisoned = {
@@ -92,6 +187,19 @@ describe("profile scoring", () => {
     expect(report.limitations).toContain(
       "Public adoption is shown as N/A because private repository adoption is not publicly verifiable."
     );
+  });
+
+  test("carries repository activity window into report limitations", () => {
+    const report = scoreUserProfile(
+      {
+        ...(fixture as ProfileInput),
+        activityWindowDays: 180
+      },
+      { now }
+    );
+
+    expect(report.activityWindowDays).toBe(180);
+    expect(report.limitations).toContain("Repositories are filtered to activity within the last 180 days.");
   });
 
   test("treats public collaboration as context for independent-builder profiles", () => {

@@ -84,6 +84,8 @@ The composite action generates files only. The workflow around it owns checkout,
 
 Use exact string values for action booleans. `generate-report` accepts `"true"` or `"false"` only, and repository limits must be positive integers.
 
+The default repository activity window is 365 days from the public `pushed_at` timestamp. Use `activity-window-days: "180"` for a six-month card that emphasizes recent work and makes fewer per-repository API calls.
+
 Minimal action step:
 
 ```yaml
@@ -107,6 +109,7 @@ Action inputs:
 | `token` | empty | Optional public-data token. Private scopes are not needed. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit. |
 | `max-repositories-scored` | `8` | Positive integer profile summary limit. |
+| `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`. |
 
 See [profile-smoke-test.md](profile-smoke-test.md) for the real v0 adoption smoke-test checklist.
 

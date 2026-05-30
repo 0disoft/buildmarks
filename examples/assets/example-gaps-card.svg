@@ -7,15 +7,15 @@
       <stop offset="0%" class="stroke-start" />
       <stop offset="100%" class="stroke-end" />
     </linearGradient>
-    <linearGradient id="barStrong" x1="324" y1="0" x2="562" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barStrong" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-strong-start" />
       <stop offset="100%" class="bar-strong-end" />
     </linearGradient>
-    <linearGradient id="barMiddle" x1="324" y1="0" x2="562" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barMiddle" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-middle-start" />
       <stop offset="100%" class="bar-middle-end" />
     </linearGradient>
-    <linearGradient id="barLow" x1="324" y1="0" x2="562" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barLow" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-low-start" />
       <stop offset="100%" class="bar-low-end" />
     </linearGradient>
@@ -32,7 +32,7 @@
       --muted: #587083;
       --accent: #0f8b6c;
       --accent-2: #21b28b;
-      --warning: #9b6700;
+      --warning: #7a5200;
       --chip-bg: #edf7f3;
       --chip-text: #245d4c;
       --track: #dce5ee;
@@ -80,12 +80,16 @@
     .bg { fill: var(--bg); }
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
-    .title { fill: var(--text); font: 750 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .title { fill: var(--text); font: 700 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .name { fill: var(--text); font: 750 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .overall { fill: var(--warning); font: 800 44px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .overall-strong { fill: var(--accent); }
+    .overall-middle { fill: var(--warning); }
+    .overall-low { fill: var(--low); }
     .overall-unit { fill: var(--muted); font: 700 16px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .gap-count { fill: var(--muted); font: 700 16px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .label { fill: var(--text); font: 600 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .score { fill: var(--muted); font: 700 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: end; }
     .track { fill: var(--track); }
@@ -96,7 +100,7 @@
     .chip { fill: var(--chip-text); font: 600 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .link-text { fill: var(--chip-text); font: 700 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: end; text-decoration: underline; }
     .fallback-box { fill: var(--chip-bg); stroke: var(--panel-border); stroke-width: 1; }
-    .fallback-title { fill: var(--text); font: 750 22px ui-sans-serif, system-ui, sans-serif; }
+    .fallback-title { fill: var(--text); font: 700 22px ui-sans-serif, system-ui, sans-serif; }
     .fallback-body { fill: var(--muted); font: 500 15px ui-sans-serif, system-ui, sans-serif; }
     .stroke-start { stop-color: var(--accent); stop-opacity: 0.72; }
     .stroke-end { stop-color: var(--warning); stop-opacity: 0.46; }
@@ -114,32 +118,33 @@
   <text x="36" y="80" class="subtitle">Missing public GitHub signals</text>
   <text x="36" y="112" class="name">example-builder</text>
   <text x="36" y="136" class="type">What's Missing</text>
+  <text x="604" y="112" class="gap-count">5 gaps found</text>
   <g aria-label="Signal gaps detected from public repository evidence">
 
     <g role="img" aria-label="usable-toolkit: missing code of conduct for Collaboration">
-      <rect x="36" y="126" width="688" height="34" rx="8" class="chip-bg" />
-      <text x="52" y="150" class="label">usable-toolkit</text>
-      <text x="250" y="150" class="chip">Collaboration</text>
-      <text x="416" y="150" class="subtitle">missing: code of conduct</text>
+      <rect x="36" y="130" width="688" height="46" rx="8" class="chip-bg" />
+      <text x="52" y="151" class="label">usable-toolkit</text>
+      <text x="504" y="151" class="chip">Collaboration</text>
+      <text x="52" y="170" class="subtitle">missing: code of conduct</text>
     </g>
     <g role="img" aria-label="small-experiment: missing CI workflow, changelog, security policy for Maintainability">
-      <rect x="36" y="170" width="688" height="34" rx="8" class="chip-bg" />
-      <text x="52" y="194" class="label">small-experiment</text>
-      <text x="250" y="194" class="chip">Maintainability</text>
-      <text x="416" y="194" class="subtitle">missing: CI workflow, changelog, security policy</text>
+      <rect x="36" y="184" width="688" height="46" rx="8" class="chip-bg" />
+      <text x="52" y="205" class="label">small-experiment</text>
+      <text x="504" y="205" class="chip">Maintainability</text>
+      <text x="52" y="224" class="subtitle">missing: CI workflow, changelog, security policy</text>
     </g>
     <g role="img" aria-label="small-experiment: missing usage guide, docs or demo for Project Completeness">
-      <rect x="36" y="214" width="688" height="34" rx="8" class="chip-bg" />
-      <text x="52" y="238" class="label">small-experiment</text>
-      <text x="250" y="238" class="chip">Project Completeness</text>
-      <text x="416" y="238" class="subtitle">missing: usage guide, docs or demo</text>
+      <rect x="36" y="238" width="688" height="46" rx="8" class="chip-bg" />
+      <text x="52" y="259" class="label">small-experiment</text>
+      <text x="504" y="259" class="chip">Project Completeness</text>
+      <text x="52" y="278" class="subtitle">missing: usage guide, docs or demo</text>
     </g>
     <g role="img" aria-label="small-experiment: missing release or tag, package manifest, docs or demo for Shipping Evidence">
-      <rect x="36" y="258" width="688" height="34" rx="8" class="chip-bg" />
-      <text x="52" y="282" class="label">small-experiment</text>
-      <text x="250" y="282" class="chip">Shipping Evidence</text>
-      <text x="416" y="282" class="subtitle">missing: release or tag, package manifest, docs or demo</text>
+      <rect x="36" y="292" width="688" height="46" rx="8" class="chip-bg" />
+      <text x="52" y="313" class="label">small-experiment</text>
+      <text x="504" y="313" class="chip">Shipping Evidence</text>
+      <text x="52" y="332" class="subtitle">missing: release or tag, package manifest, docs or demo</text>
     </g>
   </g>
-  <text x="36" y="390" class="footer">Buildmarks Gaps · Public Signals · 2026-05-28</text>
+  <text x="36" y="397" class="footer">Buildmarks Gaps · Public Signals · 2026-05-28</text>
 </svg>

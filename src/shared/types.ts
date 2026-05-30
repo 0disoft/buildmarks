@@ -60,9 +60,20 @@ export interface RepositoryInput {
   hasReleases: boolean;
   hasDemoOrDocs: boolean;
   hasPackageArtifact: boolean;
+  codebaseShape?: CodebaseShapeSignals;
   issueResponseCount: number;
   pullRequestReviewCount: number;
   externalContributorCount: number;
+}
+
+export interface CodebaseShapeSignals {
+  sourceFileCount: number;
+  testFileCount: number;
+  exampleFileCount: number;
+  medianSourceFileBytes: number;
+  p90SourceFileBytes: number;
+  oversizedSourceFileCount: number;
+  testToSourceRatio: number;
 }
 
 export interface CollectedRepositoryFileSignals {
@@ -77,6 +88,7 @@ export interface CollectedRepositoryFileSignals {
   hasSecurityPolicy: boolean;
   hasDemoOrDocs: boolean;
   hasPackageArtifact: boolean;
+  codebaseShape: CodebaseShapeSignals;
 }
 
 export interface CollectedRepositoryActivitySignals {
@@ -105,6 +117,7 @@ export interface CollectedGitHubRepository {
 export interface CollectedGitHubProfile {
   username: string;
   collectedAt?: string;
+  activityWindowDays?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: CollectedGitHubRepository[];
 }
@@ -112,6 +125,7 @@ export interface CollectedGitHubProfile {
 export interface ProfileInput {
   username: string;
   generatedAt?: string;
+  activityWindowDays?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: RepositoryInput[];
 }
@@ -172,6 +186,7 @@ export interface RepoSignal {
 export interface UserSignalReport {
   username: string;
   generatedAt: string;
+  activityWindowDays?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   unavailableDimensions?: SignalDimension[];
   overall: number;

@@ -7,6 +7,7 @@ import {
 export type PrivateRepositoryEvidenceKind =
   | "repository-metadata"
   | "file-presence"
+  | "aggregate-codebase-shape"
   | "release-or-tag-presence"
   | "aggregate-issue-pr-traces";
 
@@ -60,6 +61,7 @@ export const privateLocalRepositorySignalContract = {
   allowedEvidence: [
     "repository-metadata",
     "file-presence",
+    "aggregate-codebase-shape",
     "release-or-tag-presence",
     "aggregate-issue-pr-traces"
   ],

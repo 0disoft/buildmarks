@@ -100,7 +100,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-artifacts.ts <github-username> <output.svg> <report-output-directory> [--token <token>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>]"
+      "Usage: bun src/cli/render-github-artifacts.ts <github-username> <output.svg> <report-output-directory> [--token <token>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
     );
     process.exitCode = 2;
     return;
@@ -112,7 +112,8 @@ async function main(args: readonly string[]): Promise<void> {
       ...defaultGitHubCollectorPolicy,
       limits: {
         maxRepositoriesScannedPerProfile: parsed.maxRepositoriesScanned,
-        maxRepositoriesScoredPerProfile: parsed.maxRepositoriesScored
+        maxRepositoriesScoredPerProfile: parsed.maxRepositoriesScored,
+        repositoryActivityWindowDays: parsed.activityWindowDays
       }
     }
   });
@@ -137,12 +138,14 @@ function parseArgs(args: readonly string[]):
       token?: string;
       maxRepositoriesScanned: number;
       maxRepositoriesScored: number;
+      activityWindowDays: number;
     }
   | { ok: false; message: string } {
   const positional: string[] = [];
   let token: string | undefined;
   let maxRepositoriesScanned = defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile;
   let maxRepositoriesScored = defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile;
+  let activityWindowDays = defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -180,6 +183,16 @@ function parseArgs(args: readonly string[]):
       continue;
     }
 
+    if (arg === "--activity-window-days") {
+      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      if (typeof value === "string") {
+        return { ok: false, message: value };
+      }
+      activityWindowDays = value;
+      index += 1;
+      continue;
+    }
+
     if (arg.startsWith("--")) {
       return { ok: false, message: `Unknown option: ${arg}` };
     }
@@ -205,7 +218,8 @@ function parseArgs(args: readonly string[]):
         svgOutputPath,
         reportOutputDirectory,
         maxRepositoriesScanned,
-        maxRepositoriesScored
+        maxRepositoriesScored,
+        activityWindowDays
       }
     : {
         ok: true,
@@ -214,7 +228,8 @@ function parseArgs(args: readonly string[]):
         reportOutputDirectory,
         token,
         maxRepositoriesScanned,
-        maxRepositoriesScored
+        maxRepositoriesScored,
+        activityWindowDays
       };
 }
 

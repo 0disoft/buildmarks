@@ -3,6 +3,7 @@ export type {
   CollectedGitHubRepository,
   CollectedRepositoryActivitySignals,
   CollectedRepositoryFileSignals,
+  CodebaseShapeSignals,
   DimensionScore,
   Evidence,
   ProfileInput,

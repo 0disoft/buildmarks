@@ -31,6 +31,8 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Buildmarks Profile · Public Signals");
     expect(svg).toContain("Project Care");
     expect(svg).toContain("repos checked");
+    expect(svg).toContain("signal band");
+    expect(svg).toContain("overall overall-");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
     expect(svg).toContain("@media (prefers-color-scheme: dark)");
     expect(svg).toContain("role=\"progressbar\"");
@@ -38,6 +40,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("/100");
     expect(svg).toContain("class=\"chip-bg\"");
     expect(svg).toContain("Found Signals");
+    expect(svg).not.toContain("class=\"chip\">+ ");
     expect(svg).not.toContain("<text x=\"36\" y=\"338\" class=\"section-label\">Evidence");
     expect(svg).not.toContain("<script");
   });
@@ -109,6 +112,19 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("Collaboration: 7 points out of 100");
   });
 
+  test("shows the configured repository activity window when present", () => {
+    const report = scoreUserProfile(
+      {
+        ...(fixture as ProfileInput),
+        activityWindowDays: 180
+      },
+      { now }
+    );
+    const svg = renderUserSignalCard(report);
+
+    expect(svg).toContain("last 6 months");
+  });
+
   test("renders a fallback card for failed generation", () => {
     const svg = renderFallbackCard("GitHub API limit reached");
 
@@ -144,6 +160,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("What's Missing");
     expect(svg).toContain("Missing public GitHub signals");
     expect(svg).toContain("missing:");
+    expect(svg).toContain("gaps found");
     expect(svg).toContain("Buildmarks Gaps · Public Signals");
     expect(svg).toContain("not a ranking");
   });

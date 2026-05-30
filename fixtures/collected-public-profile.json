@@ -1,6 +1,7 @@
 {
   "username": "example-builder",
   "collectedAt": "2026-05-28T00:00:00.000Z",
+  "activityWindowDays": 365,
   "repositories": [
     {
       "owner": "example-builder",
@@ -24,7 +25,16 @@
         "hasCodeOfConduct": false,
         "hasSecurityPolicy": true,
         "hasDemoOrDocs": true,
-        "hasPackageArtifact": true
+        "hasPackageArtifact": true,
+        "codebaseShape": {
+          "sourceFileCount": 42,
+          "testFileCount": 8,
+          "exampleFileCount": 3,
+          "medianSourceFileBytes": 3600,
+          "p90SourceFileBytes": 14000,
+          "oversizedSourceFileCount": 1,
+          "testToSourceRatio": 0.19
+        }
       },
       "activity": {
         "issueResponseCount": 14,
@@ -54,7 +64,16 @@
         "hasCodeOfConduct": true,
         "hasSecurityPolicy": true,
         "hasDemoOrDocs": true,
-        "hasPackageArtifact": true
+        "hasPackageArtifact": true,
+        "codebaseShape": {
+          "sourceFileCount": 110,
+          "testFileCount": 24,
+          "exampleFileCount": 6,
+          "medianSourceFileBytes": 4100,
+          "p90SourceFileBytes": 18000,
+          "oversizedSourceFileCount": 2,
+          "testToSourceRatio": 0.218
+        }
       },
       "activity": {
         "issueResponseCount": 60,
@@ -84,7 +103,16 @@
         "hasCodeOfConduct": true,
         "hasSecurityPolicy": true,
         "hasDemoOrDocs": true,
-        "hasPackageArtifact": true
+        "hasPackageArtifact": true,
+        "codebaseShape": {
+          "sourceFileCount": 80,
+          "testFileCount": 20,
+          "exampleFileCount": 8,
+          "medianSourceFileBytes": 3000,
+          "p90SourceFileBytes": 12000,
+          "oversizedSourceFileCount": 0,
+          "testToSourceRatio": 0.25
+        }
       },
       "activity": {
         "issueResponseCount": 100,

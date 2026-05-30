@@ -84,6 +84,7 @@ Examples of signals:
 - release or tag history
 - CI workflow files
 - test configuration or test directory
+- coarse codebase shape signals such as test-file ratio and source-file size buckets
 - issue and pull request templates
 - public pull request or issue response traces
 - demo, documentation, or package links
@@ -230,6 +231,8 @@ Set `generate-report: "false"` when you only want the SVG card.
 
 Action inputs are intentionally strict: `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
 
+The default repository activity window is 365 days based on each repository's public `pushed_at` timestamp. Set `activity-window-days: "180"` when you want a six-month card that favors recent work and reduces GitHub API cost.
+
 | Input | Default | Notes |
 | --- | --- | --- |
 | `username` | required | GitHub username to analyze. |
@@ -239,6 +242,7 @@ Action inputs are intentionally strict: `generate-report` must be exactly `"true
 | `token` | empty | Optional public-data token. Private scopes are not needed. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit. |
 | `max-repositories-scored` | `8` | Positive integer profile summary limit. |
+| `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`. |
 
 ## Example Card Assets
 

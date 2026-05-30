@@ -1,4 +1,5 @@
 import type {
+  CodebaseShapeSignals,
   CollectedGitHubProfile,
   CollectedGitHubRepository,
   CollectedRepositoryActivitySignals,
@@ -34,6 +35,57 @@ const packageArtifactPaths = [
   "build.gradle.kts"
 ];
 const usageGuidePattern = /\b(install|installation|usage|example|quick start|get started|getting started)\b|설치|사용법|예제|시작하기/i;
+const sourceFileExtensions = new Set([
+  ".astro",
+  ".c",
+  ".cpp",
+  ".cs",
+  ".cjs",
+  ".dart",
+  ".go",
+  ".h",
+  ".hpp",
+  ".java",
+  ".js",
+  ".jsx",
+  ".kt",
+  ".mjs",
+  ".php",
+  ".py",
+  ".rb",
+  ".rs",
+  ".scala",
+  ".svelte",
+  ".swift",
+  ".ts",
+  ".tsx",
+  ".vue",
+  ".zig"
+]);
+const ignoredShapePathSegments = new Set([
+  ".cache",
+  ".git",
+  ".next",
+  ".svelte-kit",
+  ".turbo",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules",
+  "out",
+  "target",
+  "vendor"
+]);
+const lockfileNames = new Set([
+  "bun.lock",
+  "bun.lockb",
+  "cargo.lock",
+  "composer.lock",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "poetry.lock",
+  "yarn.lock"
+]);
 
 export type GitHubCollectorFetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -89,15 +141,19 @@ export async function collectPublicGitHubProfile(
 
   const client = new GitHubRestClient(fetcher, options.token);
   const repositories = await client.listUserRepositories(username, policy.limits.maxRepositoriesScannedPerProfile);
+  const activeRepositories = repositories.filter((repository) =>
+    wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
+  );
   const collectedRepositories: CollectedGitHubRepository[] = [];
 
-  for (const repository of repositories) {
+  for (const repository of activeRepositories) {
     collectedRepositories.push(await client.collectRepository(repository));
   }
 
   return {
     username,
     collectedAt: new Date().toISOString(),
+    activityWindowDays: policy.limits.repositoryActivityWindowDays,
     repositories: collectedRepositories
   };
 }
@@ -138,7 +194,7 @@ class GitHubRestClient {
   async collectRepository(repository: GitHubRepositoryResponse): Promise<CollectedGitHubRepository> {
     const owner = repository.owner.login;
     const name = repository.name;
-    const [community, readmeText, hasReleasesOrTags, treePaths] = await Promise.all([
+    const [community, readmeText, hasReleasesOrTags, treeEntries] = await Promise.all([
       this.fetchJson<GitHubCommunityProfileResponse>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/community/profile`, {
         allowMissing: true
       }),
@@ -147,9 +203,9 @@ class GitHubRestClient {
         allowMissing: true
       }),
       this.hasReleasesOrTags(owner, name),
-      this.fetchRepositoryTreePaths(owner, name, repository.default_branch)
+      this.fetchRepositoryTree(owner, name, repository.default_branch)
     ]);
-    const fileSignals = this.collectFileSignals(treePaths, repository);
+    const fileSignals = this.collectFileSignals(treeEntries, repository);
 
     const collected: CollectedGitHubRepository = {
       owner,
@@ -173,9 +229,11 @@ class GitHubRestClient {
   }
 
   collectFileSignals(
-    treePaths: readonly string[],
+    treeEntries: readonly GitHubTreeEntry[],
     repository: GitHubRepositoryResponse
   ): CollectedRepositoryFileSignals {
+    const treePaths = treeEntries.map((entry) => entry.path);
+
     return {
       hasReadme: false,
       hasLicense: false,
@@ -187,11 +245,12 @@ class GitHubRestClient {
       hasCodeOfConduct: false,
       hasSecurityPolicy: treeHasAnyPath(treePaths, securityPolicyPaths),
       hasDemoOrDocs: treeHasAnyPath(treePaths, demoOrDocsPaths) || hasNonEmptyString(repository.homepage),
-      hasPackageArtifact: treeHasAnyPath(treePaths, packageArtifactPaths)
+      hasPackageArtifact: treeHasAnyPath(treePaths, packageArtifactPaths),
+      codebaseShape: summarizeCodebaseShape(treeEntries)
     };
   }
 
-  async fetchRepositoryTreePaths(owner: string, repo: string, branch: string): Promise<string[]> {
+  async fetchRepositoryTree(owner: string, repo: string, branch: string): Promise<GitHubTreeEntry[]> {
     const tree = await this.fetchJson<GitHubTreeResponse>(
       `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
       { allowMissing: true }
@@ -205,7 +264,21 @@ class GitHubRestClient {
       throw new GitHubCollectorError("invalid_github_response", "GitHub tree response was missing tree array.");
     }
 
-    return tree.tree.flatMap((item) => (typeof item.path === "string" ? [item.path] : []));
+    return tree.tree.flatMap((item) => {
+      if (typeof item.path !== "string") {
+        return [];
+      }
+
+      const entry: GitHubTreeEntry = { path: item.path };
+      if (typeof item.type === "string") {
+        entry.type = item.type;
+      }
+      if (typeof item.size === "number" && Number.isFinite(item.size)) {
+        entry.size = Math.max(0, item.size);
+      }
+
+      return [entry];
+    });
   }
 
   async hasReleasesOrTags(owner: string, repo: string): Promise<boolean> {
@@ -387,6 +460,19 @@ function arrayHasItems(value: unknown[] | null): boolean {
   return Array.isArray(value) && value.length > 0;
 }
 
+function wasPushedWithinWindow(value: string | null, days: number, now = new Date()): boolean {
+  if (value === null) {
+    return false;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return now.getTime() - date.getTime() <= days * 24 * 60 * 60 * 1000;
+}
+
 interface GitHubRepositoryResponse {
   owner: { login: string };
   name: string;
@@ -413,8 +499,14 @@ interface GitHubCommunityProfileResponse {
 }
 
 interface GitHubTreeResponse {
-  tree?: Array<{ path?: unknown }>;
+  tree?: Array<{ path?: unknown; type?: unknown; size?: unknown }>;
   truncated?: boolean;
+}
+
+interface GitHubTreeEntry {
+  path: string;
+  type?: string;
+  size?: number;
 }
 
 function treeHasAnyPath(treePaths: readonly string[], candidatePaths: readonly string[]): boolean {
@@ -435,4 +527,94 @@ function treeHasAnyPath(treePaths: readonly string[], candidatePaths: readonly s
 
 function normalizeTreePath(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\/+/, "").toLowerCase();
+}
+
+function summarizeCodebaseShape(treeEntries: readonly GitHubTreeEntry[]): CodebaseShapeSignals {
+  const sourceFiles = treeEntries.filter(isCountableSourceFile);
+  const sourceSizes = sourceFiles
+    .map((entry) => entry.size)
+    .filter((size): size is number => size !== undefined && Number.isFinite(size));
+  const testFileCount = sourceFiles.filter((entry) => isTestPath(entry.path)).length;
+  const exampleFileCount = treeEntries.filter((entry) => isExamplePath(entry.path)).length;
+  const oversizedSourceFileCount = sourceSizes.filter((size) => size > 32_000).length;
+  const sourceFileCount = sourceFiles.length;
+
+  return {
+    sourceFileCount,
+    testFileCount,
+    exampleFileCount,
+    medianSourceFileBytes: percentile(sourceSizes, 0.5),
+    p90SourceFileBytes: percentile(sourceSizes, 0.9),
+    oversizedSourceFileCount,
+    testToSourceRatio: sourceFileCount === 0 ? 0 : roundRatio(testFileCount / sourceFileCount)
+  };
+}
+
+function isCountableSourceFile(entry: GitHubTreeEntry): boolean {
+  const normalizedPath = normalizeTreePath(entry.path);
+  const segments = normalizedPath.split("/");
+  const fileName = segments.at(-1) ?? "";
+
+  if (entry.type !== undefined && entry.type !== "blob") {
+    return false;
+  }
+  if (segments.some((segment) => ignoredShapePathSegments.has(segment))) {
+    return false;
+  }
+  if (lockfileNames.has(fileName) || fileName.endsWith(".min.js") || fileName.endsWith(".map")) {
+    return false;
+  }
+
+  return sourceFileExtensions.has(extensionOf(fileName));
+}
+
+function isTestPath(path: string): boolean {
+  const normalizedPath = normalizeTreePath(path);
+  const fileName = normalizedPath.split("/").at(-1) ?? "";
+
+  return (
+    normalizedPath.includes("/__tests__/") ||
+    normalizedPath.includes("/test/") ||
+    normalizedPath.includes("/tests/") ||
+    normalizedPath.includes("/spec/") ||
+    fileName.includes(".test.") ||
+    fileName.includes(".spec.")
+  );
+}
+
+function isExamplePath(path: string): boolean {
+  const normalizedPath = normalizeTreePath(path);
+
+  return (
+    normalizedPath.startsWith("demo/") ||
+    normalizedPath.startsWith("demos/") ||
+    normalizedPath.startsWith("example/") ||
+    normalizedPath.startsWith("examples/") ||
+    normalizedPath.startsWith("fixture/") ||
+    normalizedPath.startsWith("fixtures/") ||
+    normalizedPath.startsWith("sample/") ||
+    normalizedPath.startsWith("samples/") ||
+    normalizedPath.includes("/examples/") ||
+    normalizedPath.includes("/fixtures/")
+  );
+}
+
+function extensionOf(fileName: string): string {
+  const extensionStart = fileName.lastIndexOf(".");
+  return extensionStart === -1 ? "" : fileName.slice(extensionStart);
+}
+
+function percentile(values: readonly number[], percentileValue: number): number {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * percentileValue) - 1));
+
+  return Math.round(sorted[index] ?? 0);
+}
+
+function roundRatio(value: number): number {
+  return Number(value.toFixed(3));
 }

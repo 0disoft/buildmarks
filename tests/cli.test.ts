@@ -29,6 +29,8 @@ describe("render-card CLI", () => {
     expect(svg).toContain("Buildmarks Profile · Public Signals");
     expect(svg).toContain("Project Care");
     expect(svg).toContain("Found Signals");
+    expect(svg).toContain("signal band");
+    expect(svg).not.toContain("class=\"chip\">+ ");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
@@ -94,6 +96,7 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks Profile · Public Signals");
     expect(svg).toContain("Project Care");
+    expect(svg).toContain("signal band");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 

@@ -6,15 +6,18 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
-- Shift SVG card front matter from a large `/100` overall score to a `Signals Found` count with checked repository coverage.
-- Rename the card evidence section and report link to `Found Signals` and `View report` to keep the front card less defensive.
-- Treat public collaboration as context instead of a score penalty for independent-builder profiles.
+- Nothing yet.
 
-## v0.1.2 - 2026-05-30
+## v0.1.2 - 2026-05-31
 
 - Add an explicit private-local repository signal contract for owner-supplied private evidence.
 - Render private-local cards with `Public + Private Signals` disclosure instead of public-only wording.
 - Show public adoption as `N/A` on private-local cards and exclude it from the overall score.
+- Shift SVG card front matter from a large `/100` overall score to a `Signals Found` count with checked repository coverage.
+- Rename the card evidence section and report link to `Found Signals` and `View report` to keep the front card less defensive.
+- Treat public collaboration as context instead of a score penalty for independent-builder profiles.
+- Add coarse codebase-shape maintainability signals from Git tree metadata without reading source contents or counting lines.
+- Add a repository activity window policy and Action/CLI input so old repositories can be skipped before per-repository collection.
 - Document the real profile README adoption smoke-test path.
 - Add methodology notes for deferred public issue, pull request, and external contributor aggregates.
 - Add a storage-neutral cache contract before any hosted endpoint work.

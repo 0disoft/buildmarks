@@ -39,6 +39,9 @@ export function scoreRepository(
       part(repository.hasTests, 5, "Test signal found", "file", repository.name),
       part(repository.hasCi, 5, "CI workflow found", "workflow", repository.name),
       part(repository.hasChangelog, 3, "Changelog or release notes found", "file", repository.name),
+      part(hasTestSurface(repository), 2, "Test file surface found", "file", repository.name),
+      part(hasCompactSourceShape(repository), 2, "Compact source file shape", "file", repository.name),
+      part(hasExampleSurface(repository), 1, "Example or fixture surface found", "file", repository.name),
       part(repository.hasContributing, 2, "Contribution guide found", "file", repository.name),
       part(repository.hasCodeOfConduct, 1, "Code of conduct found", "file", repository.name),
       part(repository.hasSecurityPolicy, 1, "Security policy found", "file", repository.name),
@@ -194,6 +197,30 @@ function hasLivedAtLeast(value: string | null, now: Date, days: number): boolean
   }
 
   return now.getTime() - date.getTime() >= days * 24 * 60 * 60 * 1000;
+}
+
+function hasTestSurface(repository: RepositoryInput): boolean {
+  const shape = repository.codebaseShape;
+  if (shape === undefined || shape.sourceFileCount === 0) {
+    return false;
+  }
+
+  return shape.testFileCount >= 2 || shape.testToSourceRatio >= 0.08;
+}
+
+function hasCompactSourceShape(repository: RepositoryInput): boolean {
+  const shape = repository.codebaseShape;
+  if (shape === undefined || shape.sourceFileCount < 4 || shape.medianSourceFileBytes <= 0) {
+    return false;
+  }
+
+  const oversizedRatio = shape.oversizedSourceFileCount / shape.sourceFileCount;
+
+  return shape.medianSourceFileBytes <= 8_000 && shape.p90SourceFileBytes <= 32_000 && oversizedRatio <= 0.1;
+}
+
+function hasExampleSurface(repository: RepositoryInput): boolean {
+  return (repository.codebaseShape?.exampleFileCount ?? 0) > 0;
 }
 
 function parseDate(value: string | null): Date | null {

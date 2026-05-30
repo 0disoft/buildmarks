@@ -42,6 +42,7 @@ export function scoreUserProfile(
   return {
     username: input.username,
     generatedAt,
+    ...(input.activityWindowDays === undefined ? {} : { activityWindowDays: input.activityWindowDays }),
     ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
     ...(includesPrivateSignals ? { unavailableDimensions: ["externalValidation" as const] } : {}),
     overall,
@@ -54,7 +55,8 @@ export function scoreUserProfile(
       eligibleRepositories.length,
       topRepos.length,
       includesPrivateSignals,
-      signalType
+      signalType,
+      input.activityWindowDays
     )
   };
 }
@@ -101,7 +103,8 @@ function buildLimitations(
   eligible: number,
   scored: number,
   includesPrivateSignals: boolean,
-  signalType: string
+  signalType: string,
+  activityWindowDays: number | undefined
 ): string[] {
   const limitations = [
     includesPrivateSignals
@@ -119,6 +122,10 @@ function buildLimitations(
 
   if (signalType === "Independent Builder") {
     limitations.push("Public collaboration is treated as context for independent-builder profiles.");
+  }
+
+  if (activityWindowDays !== undefined) {
+    limitations.push(`Repositories are filtered to activity within the last ${activityWindowDays} days.`);
   }
 
   if (total !== eligible) {

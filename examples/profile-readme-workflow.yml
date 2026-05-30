@@ -26,6 +26,7 @@ jobs:
           output: assets/buildmarks.svg
           generate-report: "true"
           report-output: assets/buildmarks-report
+          activity-window-days: "365"
           token: ${{ github.token }}
 
       - name: Commit updated Buildmarks artifacts

@@ -14,12 +14,15 @@ export interface RenderCardOptions {
 
 const cardWidth = 760;
 const cardHeight = 420;
-const barMaxWidth = 238;
-const barHeight = 5;
+const barMaxWidth = 254;
+const barHeight = 6;
 const rowStartY = 156;
 const rowGap = 29;
-const chipWidth = 208;
-const chipGap = 16;
+const chipWidth = 198;
+const chipGap = 14;
+const rightColumnX = 604;
+const overallUnitX = 674;
+const footerY = 397;
 
 export function renderUserSignalCard(
   report: UserSignalReport,
@@ -32,11 +35,14 @@ export function renderUserSignalCard(
   const signalType = fitText(coerceString(report.signalType, "Public Signal Profile"), 42);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
+  const overallTone = scoreTone(overall);
   const signalCount = countProfileSignals(report);
   const repoCount = report.topRepos.length;
+  const activityWindowLabel = formatActivityWindow(report.activityWindowDays);
   const context = buildProfileCardContext(report);
   const disclosure = report.signalVisibility;
   const signalScopeLabel = disclosure?.cardLabel ?? "Public GitHub signals";
+  const typeLine = fitText(`${signalScopeLabel} · ${signalType}`, 56);
   const subtitle = disclosure?.privateRepositoriesIncluded === true
     ? "Owner-supplied GitHub signals"
     : "Public GitHub signals";
@@ -60,6 +66,9 @@ export function renderUserSignalCard(
   );
   const chips = evidence.map((item, index) => renderEvidenceChip(fitText(item.label, 28), index));
   const desc = buildDescription(report, overall);
+  const activityWindowText = activityWindowLabel === ""
+    ? ""
+    : `  <text x="${rightColumnX}" y="194" class="metric-note">${escapeXml(activityWindowLabel)}</text>\n`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
@@ -73,21 +82,24 @@ export function renderUserSignalCard(
   <text x="36" y="56" class="title">Buildmarks</text>
   <text x="36" y="80" class="subtitle">${escapeXml(subtitle)}</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
-  <text x="36" y="136" class="type">${escapeXml(`${signalScopeLabel} · ${signalType}`)}</text>
-  <text x="604" y="72" class="subtitle">Project Care</text>
-  <text x="604" y="122" class="overall">${overall}</text>
-  <text x="690" y="122" class="overall-unit">/100</text>
-  <text x="604" y="142" class="metric-note">${signalCount} signals · ${repoCount} repos checked</text>
+  <text x="36" y="136" class="type">${escapeXml(typeLine)}</text>
+  <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
+  <text x="${rightColumnX}" y="122" class="overall overall-${overallTone}">${overall}</text>
+  <text x="${overallUnitX}" y="128" class="overall-unit">/100</text>
+  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} signals</text>
+  <text x="${rightColumnX}" y="160" class="metric-note">${repoCount} repos checked</text>
+  <text x="${rightColumnX}" y="178" class="metric-note">${escapeXml(scoreBandLabel(overall))}</text>
+${activityWindowText}
   <g aria-label="Dimension scores out of 100">
-  ${rows.join("")}
+${rows.join("")}
   </g>
-  ${renderLegend(318)}
+${renderLegend(318)}
   <text x="36" y="338" class="section-label">Found Signals</text>
   <g aria-label="${escapeXml(signalsLabel)}">
-  ${chips.join("")}
+${chips.join("")}
   </g>
-  <text x="36" y="390" class="footer">Buildmarks Profile · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
-  ${reportLink}
+  <text x="36" y="${footerY}" class="footer">Buildmarks Profile · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
+${reportLink}
 </svg>`;
 }
 
@@ -108,7 +120,7 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
   <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
   <text x="62" y="228" class="fallback-body">${escapeXml(safeMessage)}</text>
-  <text x="36" y="390" class="footer">Buildmarks Profile · Public Signals</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Profile · Public Signals</text>
 </svg>`;
 }
 
@@ -118,9 +130,10 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   const username = fitText(usernameRaw, 34);
   const generatedDate = formatDate(report.generatedAt);
   const visibleGaps = report.gaps.slice(0, 4);
+  const gapCount = report.gaps.length;
   const rows = visibleGaps.length === 0
     ? [renderEmptyGapRow()]
-    : visibleGaps.map((gap, index) => renderGapRow(gap.repository, gap.dimension, gap.missing, 150 + index * 44));
+    : visibleGaps.map((gap, index) => renderGapRow(gap.repository, gap.dimension, gap.missing, 156 + index * 54));
   const desc = visibleGaps.length === 0
     ? `No obvious public signal gaps detected for ${usernameRaw}. Public GitHub data only.`
     : `Signal gaps for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} missing ${gap.missing.join(", ")}`).join("; ")}.`;
@@ -138,10 +151,11 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   <text x="36" y="80" class="subtitle">Missing public GitHub signals</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
   <text x="36" y="136" class="type">What's Missing</text>
+  <text x="604" y="112" class="gap-count">${gapCount} gaps found</text>
   <g aria-label="Signal gaps detected from public repository evidence">
-  ${rows.join("")}
+${rows.join("")}
   </g>
-  <text x="36" y="390" class="footer">Buildmarks Gaps · Public Signals · ${escapeXml(generatedDate)}</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Gaps · Public Signals · ${escapeXml(generatedDate)}</text>
 </svg>`;
 }
 
@@ -150,6 +164,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   const repoNameRaw = `${report.owner}/${report.name}`;
   const repoName = fitText(repoNameRaw, 38);
   const overall = safeScore(report.overall);
+  const overallTone = scoreTone(overall);
   const signalCount = countRepositorySignals(report);
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
@@ -170,19 +185,20 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <text x="36" y="80" class="subtitle">Repository GitHub signals</text>
   <text x="36" y="112" class="name">${escapeXml(repoName)}</text>
   <text x="36" y="136" class="type">Repository Signal Card</text>
-  <text x="604" y="72" class="subtitle">Project Care</text>
-  <text x="604" y="122" class="overall">${overall}</text>
-  <text x="690" y="122" class="overall-unit">/100</text>
-  <text x="604" y="142" class="metric-note">${signalCount} signals found</text>
+  <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
+  <text x="${rightColumnX}" y="122" class="overall overall-${overallTone}">${overall}</text>
+  <text x="${overallUnitX}" y="128" class="overall-unit">/100</text>
+  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} signals</text>
+  <text x="${rightColumnX}" y="162" class="metric-note">${escapeXml(scoreBandLabel(overall))}</text>
   <g aria-label="Repository dimension scores out of 100">
-  ${rows.join("")}
+${rows.join("")}
   </g>
-  ${renderLegend(318)}
+${renderLegend(318)}
   <text x="36" y="338" class="section-label">Found Signals</text>
   <g aria-label="Top public repository signals">
-  ${chips.join("")}
+${chips.join("")}
   </g>
-  <text x="36" y="390" class="footer">Buildmarks Repo · Public Signals</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Repo · Public Signals</text>
 </svg>`;
 }
 
@@ -196,7 +212,7 @@ function renderDimensionRow(
 ): string {
   const width = Math.max(0, Math.min(barMaxWidth, Math.round(score / 100 * barMaxWidth)));
   const label = labelOverride ?? dimensionLabels[dimension];
-  const tone = score >= 75 ? "strong" : score >= 50 ? "middle" : "low";
+  const tone = scoreTone(score);
   const barY = labelY - 9;
 
   if (unavailable) {
@@ -239,7 +255,7 @@ function renderEvidenceChip(label: string, index: number): string {
   return `
     <g role="img" aria-label="${escapeXml(`Signal found: ${label}`)}">
       <rect x="${x}" y="350" width="${chipWidth}" height="28" rx="6" class="chip-bg" />
-      <text x="${x + 12}" y="369" class="chip">+ ${escapeXml(label)}</text>
+      <text x="${x + 12}" y="369" class="chip">${escapeXml(label)}</text>
     </g>`;
 }
 
@@ -251,21 +267,21 @@ function renderReportLink(href: string | undefined): string {
 
   return `
   <a href="${escapeXml(safeHref)}" target="_top" aria-label="Open the Buildmarks report">
-    <text x="724" y="390" class="link-text">View report</text>
+    <text x="724" y="${footerY}" class="link-text">View report</text>
   </a>`;
 }
 
 function renderGapRow(repository: string, dimension: SignalDimension, missing: string[], y: number): string {
   const label = fitText(repository, 24);
-  const missingText = fitText(missing.join(", "), 46);
-  const dimensionText = dimensionLabels[dimension];
+  const missingText = fitText(missing.join(", "), 78);
+  const dimensionText = fitText(dimensionLabels[dimension], 24);
 
   return `
     <g role="img" aria-label="${escapeXml(`${repository}: missing ${missing.join(", ")} for ${dimensionText}`)}">
-      <rect x="36" y="${y - 24}" width="688" height="34" rx="8" class="chip-bg" />
-      <text x="52" y="${y}" class="label">${escapeXml(label)}</text>
-      <text x="250" y="${y}" class="chip">${escapeXml(dimensionText)}</text>
-      <text x="416" y="${y}" class="subtitle">missing: ${escapeXml(missingText)}</text>
+      <rect x="36" y="${y - 26}" width="688" height="46" rx="8" class="chip-bg" />
+      <text x="52" y="${y - 5}" class="label">${escapeXml(label)}</text>
+      <text x="504" y="${y - 5}" class="chip">${escapeXml(dimensionText)}</text>
+      <text x="52" y="${y + 14}" class="subtitle">missing: ${escapeXml(missingText)}</text>
     </g>`;
 }
 
@@ -284,15 +300,15 @@ function renderDefs(): string {
       <stop offset="0%" class="stroke-start" />
       <stop offset="100%" class="stroke-end" />
     </linearGradient>
-    <linearGradient id="barStrong" x1="324" y1="0" x2="562" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barStrong" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-strong-start" />
       <stop offset="100%" class="bar-strong-end" />
     </linearGradient>
-    <linearGradient id="barMiddle" x1="324" y1="0" x2="562" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barMiddle" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-middle-start" />
       <stop offset="100%" class="bar-middle-end" />
     </linearGradient>
-    <linearGradient id="barLow" x1="324" y1="0" x2="562" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barLow" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-low-start" />
       <stop offset="100%" class="bar-low-end" />
     </linearGradient>
@@ -312,7 +328,7 @@ function renderStyles(): string {
       --muted: #587083;
       --accent: #0f8b6c;
       --accent-2: #21b28b;
-      --warning: #9b6700;
+      --warning: #7a5200;
       --chip-bg: #edf7f3;
       --chip-text: #245d4c;
       --track: #dce5ee;
@@ -360,12 +376,16 @@ function renderStyles(): string {
     .bg { fill: var(--bg); }
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
-    .title { fill: var(--text); font: 750 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .title { fill: var(--text); font: 700 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .name { fill: var(--text); font: 750 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .overall { fill: var(--warning); font: 800 44px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .overall-strong { fill: var(--accent); }
+    .overall-middle { fill: var(--warning); }
+    .overall-low { fill: var(--low); }
     .overall-unit { fill: var(--muted); font: 700 16px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .gap-count { fill: var(--muted); font: 700 16px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .label { fill: var(--text); font: 600 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .score { fill: var(--muted); font: 700 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: end; }
     .track { fill: var(--track); }
@@ -376,7 +396,7 @@ function renderStyles(): string {
     .chip { fill: var(--chip-text); font: 600 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .link-text { fill: var(--chip-text); font: 700 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: end; text-decoration: underline; }
     .fallback-box { fill: var(--chip-bg); stroke: var(--panel-border); stroke-width: 1; }
-    .fallback-title { fill: var(--text); font: 750 22px ui-sans-serif, system-ui, sans-serif; }
+    .fallback-title { fill: var(--text); font: 700 22px ui-sans-serif, system-ui, sans-serif; }
     .fallback-body { fill: var(--muted); font: 500 15px ui-sans-serif, system-ui, sans-serif; }
     .stroke-start { stop-color: var(--accent); stop-opacity: 0.72; }
     .stroke-end { stop-color: var(--warning); stop-opacity: 0.46; }
@@ -525,4 +545,39 @@ function safeScore(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, Math.min(100, Math.round(value)))
     : 0;
+}
+
+function scoreTone(score: number): "strong" | "middle" | "low" {
+  if (score >= 75) {
+    return "strong";
+  }
+
+  return score >= 50 ? "middle" : "low";
+}
+
+function scoreBandLabel(score: number): string {
+  const tone = scoreTone(score);
+  if (tone === "strong") {
+    return "75+ signal band";
+  }
+  if (tone === "middle") {
+    return "50-74 signal band";
+  }
+
+  return "0-49 signal band";
+}
+
+function formatActivityWindow(days: number | undefined): string {
+  if (days === undefined) {
+    return "";
+  }
+
+  if (days % 30 === 0 && days < 365) {
+    return `last ${Math.round(days / 30)} months`;
+  }
+  if (days % 365 === 0) {
+    return `last ${Math.round(days / 365)} year${days === 365 ? "" : "s"}`;
+  }
+
+  return `last ${days} days`;
 }

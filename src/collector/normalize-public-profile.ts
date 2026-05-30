@@ -1,9 +1,15 @@
-import type { CollectedGitHubProfile, ProfileInput, RepositoryInput } from "../shared/types";
+import type {
+  CodebaseShapeSignals,
+  CollectedGitHubProfile,
+  ProfileInput,
+  RepositoryInput
+} from "../shared/types";
 
 export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): ProfileInput {
   return {
     username: profile.username,
     generatedAt: profile.collectedAt,
+    ...(profile.activityWindowDays === undefined ? {} : { activityWindowDays: profile.activityWindowDays }),
     ...(profile.signalVisibility ? { signalVisibility: profile.signalVisibility } : {}),
     repositories: profile.repositories.map(normalizePublicGitHubRepository)
   };
@@ -34,8 +40,21 @@ function normalizePublicGitHubRepository(repository: CollectedGitHubProfile["rep
     hasReleases: repository.hasReleasesOrTags,
     hasDemoOrDocs: repository.files.hasDemoOrDocs,
     hasPackageArtifact: repository.files.hasPackageArtifact,
+    codebaseShape: repository.files.codebaseShape ?? emptyCodebaseShape(),
     issueResponseCount: repository.activity.issueResponseCount,
     pullRequestReviewCount: repository.activity.pullRequestReviewCount,
     externalContributorCount: repository.activity.externalContributorCount
+  };
+}
+
+function emptyCodebaseShape(): CodebaseShapeSignals {
+  return {
+    sourceFileCount: 0,
+    testFileCount: 0,
+    exampleFileCount: 0,
+    medianSourceFileBytes: 0,
+    p90SourceFileBytes: 0,
+    oversizedSourceFileCount: 0,
+    testToSourceRatio: 0
   };
 }

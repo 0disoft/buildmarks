@@ -20,6 +20,7 @@ describe("GitHub collector operations policy", () => {
     expect(defaultGitHubCollectorPolicy.cache.repositoryFileSignalsTtlSeconds).toBeGreaterThan(0);
     expect(defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile).toBeGreaterThan(0);
     expect(defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile).toBeGreaterThan(0);
+    expect(defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays).toBe(365);
     expect(defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile).toBeGreaterThanOrEqual(
       defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile
     );
@@ -50,7 +51,8 @@ describe("GitHub collector operations policy", () => {
       },
       limits: {
         maxRepositoriesScannedPerProfile: 4,
-        maxRepositoriesScoredPerProfile: 8
+        maxRepositoriesScoredPerProfile: 8,
+        repositoryActivityWindowDays: 0
       }
     };
 
@@ -62,5 +64,6 @@ describe("GitHub collector operations policy", () => {
     expect(validation.errors).toContain(
       "Max repositories scanned per profile must be greater than or equal to max repositories scored."
     );
+    expect(validation.errors).toContain("Repository activity window days must be a positive integer.");
   });
 });

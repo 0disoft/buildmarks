@@ -32,6 +32,10 @@ inputs:
     description: Maximum public repositories to summarize in the card.
     required: false
     default: "8"
+  activity-window-days:
+    description: Only analyze repositories pushed within this many days.
+    required: false
+    default: "365"
 
 runs:
   using: composite
@@ -42,6 +46,7 @@ runs:
         BUILDMARKS_GENERATE_REPORT: ${{ inputs.generate-report }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
+        BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
       run: |
         set -euo pipefail
 
@@ -64,6 +69,11 @@ runs:
           exit 1
         fi
 
+        if [[ ! "$BUILDMARKS_ACTIVITY_WINDOW_DAYS" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error title=Invalid activity-window-days::Expected a positive integer."
+          exit 1
+        fi
+
     - name: Set up Bun
       uses: oven-sh/setup-bun@v2
 
@@ -77,6 +87,7 @@ runs:
         BUILDMARKS_TOKEN: ${{ inputs.token }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
+        BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
       run: |
         set -euo pipefail
 
@@ -88,6 +99,8 @@ runs:
           "$BUILDMARKS_MAX_REPOSITORIES_SCANNED"
           "--max-repositories-scored"
           "$BUILDMARKS_MAX_REPOSITORIES_SCORED"
+          "--activity-window-days"
+          "$BUILDMARKS_ACTIVITY_WINDOW_DAYS"
         )
 
         if [ -n "$BUILDMARKS_TOKEN" ]; then
@@ -105,6 +118,7 @@ runs:
         BUILDMARKS_TOKEN: ${{ inputs.token }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
+        BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
       run: |
         set -euo pipefail
 
@@ -115,6 +129,8 @@ runs:
           "$BUILDMARKS_MAX_REPOSITORIES_SCANNED"
           "--max-repositories-scored"
           "$BUILDMARKS_MAX_REPOSITORIES_SCORED"
+          "--activity-window-days"
+          "$BUILDMARKS_ACTIVITY_WINDOW_DAYS"
         )
 
         if [ -n "$BUILDMARKS_TOKEN" ]; then

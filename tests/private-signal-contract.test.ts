@@ -36,6 +36,7 @@ describe("private repository signal contract", () => {
       "fine-grained-read-only-selected-repositories"
     );
     expect(privateLocalRepositorySignalContract.allowedEvidence).toContain("file-presence");
+    expect(privateLocalRepositorySignalContract.allowedEvidence).toContain("aggregate-codebase-shape");
     expect(privateLocalRepositorySignalContract.allowedEvidence).toContain("release-or-tag-presence");
     expect(privateLocalRepositorySignalContract.disclosure).toEqual(privateLocalSignalVisibility);
     expect(privateLocalRepositorySignalContract.disclosure.cardLabel).toBe("Public + Private Signals");
@@ -108,6 +109,7 @@ describe("private repository signal contract", () => {
     expect(privateContract).toContain("not independently verifiable from public GitHub");
     expect(privateContract).toContain("redact private repository names by default");
     expect(privateContract).toContain("file contents");
+    expect(privateContract).toContain("aggregate codebase-shape signals");
     expect(privateContract).toContain("commit messages");
     expect(privateContract).toContain("raw commit count");
     expect(privateContract).toContain("hiring suitability");

@@ -6,6 +6,8 @@ import {
   type GitHubCollectorPolicy
 } from "../src";
 
+const recentPushedAt = new Date().toISOString();
+
 describe("live public GitHub collector", () => {
   test("collects public repository metadata into the normalized collector contract", async () => {
     const fetcher = makeGitHubFetch();
@@ -24,7 +26,7 @@ describe("live public GitHub collector", () => {
       stars: 42,
       forks: 7,
       createdAt: "2025-01-01T00:00:00Z",
-      pushedAt: "2026-05-27T00:00:00Z",
+      pushedAt: recentPushedAt,
       hasReleasesOrTags: true
     });
   });
@@ -44,7 +46,42 @@ describe("live public GitHub collector", () => {
       hasCodeOfConduct: true,
       hasSecurityPolicy: true,
       hasDemoOrDocs: true,
-      hasPackageArtifact: true
+      hasPackageArtifact: true,
+      codebaseShape: {
+        sourceFileCount: 0,
+        testFileCount: 0,
+        exampleFileCount: 0,
+        medianSourceFileBytes: 0,
+        p90SourceFileBytes: 0,
+        oversizedSourceFileCount: 0,
+        testToSourceRatio: 0
+      }
+    });
+  });
+
+  test("summarizes repository tree shape without reading file contents or lines", async () => {
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        tree: [
+          { path: "src/index.ts", type: "blob", size: 2400 },
+          { path: "src/render.ts", type: "blob", size: 6200 },
+          { path: "src/large.ts", type: "blob", size: 40_000 },
+          { path: "tests/render.test.ts", type: "blob", size: 4200 },
+          { path: "examples/basic.ts", type: "blob", size: 900 },
+          { path: "dist/generated.js", type: "blob", size: 1000 },
+          { path: "package-lock.json", type: "blob", size: 120_000 }
+        ]
+      })
+    });
+
+    expect(profile.repositories[0]?.files.codebaseShape).toEqual({
+      sourceFileCount: 5,
+      testFileCount: 1,
+      exampleFileCount: 1,
+      medianSourceFileBytes: 4200,
+      p90SourceFileBytes: 40_000,
+      oversizedSourceFileCount: 1,
+      testToSourceRatio: 0.2
     });
   });
 
@@ -75,7 +112,8 @@ describe("live public GitHub collector", () => {
       ...defaultGitHubCollectorPolicy,
       limits: {
         maxRepositoriesScannedPerProfile: 2,
-        maxRepositoriesScoredPerProfile: 2
+        maxRepositoriesScoredPerProfile: 2,
+        repositoryActivityWindowDays: 365
       }
     };
 
@@ -83,6 +121,31 @@ describe("live public GitHub collector", () => {
 
     expect(profile.repositories.map((repository) => repository.name)).toEqual(["first", "second"]);
     expect(calls.some((url) => url.includes("/repos/example-builder/third/"))).toBe(false);
+  });
+
+  test("skips repositories outside the activity window before per-repository collection", async () => {
+    const calls: string[] = [];
+    const fetcher = makeGitHubFetch({
+      repositories: [
+        makeRepositoryResponse("recent"),
+        makeRepositoryResponse("old", { pushedAt: "2024-01-01T00:00:00Z" })
+      ],
+      onRequest: (url) => calls.push(url)
+    });
+    const policy: GitHubCollectorPolicy = {
+      ...defaultGitHubCollectorPolicy,
+      limits: {
+        maxRepositoriesScannedPerProfile: 30,
+        maxRepositoriesScoredPerProfile: 8,
+        repositoryActivityWindowDays: 180
+      }
+    };
+
+    const profile = await collectPublicGitHubProfile("example-builder", { fetcher, policy });
+
+    expect(profile.activityWindowDays).toBe(180);
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(["recent"]);
+    expect(calls.some((url) => url.includes("/repos/example-builder/old/"))).toBe(false);
   });
 
   test("treats missing optional content paths as absent instead of failing collection", async () => {
@@ -201,11 +264,13 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
     if (parsed.pathname.endsWith("/git/trees/main")) {
       return jsonResponse({
         tree: [
-          { path: ".github/workflows/ci.yml" },
-          { path: "CHANGELOG.md" },
-          { path: "SECURITY.md" },
-          { path: "docs/index.md" },
-          { path: "package.json" }
+          ...(options.tree ?? [
+            { path: ".github/workflows/ci.yml" },
+            { path: "CHANGELOG.md" },
+            { path: "SECURITY.md" },
+            { path: "docs/index.md" },
+            { path: "package.json" }
+          ])
         ],
         truncated: false
       });
@@ -215,7 +280,7 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
   };
 }
 
-function makeRepositoryResponse(name: string) {
+function makeRepositoryResponse(name: string, options: { pushedAt?: string } = {}) {
   return {
     owner: { login: "example-builder" },
     name,
@@ -225,7 +290,7 @@ function makeRepositoryResponse(name: string) {
     stargazers_count: 42,
     forks_count: 7,
     created_at: "2025-01-01T00:00:00Z",
-    pushed_at: "2026-05-27T00:00:00Z",
+    pushed_at: options.pushedAt ?? recentPushedAt,
     homepage: "",
     default_branch: "main"
   };
@@ -254,5 +319,6 @@ function textResponse(body: string): Response {
 
 interface MakeGitHubFetchOptions {
   repositories?: unknown[];
+  tree?: Array<{ path: string; type?: string; size?: number }>;
   onRequest?: (url: string, init: RequestInit) => void;
 }

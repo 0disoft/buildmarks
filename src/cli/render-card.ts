@@ -5,6 +5,7 @@ import {
   renderUserSignalCard,
   scoreUserProfile,
   type RenderCardOptions,
+  type CodebaseShapeSignals,
   type ProfileInput,
   type RepositoryInput
 } from "../index";
@@ -151,6 +152,10 @@ export function parseProfileInput(value: unknown): ProfileInput {
     profile.generatedAt = record.generatedAt;
   }
 
+  if (typeof record.activityWindowDays === "number" && Number.isFinite(record.activityWindowDays)) {
+    profile.activityWindowDays = record.activityWindowDays;
+  }
+
   const signalVisibility = parseSignalVisibility(record.signalVisibility);
   if (signalVisibility !== undefined) {
     profile.signalVisibility = signalVisibility;
@@ -203,7 +208,34 @@ function parseRepositoryInput(value: unknown): RepositoryInput {
     repository.redactedName = record.redactedName;
   }
 
+  const codebaseShape = parseCodebaseShape(record.codebaseShape);
+  if (codebaseShape !== undefined) {
+    repository.codebaseShape = codebaseShape;
+  }
+
   return repository;
+}
+
+function parseCodebaseShape(value: unknown): CodebaseShapeSignals | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "object" || value === null) {
+    throw new Error("repository input codebaseShape must be an object");
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return {
+    sourceFileCount: requireNumber(record, "sourceFileCount"),
+    testFileCount: requireNumber(record, "testFileCount"),
+    exampleFileCount: requireNumber(record, "exampleFileCount"),
+    medianSourceFileBytes: requireNumber(record, "medianSourceFileBytes"),
+    p90SourceFileBytes: requireNumber(record, "p90SourceFileBytes"),
+    oversizedSourceFileCount: requireNumber(record, "oversizedSourceFileCount"),
+    testToSourceRatio: requireNumber(record, "testToSourceRatio")
+  };
 }
 
 function parseSignalVisibility(value: unknown): ProfileInput["signalVisibility"] | undefined {

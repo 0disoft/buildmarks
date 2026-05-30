@@ -65,7 +65,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--report-href <href>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>]"
+      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--report-href <href>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
     );
     process.exitCode = 2;
     return;
@@ -78,7 +78,8 @@ async function main(args: readonly string[]): Promise<void> {
       ...defaultGitHubCollectorPolicy,
       limits: {
         maxRepositoriesScannedPerProfile: parsed.maxRepositoriesScanned,
-        maxRepositoriesScoredPerProfile: parsed.maxRepositoriesScored
+        maxRepositoriesScoredPerProfile: parsed.maxRepositoriesScored,
+        repositoryActivityWindowDays: parsed.activityWindowDays
       }
     }
   });
@@ -100,6 +101,7 @@ function parseArgs(args: readonly string[]):
       token?: string;
       maxRepositoriesScanned: number;
       maxRepositoriesScored: number;
+      activityWindowDays: number;
       reportHref?: string;
     }
   | { ok: false; message: string } {
@@ -107,6 +109,7 @@ function parseArgs(args: readonly string[]):
   let token: string | undefined;
   let maxRepositoriesScanned = defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile;
   let maxRepositoriesScored = defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile;
+  let activityWindowDays = defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays;
   let reportHref: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
@@ -145,6 +148,16 @@ function parseArgs(args: readonly string[]):
       continue;
     }
 
+    if (arg === "--activity-window-days") {
+      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      if (typeof value === "string") {
+        return { ok: false, message: value };
+      }
+      activityWindowDays = value;
+      index += 1;
+      continue;
+    }
+
     if (arg === "--report-href") {
       const value = args[index + 1];
       if (value === undefined || value.trim() === "") {
@@ -172,11 +185,11 @@ function parseArgs(args: readonly string[]):
 
   return token === undefined
     ? reportHref === undefined
-      ? { ok: true, username, outputPath, maxRepositoriesScanned, maxRepositoriesScored }
-      : { ok: true, username, outputPath, reportHref, maxRepositoriesScanned, maxRepositoriesScored }
+      ? { ok: true, username, outputPath, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays }
+      : { ok: true, username, outputPath, reportHref, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays }
     : reportHref === undefined
-      ? { ok: true, username, outputPath, token, maxRepositoriesScanned, maxRepositoriesScored }
-      : { ok: true, username, outputPath, token, reportHref, maxRepositoriesScanned, maxRepositoriesScored };
+      ? { ok: true, username, outputPath, token, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays }
+      : { ok: true, username, outputPath, token, reportHref, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays };
 }
 
 function parsePositiveIntegerOption(name: string, rawValue: string | undefined): number | string {

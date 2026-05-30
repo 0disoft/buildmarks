@@ -17,7 +17,7 @@ The current username-to-card CLI is `src/cli/render-github-card.ts`. It uses the
 - Unauthenticated mode is allowed only for local/demo use, where low rate limits are acceptable.
 - Tokens are never loaded from environment variables by the public core. Callers must pass a token explicitly if they want a higher public-data limit.
 - The CLI follows the same rule: pass `--token <token>` explicitly if token mode is desired.
-- The CLI also supports `--max-repositories-scanned <n>` and `--max-repositories-scored <n>` so local demos can reduce GitHub API cost.
+- The CLI also supports `--max-repositories-scanned <n>`, `--max-repositories-scored <n>`, and `--activity-window-days <n>` so local demos can reduce GitHub API cost.
 
 ## Cache Policy
 
@@ -28,7 +28,7 @@ Default cache values:
 
 The profile report cache covers the normalized profile-level result used to render a card or JSON report.
 
-The repository file-signals cache covers slower file-presence checks such as README, LICENSE, CI workflows, tests, changelog, contribution guide, security policy, and package artifact signals. The v0 live collector derives most path-based file signals from one recursive tree response per repository instead of probing every candidate path separately.
+The repository file-signals cache covers slower file-presence checks such as README, LICENSE, CI workflows, tests, changelog, contribution guide, security policy, package artifact signals, and coarse codebase-shape aggregates. The v0 live collector derives most path-based file signals and size-bucket shape signals from one recursive tree response per repository instead of probing every candidate path separately.
 
 The storage-neutral cache contract is documented in [Cache Contract](cache-contract.md). Buildmarks v0 does not ship Redis, KV, database, filesystem, or hosted cache storage.
 
@@ -38,10 +38,13 @@ Default repository limits:
 
 - Scan up to 30 repositories per profile.
 - Score up to 8 repositories per profile.
+- Analyze repositories pushed within the last 365 days.
 
 The scan limit protects GitHub API cost and local runtime. The score limit keeps one profile card readable and limits how much one account can make the renderer do.
 
 The scan limit must be greater than or equal to the score limit.
+
+The activity window uses the public `pushed_at` timestamp and filters repositories before per-repository collection. Callers may set `--activity-window-days 180` for a six-month card. This is a recency and cost-control setting, not proof that older projects are inactive or low quality.
 
 ## Live Client v0 Scope
 
@@ -49,7 +52,7 @@ The live collector uses GitHub REST API endpoints for:
 
 - public user repositories
 - public repository community profile metrics
-- one recursive public repository tree lookup per scanned repository for file-presence signals
+- one recursive public repository tree lookup per scanned repository for file-presence and coarse codebase-shape signals
 - public repository README text for usage-guide detection
 - public releases and tags
 

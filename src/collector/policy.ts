@@ -10,6 +10,7 @@ export interface GitHubCollectorPolicy {
   limits: {
     maxRepositoriesScannedPerProfile: number;
     maxRepositoriesScoredPerProfile: number;
+    repositoryActivityWindowDays: number;
   };
 }
 
@@ -29,7 +30,8 @@ export const defaultGitHubCollectorPolicy = {
   },
   limits: {
     maxRepositoriesScannedPerProfile: 30,
-    maxRepositoriesScoredPerProfile: 8
+    maxRepositoriesScoredPerProfile: 8,
+    repositoryActivityWindowDays: 365
   }
 } satisfies GitHubCollectorPolicy;
 
@@ -77,6 +79,10 @@ export function validateGitHubCollectorPolicy(
 
   if (!isPositiveInteger(policy.limits.maxRepositoriesScoredPerProfile)) {
     errors.push("Max repositories scored per profile must be a positive integer.");
+  }
+
+  if (!isPositiveInteger(policy.limits.repositoryActivityWindowDays)) {
+    errors.push("Repository activity window days must be a positive integer.");
   }
 
   if (

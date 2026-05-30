@@ -113,7 +113,7 @@ describe("profile README workflow example", () => {
     expect(changelog).toContain("First public Buildmarks foundation release");
     expect(changelog).toContain("## v0.1.1 - 2026-05-30");
     expect(changelog).toContain("Published the `buildmarks` npm package as a library package");
-    expect(changelog).toContain("## v0.1.2 - 2026-05-30");
+    expect(changelog).toContain("## v0.1.2 - 2026-05-31");
     expect(changelog).toContain("private-local repository signal contract");
     expect(changelog).toContain("0disoft/buildmarks@v0");
     expect(changelog).toContain("no developer ranking");
@@ -202,7 +202,8 @@ describe("profile README workflow example", () => {
       "report-output",
       "token",
       "max-repositories-scanned",
-      "max-repositories-scored"
+      "max-repositories-scored",
+      "activity-window-days"
     ]) {
       expect(action).toContain(`  ${input}:`);
       expect(readme).toContain(`| \`${input}\``);
@@ -271,6 +272,7 @@ describe("profile README workflow example", () => {
     expect(action).toContain("Expected generate-report to be exactly 'true' or 'false'.");
     expect(action).toContain("Invalid max-repositories-scanned");
     expect(action).toContain("Invalid max-repositories-scored");
+    expect(action).toContain("Invalid activity-window-days");
     expect(action).toContain("set -euo pipefail");
     expect(action.indexOf("Validate Buildmarks inputs")).toBeLessThan(action.indexOf("Set up Bun"));
   });

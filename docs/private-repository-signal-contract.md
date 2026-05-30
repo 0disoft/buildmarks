@@ -36,6 +36,7 @@ Private-local mode may use coarse evidence that resembles the public collector c
 - repository metadata needed for aggregation
 - repository visibility and archive/fork flags
 - file-presence signals such as README, LICENSE, CI workflows, tests, changelog, contribution guide, code of conduct, security policy, demo/docs links, and package artifacts
+- aggregate codebase-shape signals such as source file count, test file count, example file count, and source file size buckets
 - release or tag presence
 - aggregate issue and pull request traces, when those methodology and API-cost rules are defined
 

@@ -12,6 +12,7 @@ describe("public GitHub collector contract", () => {
 
     expect(profile.username).toBe("example-builder");
     expect(profile.generatedAt).toBe("2026-05-28T00:00:00.000Z");
+    expect(profile.activityWindowDays).toBe(365);
     expect(usableToolkit).toMatchObject({
       owner: "example-builder",
       name: "usable-toolkit",
@@ -22,6 +23,15 @@ describe("public GitHub collector contract", () => {
       hasCi: true,
       hasTests: true,
       hasReleases: true,
+      codebaseShape: {
+        sourceFileCount: 42,
+        testFileCount: 8,
+        exampleFileCount: 3,
+        medianSourceFileBytes: 3600,
+        p90SourceFileBytes: 14000,
+        oversizedSourceFileCount: 1,
+        testToSourceRatio: 0.19
+      },
       issueResponseCount: 14,
       pullRequestReviewCount: 6,
       externalContributorCount: 5
