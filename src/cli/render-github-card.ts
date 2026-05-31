@@ -38,7 +38,10 @@ export async function renderGitHubCardFile(
       ? await collectOwnerSuppliedGitHubProfile(username, options)
       : await collectPublicGitHubProfile(username, options);
     const profile = normalizePublicGitHubProfile(collected);
-    const report = scoreUserProfile(profile);
+    const scoringOptions = options.policy === undefined
+      ? {}
+      : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
+    const report = scoreUserProfile(profile, scoringOptions);
     const svg = renderUserSignalCard(report, options);
 
     await writeFile(resolvedOutputPath, svg, "utf8");

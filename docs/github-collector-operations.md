@@ -37,7 +37,7 @@ The storage-neutral cache contract is documented in [Cache Contract](cache-contr
 Default repository limits:
 
 - Scan up to 30 repositories per profile.
-- Score up to 8 repositories per profile.
+- Score up to 12 repositories per profile.
 - Analyze repositories pushed within the last 365 days.
 
 The scan limit protects GitHub API cost and local runtime. The score limit keeps one profile card readable and limits how much one account can make the renderer do.

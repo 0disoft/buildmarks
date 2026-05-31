@@ -34,7 +34,10 @@ export async function renderGitHubReportFiles(
   try {
     const collected = await collectPublicGitHubProfile(username, options);
     const profile = normalizePublicGitHubProfile(collected);
-    const report = createStaticReport(profile);
+    const scoringOptions = options.policy === undefined
+      ? {}
+      : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
+    const report = createStaticReport(profile, scoringOptions);
     const html = renderStaticReportHtml(report);
 
     await writeFile(htmlPath, html, "utf8");

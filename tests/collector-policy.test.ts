@@ -51,7 +51,7 @@ describe("GitHub collector operations policy", () => {
       },
       limits: {
         maxRepositoriesScannedPerProfile: 4,
-        maxRepositoriesScoredPerProfile: 8,
+        maxRepositoriesScoredPerProfile: 12,
         repositoryActivityWindowDays: 0
       }
     };

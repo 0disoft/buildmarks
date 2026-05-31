@@ -8,8 +8,7 @@ import {
   type UserSignalReport
 } from "../shared/types";
 import { analyzeSignalGaps } from "../scoring/gaps";
-import { scoreRepository } from "../scoring/score-repo";
-import { scoreUserProfile } from "../scoring/score-user";
+import { scoreUserProfile, type ScoreUserProfileOptions } from "../scoring/score-user";
 
 export interface BuildmarksStaticReport {
   version: 1;
@@ -18,19 +17,20 @@ export interface BuildmarksStaticReport {
   repositories: RepoSignal[];
 }
 
-export function createStaticReport(profile: ProfileInput): BuildmarksStaticReport {
-  const scoredProfile = scoreUserProfile(profile);
+export interface CreateStaticReportOptions extends ScoreUserProfileOptions {}
+
+export function createStaticReport(
+  profile: ProfileInput,
+  options: CreateStaticReportOptions = {}
+): BuildmarksStaticReport {
+  const scoredProfile = scoreUserProfile(profile, options);
   const gaps = analyzeSignalGaps(profile);
-  const repositories = profile.repositories
-    .filter((repository) => !repository.isFork && !repository.isArchived)
-    .map((repository) => scoreRepository(repository))
-    .sort((left, right) => right.weight * right.overall - left.weight * left.overall);
 
   return {
     version: 1,
     profile: scoredProfile,
     gaps,
-    repositories
+    repositories: scoredProfile.topRepos
   };
 }
 
@@ -44,7 +44,6 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
       .map((gap) => `<li><strong>${escapeHtml(gap.repository)}</strong> · ${escapeHtml(dimensionLabels[gap.dimension])}: missing ${escapeHtml(gap.missing.join(", "))}</li>`)
       .join("");
   const repositories = report.repositories
-    .slice(0, 8)
     .map((repository) => renderRepository(repository))
     .join("");
   const limitations = report.profile.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("");

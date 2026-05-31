@@ -6,7 +6,7 @@ import { renderCardFile } from "../src/cli/render-card";
 import { renderGapsCardFile } from "../src/cli/render-gaps-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
 import { renderRepoCardFile } from "../src/cli/render-repo-card";
-import type { GitHubCollectorFetch } from "../src";
+import { defaultGitHubCollectorPolicy, type GitHubCollectorFetch } from "../src";
 
 const tempDirectories: string[] = [];
 
@@ -117,6 +117,30 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("View report");
   });
 
+  test("passes the GitHub policy repository summary limit into card generation", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "cards", "limited-github-card.svg");
+
+    const result = await renderGitHubCardFile("example-builder", outputPath, {
+      fetcher: makeGitHubFetch([
+        githubRepositoryResponse("usable-toolkit"),
+        githubRepositoryResponse("second-toolkit")
+      ]),
+      policy: {
+        ...defaultGitHubCollectorPolicy,
+        limits: {
+          maxRepositoriesScannedPerProfile: 2,
+          maxRepositoriesScoredPerProfile: 1,
+          repositoryActivityWindowDays: 365
+        }
+      }
+    });
+    const svg = await readFile(outputPath, "utf8");
+
+    expect(result.ok).toBe(true);
+    expect(svg).toContain("across 1 summarized repositories");
+  });
+
   test("writes a fallback SVG when GitHub collection fails", async () => {
     const directory = await makeTempDirectory();
     const outputPath = join(directory, "cards", "fallback-card.svg");
@@ -186,27 +210,12 @@ async function makeTempDirectory(): Promise<string> {
   return directory;
 }
 
-function makeGitHubFetch(): GitHubCollectorFetch {
+function makeGitHubFetch(repositories = [githubRepositoryResponse("usable-toolkit")]): GitHubCollectorFetch {
   return async (url) => {
     const parsed = new URL(url);
 
     if (parsed.pathname === "/users/example-builder/repos") {
-      return jsonResponse([
-        {
-          owner: { login: "example-builder" },
-          name: "usable-toolkit",
-          html_url: "https://github.com/example-builder/usable-toolkit",
-          private: false,
-          fork: false,
-          archived: false,
-          stargazers_count: 42,
-          forks_count: 7,
-          created_at: "2025-01-01T00:00:00Z",
-          pushed_at: "2026-05-27T00:00:00Z",
-          homepage: "",
-          default_branch: "main"
-        }
-      ]);
+      return jsonResponse(repositories);
     }
 
     if (parsed.pathname.endsWith("/community/profile")) {
@@ -245,6 +254,23 @@ function makeGitHubFetch(): GitHubCollectorFetch {
     }
 
     return jsonResponse({ message: "Not found" }, { status: 404 });
+  };
+}
+
+function githubRepositoryResponse(name: string) {
+  return {
+    owner: { login: "example-builder" },
+    name,
+    html_url: `https://github.com/example-builder/${name}`,
+    private: false,
+    fork: false,
+    archived: false,
+    stargazers_count: 42,
+    forks_count: 7,
+    created_at: "2025-01-01T00:00:00Z",
+    pushed_at: "2026-05-27T00:00:00Z",
+    homepage: "",
+    default_branch: "main"
   };
 }
 

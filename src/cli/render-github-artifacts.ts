@@ -47,8 +47,11 @@ export async function renderGitHubArtifacts(
       ? await collectOwnerSuppliedGitHubProfile(username, options)
       : await collectPublicGitHubProfile(username, options);
     const profile = normalizePublicGitHubProfile(collected);
-    const userReport = scoreUserProfile(profile);
-    const staticReport = createStaticReport(profile);
+    const scoringOptions = options.policy === undefined
+      ? {}
+      : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
+    const userReport = scoreUserProfile(profile, scoringOptions);
+    const staticReport = createStaticReport(profile, scoringOptions);
     const reportHref = toSvgRelativeHref(resolvedSvgPath, htmlPath);
 
     await writeFile(resolvedSvgPath, renderUserSignalCard(userReport, { reportHref }), "utf8");

@@ -66,7 +66,7 @@ describe("profile README workflow example", () => {
     };
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.6");
+    expect(metadata.version).toBe("0.1.8");
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -118,10 +118,14 @@ describe("profile README workflow example", () => {
     expect(changelog).toContain("## v0.1.4 - 2026-05-31");
     expect(changelog).toContain("## v0.1.5 - 2026-05-31");
     expect(changelog).toContain("## v0.1.6 - 2026-05-31");
+    expect(changelog).toContain("## v0.1.7 - 2026-05-31");
+    expect(changelog).toContain("## v0.1.8 - 2026-05-31");
     expect(changelog).toContain("explicit private-local collection");
     expect(changelog).toContain("compact highlight chips");
     expect(changelog).toContain("Simplify the front SVG card");
     expect(changelog).toContain("Rebalance the front SVG card layout");
+    expect(changelog).toContain("max-repositories-scored");
+    expect(changelog).toContain("from 8 to 12");
     expect(changelog).toContain("private-local repository signal contract");
     expect(changelog).toContain("0disoft/buildmarks@v0");
     expect(changelog).toContain("no developer ranking");
@@ -168,7 +172,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.6`");
+    expect(npmPackaging).toContain("Current package version: `0.1.8`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");
@@ -219,6 +223,9 @@ describe("profile README workflow example", () => {
       expect(example).toContain(`| \`${input}\``);
     }
 
+    expect(action).toContain('default: "12"');
+    expect(readme).toContain("| `max-repositories-scored` | `12` |");
+    expect(example).toContain("| `max-repositories-scored` | `12` |");
     expect(readme).toContain('Must be exactly `"true"` or `"false"`');
     expect(example).toContain('Must be exactly `"true"` or `"false"`');
     expect(readme).toContain("private-local mode requires an explicit owner-provided read token");

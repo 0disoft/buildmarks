@@ -111,7 +111,7 @@ Action inputs:
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit. |
-| `max-repositories-scored` | `8` | Positive integer profile summary limit. |
+| `max-repositories-scored` | `12` | Positive integer profile summary limit. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`. |
 
 See [profile-smoke-test.md](profile-smoke-test.md) for the real v0 adoption smoke-test checklist.

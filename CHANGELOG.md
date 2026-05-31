@@ -8,6 +8,15 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.8 - 2026-05-31
+
+- Raise the default `max-repositories-scored` profile summary limit from 8 to 12 so default cards and reports reflect a wider project sample.
+
+## v0.1.7 - 2026-05-31
+
+- Fix the `max-repositories-scored` Action and CLI option so it limits the repositories summarized in profile cards and static reports.
+- Add regression coverage for the repository summary limit in scoring and report generation.
+
 ## v0.1.6 - 2026-05-31
 
 - Rebalance the front SVG card layout so score bars use the right side of the card instead of leaving a mostly empty score column.

@@ -26,6 +26,15 @@ describe("static report", () => {
     expect(report.repositories.length).toBeGreaterThan(0);
   });
 
+  test("uses the repository summary limit for profile and repository report sections", () => {
+    const report = createStaticReport(fixture as ProfileInput, { maxRepositories: 1 });
+
+    expect(report.profile.topRepos).toHaveLength(1);
+    expect(report.repositories).toHaveLength(1);
+    expect(report.profile.topRepos[0]?.name).toBe("usable-toolkit");
+    expect(report.repositories[0]?.name).toBe("usable-toolkit");
+  });
+
   test("renders an HTML report without executable script content", () => {
     const report = createStaticReport(fixture as ProfileInput);
     const html = renderStaticReportHtml(report);
@@ -66,6 +75,40 @@ describe("static report", () => {
     expect(html).toContain("example-builder");
     expect(json.version).toBe(1);
     expect(json.profile.username).toBe("example-builder");
+  });
+
+  test("passes the GitHub policy repository summary limit into report generation", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderGitHubReportFiles("example-builder", directory, {
+      fetcher: makeGitHubFetch([
+        githubRepositoryResponse("usable-toolkit"),
+        githubRepositoryResponse("second-toolkit")
+      ]),
+      policy: {
+        publicOnly: true,
+        allowPrivateRepositories: false,
+        allowUnauthenticatedLocalDemo: true,
+        requiredTokenScopes: [],
+        cache: {
+          profileReportTtlSeconds: 21_600,
+          repositoryFileSignalsTtlSeconds: 86_400
+        },
+        limits: {
+          maxRepositoriesScannedPerProfile: 2,
+          maxRepositoriesScoredPerProfile: 1,
+          repositoryActivityWindowDays: 365
+        }
+      }
+    });
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
+      profile: { topRepos: Array<{ name: string }> };
+      repositories: Array<{ name: string }>;
+    };
+
+    expect(result.ok).toBe(true);
+    expect(json.profile.topRepos).toHaveLength(1);
+    expect(json.repositories).toHaveLength(1);
+    expect(json.profile.topRepos[0]?.name).toBe("usable-toolkit");
   });
 
   test("writes SVG and static reports from one public GitHub collection", async () => {
@@ -123,27 +166,12 @@ async function makeTempDirectory(): Promise<string> {
   return directory;
 }
 
-function makeGitHubFetch(): GitHubCollectorFetch {
+function makeGitHubFetch(repositories = [githubRepositoryResponse("usable-toolkit")]): GitHubCollectorFetch {
   return async (url) => {
     const parsed = new URL(url);
 
     if (parsed.pathname === "/users/example-builder/repos") {
-      return jsonResponse([
-        {
-          owner: { login: "example-builder" },
-          name: "usable-toolkit",
-          html_url: "https://github.com/example-builder/usable-toolkit",
-          private: false,
-          fork: false,
-          archived: false,
-          stargazers_count: 42,
-          forks_count: 7,
-          created_at: "2025-01-01T00:00:00Z",
-          pushed_at: "2026-05-27T00:00:00Z",
-          homepage: "",
-          default_branch: "main"
-        }
-      ]);
+      return jsonResponse(repositories);
     }
 
     if (parsed.pathname.endsWith("/community/profile")) {
@@ -182,6 +210,23 @@ function makeGitHubFetch(): GitHubCollectorFetch {
     }
 
     return jsonResponse({ message: "Not found" }, { status: 404 });
+  };
+}
+
+function githubRepositoryResponse(name: string) {
+  return {
+    owner: { login: "example-builder" },
+    name,
+    html_url: `https://github.com/example-builder/${name}`,
+    private: false,
+    fork: false,
+    archived: false,
+    stargazers_count: 42,
+    forks_count: 7,
+    created_at: "2025-01-01T00:00:00Z",
+    pushed_at: "2026-05-27T00:00:00Z",
+    homepage: "",
+    default_branch: "main"
   };
 }
 

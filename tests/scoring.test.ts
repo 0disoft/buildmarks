@@ -17,6 +17,14 @@ describe("profile scoring", () => {
     expect(report.limitations).toContain("Forked and archived repositories are excluded by default.");
   });
 
+  test("honors the requested repository summary limit", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now, maxRepositories: 1 });
+
+    expect(report.topRepos).toHaveLength(1);
+    expect(report.topRepos[0]?.name).toBe("usable-toolkit");
+    expect(report.limitations).toContain("Only the highest-signal 1 eligible repositories are summarized in this card.");
+  });
+
   test("does not depend on raw commit count, streaks, followers, or language percentages", () => {
     const baseline = scoreUserProfile(fixture as ProfileInput, { now });
     const vanityFixture = {

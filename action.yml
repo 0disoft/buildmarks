@@ -35,7 +35,7 @@ inputs:
   max-repositories-scored:
     description: Maximum public repositories to summarize in the card.
     required: false
-    default: "8"
+    default: "12"
   activity-window-days:
     description: Only analyze repositories pushed within this many days.
     required: false

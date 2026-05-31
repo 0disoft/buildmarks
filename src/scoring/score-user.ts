@@ -11,20 +11,25 @@ import {
 import { classifySignalType } from "./signal-type";
 import { scoreRepository, type ScoreRepoOptions } from "./score-repo";
 
-const MAX_REPOSITORIES = 8;
+const MAX_REPOSITORIES = 12;
 const MAX_SINGLE_REPO_SHARE = 0.35;
+
+export interface ScoreUserProfileOptions extends ScoreRepoOptions {
+  maxRepositories?: number;
+}
 
 export function scoreUserProfile(
   input: ProfileInput,
-  options: ScoreRepoOptions = {}
+  options: ScoreUserProfileOptions = {}
 ): UserSignalReport {
   const generatedAt = input.generatedAt ?? (options.now ?? new Date()).toISOString();
   const includesPrivateSignals = input.signalVisibility?.privateRepositoriesIncluded === true;
+  const maxRepositories = resolveMaxRepositories(options.maxRepositories);
   const eligibleRepositories = input.repositories.filter((repository) => !repository.isFork && !repository.isArchived);
   const topRepos = eligibleRepositories
     .map((repository) => scoreRepository(repository, options))
     .sort((left, right) => right.weight * right.overall - left.weight * left.overall)
-    .slice(0, MAX_REPOSITORIES);
+    .slice(0, maxRepositories);
 
   const dimensions = averageDimensions(topRepos);
   const signalType = classifySignalType(dimensions);
@@ -147,4 +152,16 @@ export function makeEmptyDimensionScore(key: SignalDimension): DimensionScore {
     maxScore: 100,
     evidence: []
   };
+}
+
+function resolveMaxRepositories(value: number | undefined): number {
+  if (value === undefined) {
+    return MAX_REPOSITORIES;
+  }
+
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error("maxRepositories must be a positive integer.");
+  }
+
+  return value;
 }

@@ -30,7 +30,7 @@ export const defaultGitHubCollectorPolicy = {
   },
   limits: {
     maxRepositoriesScannedPerProfile: 30,
-    maxRepositoriesScoredPerProfile: 8,
+    maxRepositoriesScoredPerProfile: 12,
     repositoryActivityWindowDays: 365
   }
 } satisfies GitHubCollectorPolicy;
