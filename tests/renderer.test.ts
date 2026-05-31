@@ -26,13 +26,16 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("<svg");
     expect(svg).toContain("Buildmarks");
-    expect(svg).toContain("Public GitHub activity");
     expect(svg).toContain("example &lt;builder&gt;");
-    expect(svg).toContain("Buildmarks Profile · Public Activity");
+    expect(svg).toContain("Buildmarks · 2026-05-28");
     expect(svg).toContain("Project Care");
-    expect(svg).toContain("repos checked");
-    expect(svg).toContain("50-74 band");
     expect(svg).toContain("overall overall-");
+    expect(svg).not.toContain("Public GitHub activity</text>");
+    expect(svg).not.toContain("Owner-supplied GitHub activity");
+    expect(svg).not.toContain("repos checked");
+    expect(svg).not.toContain(">24 marks</text>");
+    expect(svg).not.toContain("50-74 band");
+    expect(svg).not.toContain("Score color legend");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
     expect(svg).toContain("@media (prefers-color-scheme: dark)");
     expect(svg).toContain("role=\"progressbar\"");
@@ -88,9 +91,9 @@ describe("SVG renderer", () => {
     );
     const svg = renderUserSignalCard(report);
 
-    expect(svg).toContain("Owner-supplied GitHub activity");
-    expect(svg).toContain("Public + Private");
-    expect(svg).toContain("Buildmarks Profile · Private Included");
+    expect(svg).not.toContain("Owner-supplied GitHub activity");
+    expect(svg).not.toContain("<text x=\"36\" y=\"136\" class=\"type\">Public + Private");
+    expect(svg).toContain("Buildmarks · 2026-05-28");
     expect(svg).toContain("Project Care");
     expect(svg).toContain("Public Adoption");
     expect(svg).toContain(">N/A</text>");
@@ -116,7 +119,7 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("Collaboration: 7 points out of 100");
   });
 
-  test("shows the configured repository activity window when present", () => {
+  test("keeps the repository activity window off the front card", () => {
     const report = scoreUserProfile(
       {
         ...(fixture as ProfileInput),
@@ -126,7 +129,7 @@ describe("SVG renderer", () => {
     );
     const svg = renderUserSignalCard(report);
 
-    expect(svg).toContain("last 6 months");
+    expect(svg).not.toContain("last 6 months");
   });
 
   test("renders a fallback card for failed generation", () => {
@@ -153,7 +156,7 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("example-builder-with-a-very-long");
     expect(svg).toContain("…");
-    expect(svg).toContain("Buildmarks Profile · Public Activity");
+    expect(svg).toContain("Buildmarks · ");
     expect(svg).not.toContain("undefined");
   });
 
@@ -174,11 +177,10 @@ describe("SVG renderer", () => {
     const report = scoreRepository(repository, { now });
     const svg = renderRepositorySignalCard(report);
 
-    expect(svg).toContain("Repository Signal Card");
     expect(svg).toContain("example-builder/usable-toolkit");
-    expect(svg).toContain("Repository GitHub activity");
     expect(svg).toContain("Project Care");
-    expect(svg).toContain("Buildmarks Repo · Public Activity");
+    expect(svg).toContain("Buildmarks Repo");
+    expect(svg).not.toContain("Repository GitHub activity");
     expect(svg).toContain("role=\"progressbar\"");
   });
 });

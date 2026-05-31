@@ -16,13 +16,15 @@ const cardWidth = 760;
 const cardHeight = 420;
 const barMaxWidth = 254;
 const barHeight = 6;
-const rowStartY = 156;
+const rowStartY = 128;
 const rowGap = 29;
 const chipWidth = 156;
 const chipGap = 12;
 const rightColumnX = 604;
-const overallUnitX = 674;
-const footerY = 397;
+const overallUnitX = 654;
+const highlightLabelY = 318;
+const chipY = 330;
+const footerY = 388;
 
 export function renderUserSignalCard(
   report: UserSignalReport,
@@ -32,26 +34,10 @@ export function renderUserSignalCard(
   const highlights = report.evidence.slice(0, 4).map((item) => evidenceToHighlight(item.label));
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
-  const signalType = fitText(coerceString(report.signalType, "Public Signal Profile"), 42);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
-  const signalCount = countProfileSignals(report);
-  const repoCount = report.topRepos.length;
-  const activityWindowLabel = formatActivityWindow(report.activityWindowDays);
   const context = buildProfileCardContext(report);
-  const disclosure = report.signalVisibility;
-  const signalScopeLabel = formatScopeLabel(disclosure?.cardLabel ?? "Public GitHub signals");
-  const typeLine = fitText(`${signalScopeLabel} · ${signalType}`, 56);
-  const subtitle = disclosure?.privateRepositoriesIncluded === true
-    ? "Owner-supplied GitHub activity"
-    : "Public GitHub activity";
-  const signalsLabel = disclosure?.privateRepositoriesIncluded === true
-    ? "Owner-supplied highlights"
-    : "Public highlights";
-  const footerScope = disclosure?.privateRepositoriesIncluded === true
-    ? "Private Included"
-    : "Public Activity";
   const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
   const reportLink = renderReportLink(options.reportHref);
   const rows = signalDimensions.map((dimension, index) =>
@@ -66,9 +52,6 @@ export function renderUserSignalCard(
   );
   const chips = highlights.map((label, index) => renderEvidenceChip(label, index));
   const desc = buildDescription(report, overall);
-  const activityWindowText = activityWindowLabel === ""
-    ? ""
-    : `  <text x="${rightColumnX}" y="194" class="metric-note">${escapeXml(activityWindowLabel)}</text>\n`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
@@ -80,25 +63,18 @@ export function renderUserSignalCard(
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="36" y="80" class="subtitle">${escapeXml(subtitle)}</text>
-  <text x="36" y="112" class="name">${escapeXml(username)}</text>
-  <text x="36" y="136" class="type">${escapeXml(typeLine)}</text>
+  <text x="36" y="96" class="name">${escapeXml(username)}</text>
   <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
-  <text x="${rightColumnX}" y="122" class="overall overall-${overallTone}">${overall}</text>
-  <text x="${overallUnitX}" y="128" class="overall-unit">/100</text>
-  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} marks</text>
-  <text x="${rightColumnX}" y="160" class="metric-note">${repoCount} repos checked</text>
-  <text x="${rightColumnX}" y="178" class="metric-note">${escapeXml(scoreBandLabel(overall))}</text>
-${activityWindowText}
+  <text x="${rightColumnX}" y="108" class="overall overall-${overallTone}">${overall}</text>
+  <text x="${overallUnitX}" y="112" class="overall-unit">/100</text>
   <g aria-label="Dimension scores out of 100">
 ${rows.join("")}
   </g>
-${renderLegend(318)}
-  <text x="36" y="338" class="section-label">Highlights</text>
-  <g aria-label="${escapeXml(signalsLabel)}">
+  <text x="36" y="${highlightLabelY}" class="section-label">Highlights</text>
+  <g aria-label="Buildmarks highlights">
 ${chips.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Profile · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks · ${escapeXml(generatedDate)}</text>
 ${reportLink}
 </svg>`;
 }
@@ -120,7 +96,7 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
   <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
   <text x="62" y="228" class="fallback-body">${escapeXml(safeMessage)}</text>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Profile · Public Activity</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks</text>
 </svg>`;
 }
 
@@ -165,7 +141,6 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   const repoName = fitText(repoNameRaw, 38);
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
-  const signalCount = countRepositorySignals(report);
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
   );
@@ -182,23 +157,18 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="36" y="80" class="subtitle">Repository GitHub activity</text>
-  <text x="36" y="112" class="name">${escapeXml(repoName)}</text>
-  <text x="36" y="136" class="type">Repository Signal Card</text>
+  <text x="36" y="96" class="name">${escapeXml(repoName)}</text>
   <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
-  <text x="${rightColumnX}" y="122" class="overall overall-${overallTone}">${overall}</text>
-  <text x="${overallUnitX}" y="128" class="overall-unit">/100</text>
-  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} marks</text>
-  <text x="${rightColumnX}" y="162" class="metric-note">${escapeXml(scoreBandLabel(overall))}</text>
+  <text x="${rightColumnX}" y="108" class="overall overall-${overallTone}">${overall}</text>
+  <text x="${overallUnitX}" y="112" class="overall-unit">/100</text>
   <g aria-label="Repository dimension scores out of 100">
 ${rows.join("")}
   </g>
-${renderLegend(318)}
-  <text x="36" y="338" class="section-label">Highlights</text>
+  <text x="36" y="${highlightLabelY}" class="section-label">Highlights</text>
   <g aria-label="Repository highlights">
 ${chips.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Repo · Public Activity</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Repo</text>
 </svg>`;
 }
 
@@ -237,25 +207,13 @@ function renderDimensionRow(
     </g>`;
 }
 
-function renderLegend(y: number): string {
-  return `
-  <g aria-label="Score color legend">
-    <rect x="324" y="${y - 6}" width="28" height="${barHeight}" rx="3" class="bar bar-strong" />
-    <text x="358" y="${y}" class="legend">75+</text>
-    <rect x="396" y="${y - 6}" width="28" height="${barHeight}" rx="3" class="bar bar-middle" />
-    <text x="430" y="${y}" class="legend">50-74</text>
-    <rect x="478" y="${y - 6}" width="28" height="${barHeight}" rx="3" class="bar bar-low" />
-    <text x="512" y="${y}" class="legend">0-49</text>
-  </g>`;
-}
-
 function renderEvidenceChip(label: string, index: number): string {
   const x = 36 + index * (chipWidth + chipGap);
 
   return `
     <g role="img" aria-label="${escapeXml(`Highlight: ${label}`)}">
-      <rect x="${x}" y="350" width="${chipWidth}" height="28" rx="6" class="chip-bg" />
-      <text x="${x + 12}" y="369" class="chip">${escapeXml(label)}</text>
+      <rect x="${x}" y="${chipY}" width="${chipWidth}" height="28" rx="6" class="chip-bg" />
+      <text x="${x + 12}" y="${chipY + 19}" class="chip">${escapeXml(label)}</text>
     </g>`;
 }
 
@@ -306,17 +264,6 @@ function evidenceToHighlight(label: string): string {
   }
 
   return fitText(label.replace(/\bfound\b/gi, "").trim(), 16);
-}
-
-function formatScopeLabel(label: string): string {
-  if (label === "Public + Private Signals") {
-    return "Public + Private";
-  }
-  if (label === "Public GitHub signals") {
-    return "Public GitHub";
-  }
-
-  return label.replace(/\s+signals\b/i, "");
 }
 
 function renderReportLink(href: string | undefined): string {
@@ -440,7 +387,7 @@ function renderStyles(): string {
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .overall { fill: var(--warning); font: 800 44px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .overall { fill: var(--warning); font: 800 34px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .overall-strong { fill: var(--accent); }
     .overall-middle { fill: var(--warning); }
     .overall-low { fill: var(--low); }
@@ -613,31 +560,4 @@ function scoreTone(score: number): "strong" | "middle" | "low" {
   }
 
   return score >= 50 ? "middle" : "low";
-}
-
-function scoreBandLabel(score: number): string {
-  const tone = scoreTone(score);
-  if (tone === "strong") {
-    return "75+ band";
-  }
-  if (tone === "middle") {
-    return "50-74 band";
-  }
-
-  return "0-49 band";
-}
-
-function formatActivityWindow(days: number | undefined): string {
-  if (days === undefined) {
-    return "";
-  }
-
-  if (days % 30 === 0 && days < 365) {
-    return `last ${Math.round(days / 30)} months`;
-  }
-  if (days % 365 === 0) {
-    return `last ${Math.round(days / 365)} year${days === 365 ? "" : "s"}`;
-  }
-
-  return `last ${days} days`;
 }

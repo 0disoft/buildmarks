@@ -84,7 +84,7 @@
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .overall { fill: var(--warning); font: 800 44px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .overall { fill: var(--warning); font: 800 34px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .overall-strong { fill: var(--accent); }
     .overall-middle { fill: var(--warning); }
     .overall-low { fill: var(--low); }
@@ -146,5 +146,5 @@
       <text x="52" y="332" class="subtitle">missing: release or tag, package manifest, docs or demo</text>
     </g>
   </g>
-  <text x="36" y="397" class="footer">Buildmarks Gaps · Public Signals · 2026-05-28</text>
+  <text x="36" y="388" class="footer">Buildmarks Gaps · Public Signals · 2026-05-28</text>
 </svg>

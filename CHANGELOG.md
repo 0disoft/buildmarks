@@ -8,6 +8,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.5 - 2026-05-31
+
+- Simplify the front SVG card by removing source-disclosure subtitle lines, scope labels, repository counts, mark counts, activity-window text, score-band text, and the color legend.
+- Reduce the front-card overall score size so the card reads more like a profile mark than a scoreboard.
+- Keep private-local and scoring limitations in reports, docs, and accessible descriptions instead of placing them on the visual card face.
+
 ## v0.1.4 - 2026-05-31
 
 - Reduce repetitive `signal`, `evidence`, and `found` wording on the front SVG cards.
