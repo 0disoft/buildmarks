@@ -12,7 +12,8 @@ import {
 import type { ProfileInput } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
-const visibleVersion = ">v0.1.9</text>";
+const visibleVersion = ">v0.1.10</text>";
+const spacedBrandVersion = '<text x="190" y="54" class="brand-version">v0.1.10</text>';
 
 describe("SVG renderer", () => {
   test("renders a readable profile card without executable SVG content", () => {
@@ -28,6 +29,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("<svg");
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain(visibleVersion);
+    expect(svg).toContain(spacedBrandVersion);
     expect(svg).toContain("example &lt;builder&gt;");
     expect(svg).toContain("Buildmarks · 2026-05-28");
     expect(svg).toContain("Project Care");

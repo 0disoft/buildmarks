@@ -8,6 +8,10 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.10 - 2026-05-31
+
+- Add clearer spacing between the Buildmarks brand mark and the visible package version on generated SVG cards.
+
 ## v0.1.9 - 2026-05-31
 
 - Show the Buildmarks package version beside the top card brand mark on generated SVG cards.

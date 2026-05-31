@@ -27,6 +27,7 @@ const rightEdgeX = 704;
 const highlightLabelY = 318;
 const chipY = 330;
 const footerY = 388;
+const brandVersionX = 190;
 const brandVersion = `v${buildmarksVersion}`;
 
 export function renderUserSignalCard(
@@ -421,7 +422,7 @@ function renderStyles(): string {
 
 function renderBrandHeader(y = 56): string {
   return `<text x="36" y="${y}" class="title">Buildmarks</text>
-  <text x="164" y="${y - 2}" class="brand-version">${escapeXml(brandVersion)}</text>`;
+  <text x="${brandVersionX}" y="${y - 2}" class="brand-version">${escapeXml(brandVersion)}</text>`;
 }
 
 function buildDescription(report: UserSignalReport, overall: number): string {
