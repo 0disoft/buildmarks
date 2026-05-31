@@ -8,6 +8,13 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.3 - 2026-05-31
+
+- Add explicit private-local collection for owner-controlled GitHub Action and CLI runs.
+- Require an explicit token before private-local collection starts.
+- Redact private repository names and omit private repository URLs in generated profile data.
+- Keep public-only collection as the default behavior.
+
 ## v0.1.2 - 2026-05-31
 
 - Add an explicit private-local repository signal contract for owner-supplied private evidence.

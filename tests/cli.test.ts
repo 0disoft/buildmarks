@@ -195,6 +195,7 @@ function makeGitHubFetch(): GitHubCollectorFetch {
           owner: { login: "example-builder" },
           name: "usable-toolkit",
           html_url: "https://github.com/example-builder/usable-toolkit",
+          private: false,
           fork: false,
           archived: false,
           stargazers_count: 42,

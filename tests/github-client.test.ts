@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
   defaultGitHubCollectorPolicy,
   type GitHubCollectorFetch,
@@ -219,6 +220,51 @@ describe("live public GitHub collector", () => {
     expect(serialized).not.toContain("contributionStreak");
     expect(serialized).not.toContain("private");
   });
+
+  test("collects owner-supplied private-local repositories with redacted private names", async () => {
+    const calls: string[] = [];
+    const profile = await collectOwnerSuppliedGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        repositories: [
+          makeRepositoryResponse("public-toolkit"),
+          makeRepositoryResponse("secret-product", { private: true })
+        ],
+        onRequest: (url) => calls.push(url)
+      }),
+      token: "private-local-token"
+    });
+
+    expect(calls.some((url) => url.includes("/user/repos?visibility=all"))).toBe(true);
+    expect(profile.signalVisibility?.privateRepositoriesIncluded).toBe(true);
+    expect(profile.signalVisibility?.privateRepositoryNamesRedacted).toBe(true);
+    expect(profile.repositories).toHaveLength(2);
+    expect(profile.repositories[1]).toMatchObject({
+      name: "Private repository 2",
+      visibility: "private",
+      redactedName: true,
+      stars: 0,
+      forks: 0
+    });
+    expect(profile.repositories[1]?.url).toBeUndefined();
+    expect(JSON.stringify(profile)).not.toContain("secret-product");
+  });
+
+  test("requires an explicit token before private-local collection", async () => {
+    let requestCount = 0;
+
+    await expect(
+      collectOwnerSuppliedGitHubProfile("example-builder", {
+        fetcher: async () => {
+          requestCount += 1;
+          return jsonResponse({});
+        }
+      })
+    ).rejects.toMatchObject({
+      code: "invalid_policy"
+    });
+
+    expect(requestCount).toBe(0);
+  });
 });
 
 function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorFetch {
@@ -233,7 +279,7 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
       "X-GitHub-Api-Version": "2026-03-10"
     });
 
-    if (parsed.pathname === "/users/example-builder/repos") {
+    if (parsed.pathname === "/users/example-builder/repos" || parsed.pathname === "/user/repos") {
       return jsonResponse(repositories);
     }
 
@@ -280,11 +326,12 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
   };
 }
 
-function makeRepositoryResponse(name: string, options: { pushedAt?: string } = {}) {
+function makeRepositoryResponse(name: string, options: { pushedAt?: string; private?: boolean } = {}) {
   return {
     owner: { login: "example-builder" },
     name,
     html_url: `https://github.com/example-builder/${name}`,
+    private: options.private ?? false,
     fork: false,
     archived: false,
     stargazers_count: 42,

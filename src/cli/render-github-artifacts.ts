@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import {
+  collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
   createStaticReport,
   defaultGitHubCollectorPolicy,
@@ -12,7 +13,9 @@ import {
   type CollectPublicGitHubProfileOptions
 } from "../index";
 
-export interface RenderGitHubArtifactsOptions extends CollectPublicGitHubProfileOptions {}
+export interface RenderGitHubArtifactsOptions extends CollectPublicGitHubProfileOptions {
+  privateLocal?: boolean;
+}
 
 export interface RenderGitHubArtifactsResult {
   ok: boolean;
@@ -40,7 +43,9 @@ export async function renderGitHubArtifacts(
   await mkdir(resolvedReportDirectory, { recursive: true });
 
   try {
-    const collected = await collectPublicGitHubProfile(username, options);
+    const collected = options.privateLocal === true
+      ? await collectOwnerSuppliedGitHubProfile(username, options)
+      : await collectPublicGitHubProfile(username, options);
     const profile = normalizePublicGitHubProfile(collected);
     const userReport = scoreUserProfile(profile);
     const staticReport = createStaticReport(profile);
@@ -100,7 +105,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-artifacts.ts <github-username> <output.svg> <report-output-directory> [--token <token>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
+      "Usage: bun src/cli/render-github-artifacts.ts <github-username> <output.svg> <report-output-directory> [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
     );
     process.exitCode = 2;
     return;
@@ -108,6 +113,7 @@ async function main(args: readonly string[]): Promise<void> {
 
   const result = await renderGitHubArtifacts(parsed.username, parsed.svgOutputPath, parsed.reportOutputDirectory, {
     token: parsed.token,
+    privateLocal: parsed.privateLocal,
     policy: {
       ...defaultGitHubCollectorPolicy,
       limits: {
@@ -139,6 +145,7 @@ function parseArgs(args: readonly string[]):
       maxRepositoriesScanned: number;
       maxRepositoriesScored: number;
       activityWindowDays: number;
+      privateLocal: boolean;
     }
   | { ok: false; message: string } {
   const positional: string[] = [];
@@ -146,6 +153,7 @@ function parseArgs(args: readonly string[]):
   let maxRepositoriesScanned = defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile;
   let maxRepositoriesScored = defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile;
   let activityWindowDays = defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays;
+  let privateLocal = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -160,6 +168,11 @@ function parseArgs(args: readonly string[]):
       }
       token = value;
       index += 1;
+      continue;
+    }
+
+    if (arg === "--private-local") {
+      privateLocal = true;
       continue;
     }
 
@@ -219,7 +232,8 @@ function parseArgs(args: readonly string[]):
         reportOutputDirectory,
         maxRepositoriesScanned,
         maxRepositoriesScored,
-        activityWindowDays
+        activityWindowDays,
+        privateLocal
       }
     : {
         ok: true,
@@ -229,7 +243,8 @@ function parseArgs(args: readonly string[]):
         token,
         maxRepositoriesScanned,
         maxRepositoriesScored,
-        activityWindowDays
+        activityWindowDays,
+        privateLocal
       };
 }
 

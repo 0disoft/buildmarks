@@ -72,7 +72,9 @@ Then reference the checked-in SVG from your profile README:
 [View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)
 ```
 
-The token is optional for local experiments, but authenticated requests are much less likely to hit GitHub's low unauthenticated REST API limit. Buildmarks does not read tokens from environment variables automatically; pass a token explicitly when you want one used.
+The token is optional for local public-only experiments, but authenticated requests are much less likely to hit GitHub's low unauthenticated REST API limit. Buildmarks does not read tokens from environment variables automatically; pass a token explicitly when you want one used.
+
+Private-local mode is opt-in. Use `private-local: "true"` only in owner-controlled workflows that pass an explicit token with read access to selected private repositories. Private repository names and URLs are redacted by default.
 
 ## GitHub Actions
 
@@ -82,7 +84,7 @@ That workflow uses the official composite action, generates `assets/buildmarks.s
 
 The composite action generates files only. The workflow around it owns checkout, repository write permission, staging, commit, and push. The example stages generated artifacts before checking for changes, so the first run commits new files correctly.
 
-Use exact string values for action booleans. `generate-report` accepts `"true"` or `"false"` only, and repository limits must be positive integers.
+Use exact string values for action booleans. `generate-report` and `private-local` accept `"true"` or `"false"` only, and repository limits must be positive integers.
 
 The default repository activity window is 365 days from the public `pushed_at` timestamp. Use `activity-window-days: "180"` for a six-month card that emphasizes recent work and makes fewer per-repository API calls.
 
@@ -106,7 +108,8 @@ Action inputs:
 | `output` | `assets/buildmarks.svg` | SVG artifact path in the caller repository. |
 | `generate-report` | `"true"` | Must be exactly `"true"` or `"false"`. |
 | `report-output` | `assets/buildmarks-report` | HTML and JSON report directory. |
-| `token` | empty | Optional public-data token. Private scopes are not needed. |
+| `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
+| `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit. |
 | `max-repositories-scored` | `8` | Positive integer profile summary limit. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`. |

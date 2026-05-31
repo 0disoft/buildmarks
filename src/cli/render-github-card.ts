@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import {
+  collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
   defaultGitHubCollectorPolicy,
   normalizePublicGitHubProfile,
@@ -11,7 +12,9 @@ import {
   type RenderCardOptions
 } from "../index";
 
-export interface RenderGitHubCardFileOptions extends CollectPublicGitHubProfileOptions, RenderCardOptions {}
+export interface RenderGitHubCardFileOptions extends CollectPublicGitHubProfileOptions, RenderCardOptions {
+  privateLocal?: boolean;
+}
 
 export interface RenderGitHubCardFileResult {
   ok: boolean;
@@ -31,7 +34,9 @@ export async function renderGitHubCardFile(
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
   try {
-    const collected = await collectPublicGitHubProfile(username, options);
+    const collected = options.privateLocal === true
+      ? await collectOwnerSuppliedGitHubProfile(username, options)
+      : await collectPublicGitHubProfile(username, options);
     const profile = normalizePublicGitHubProfile(collected);
     const report = scoreUserProfile(profile);
     const svg = renderUserSignalCard(report, options);
@@ -65,7 +70,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--report-href <href>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
+      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--private-local] [--report-href <href>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
     );
     process.exitCode = 2;
     return;
@@ -73,6 +78,7 @@ async function main(args: readonly string[]): Promise<void> {
 
   const result = await renderGitHubCardFile(parsed.username, parsed.outputPath, {
     token: parsed.token,
+    privateLocal: parsed.privateLocal,
     reportHref: parsed.reportHref,
     policy: {
       ...defaultGitHubCollectorPolicy,
@@ -103,6 +109,7 @@ function parseArgs(args: readonly string[]):
       maxRepositoriesScored: number;
       activityWindowDays: number;
       reportHref?: string;
+      privateLocal: boolean;
     }
   | { ok: false; message: string } {
   const positional: string[] = [];
@@ -111,6 +118,7 @@ function parseArgs(args: readonly string[]):
   let maxRepositoriesScored = defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile;
   let activityWindowDays = defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays;
   let reportHref: string | undefined;
+  let privateLocal = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -125,6 +133,11 @@ function parseArgs(args: readonly string[]):
       }
       token = value;
       index += 1;
+      continue;
+    }
+
+    if (arg === "--private-local") {
+      privateLocal = true;
       continue;
     }
 
@@ -185,11 +198,11 @@ function parseArgs(args: readonly string[]):
 
   return token === undefined
     ? reportHref === undefined
-      ? { ok: true, username, outputPath, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays }
-      : { ok: true, username, outputPath, reportHref, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays }
+      ? { ok: true, username, outputPath, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal }
+      : { ok: true, username, outputPath, reportHref, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal }
     : reportHref === undefined
-      ? { ok: true, username, outputPath, token, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays }
-      : { ok: true, username, outputPath, token, reportHref, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays };
+      ? { ok: true, username, outputPath, token, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal }
+      : { ok: true, username, outputPath, token, reportHref, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal };
 }
 
 function parsePositiveIntegerOption(name: string, rawValue: string | undefined): number | string {

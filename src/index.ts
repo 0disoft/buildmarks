@@ -26,6 +26,7 @@ export {
 } from "./shared/types";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile";
 export {
+  collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
   GitHubCollectorError,
   type CollectPublicGitHubProfileOptions,

@@ -5,6 +5,7 @@ import type {
   CollectedRepositoryActivitySignals,
   CollectedRepositoryFileSignals
 } from "../shared/types";
+import { privateLocalSignalVisibility } from "../shared/types";
 import {
   defaultGitHubCollectorPolicy,
   type GitHubCollectorPolicy,
@@ -124,6 +125,56 @@ export class GitHubCollectorError extends Error {
   }
 }
 
+export async function collectOwnerSuppliedGitHubProfile(
+  username: string,
+  options: CollectPublicGitHubProfileOptions = {}
+): Promise<CollectedGitHubProfile> {
+  const policy = options.policy ?? defaultGitHubCollectorPolicy;
+  const validation = validateGitHubCollectorPolicy(policy);
+  if (!validation.ok) {
+    throw new GitHubCollectorError("invalid_policy", validation.errors.join(" "));
+  }
+
+  if (options.token === undefined || options.token.trim() === "") {
+    throw new GitHubCollectorError(
+      "invalid_policy",
+      "Private-local collection requires an explicitly supplied read-only GitHub token."
+    );
+  }
+
+  const fetcher = options.fetcher ?? globalThis.fetch?.bind(globalThis);
+  if (fetcher === undefined) {
+    throw new GitHubCollectorError("missing_fetch", "Buildmarks requires a fetch implementation to collect GitHub data.");
+  }
+
+  const client = new GitHubRestClient(fetcher, options.token);
+  const repositories = await client.listAuthenticatedOwnerRepositories(
+    username,
+    policy.limits.maxRepositoriesScannedPerProfile
+  );
+  const activeRepositories = repositories.filter((repository) =>
+    wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
+  );
+  const collectedRepositories: CollectedGitHubRepository[] = [];
+
+  for (let index = 0; index < activeRepositories.length; index += 1) {
+    const repository = activeRepositories[index];
+    if (repository === undefined) {
+      continue;
+    }
+
+    collectedRepositories.push(await client.collectRepository(repository, { privateOrdinal: index + 1 }));
+  }
+
+  return {
+    username,
+    collectedAt: new Date().toISOString(),
+    activityWindowDays: policy.limits.repositoryActivityWindowDays,
+    signalVisibility: privateLocalSignalVisibility,
+    repositories: collectedRepositories
+  };
+}
+
 export async function collectPublicGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
@@ -191,29 +242,64 @@ class GitHubRestClient {
     return repositories.slice(0, limit);
   }
 
-  async collectRepository(repository: GitHubRepositoryResponse): Promise<CollectedGitHubRepository> {
+  async listAuthenticatedOwnerRepositories(username: string, limit: number): Promise<GitHubRepositoryResponse[]> {
+    const repositories: GitHubRepositoryResponse[] = [];
+    let page = 1;
+    const normalizedUsername = username.toLowerCase();
+
+    while (repositories.length < limit) {
+      const perPage = Math.min(100, limit - repositories.length);
+      const pageRepositories = await this.fetchJson<unknown>(
+        `/user/repos?visibility=all&affiliation=owner&sort=pushed&direction=desc&per_page=${perPage}&page=${page}`
+      );
+
+      if (!Array.isArray(pageRepositories)) {
+        throw new GitHubCollectorError("invalid_github_response", "GitHub repository list response was not an array.");
+      }
+
+      const mapped = pageRepositories.map(asRepositoryResponse);
+      repositories.push(...mapped.filter((repository) => repository.owner.login.toLowerCase() === normalizedUsername));
+
+      if (mapped.length < perPage) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return repositories.slice(0, limit);
+  }
+
+  async collectRepository(
+    repository: GitHubRepositoryResponse,
+    options: { privateOrdinal?: number } = {}
+  ): Promise<CollectedGitHubRepository> {
     const owner = repository.owner.login;
     const name = repository.name;
+    const isPrivate = repository.private;
     const [community, readmeText, hasReleasesOrTags, treeEntries] = await Promise.all([
       this.fetchJson<GitHubCommunityProfileResponse>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/community/profile`, {
         allowMissing: true
       }),
-      this.fetchText(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`, {
-        accept: githubRawAccept,
-        allowMissing: true
-      }),
+      isPrivate
+        ? Promise.resolve(null)
+        : this.fetchText(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`, {
+            accept: githubRawAccept,
+            allowMissing: true
+          }),
       this.hasReleasesOrTags(owner, name),
       this.fetchRepositoryTree(owner, name, repository.default_branch)
     ]);
     const fileSignals = this.collectFileSignals(treeEntries, repository);
+    const privateLabel = options.privateOrdinal === undefined ? undefined : `Private repository ${options.privateOrdinal}`;
 
     const collected: CollectedGitHubRepository = {
       owner,
-      name,
+      name: isPrivate ? (privateLabel ?? "Private repository") : name,
       isFork: repository.fork,
       isArchived: repository.archived,
-      stars: repository.stargazers_count,
-      forks: repository.forks_count,
+      stars: isPrivate ? 0 : repository.stargazers_count,
+      forks: isPrivate ? 0 : repository.forks_count,
       createdAt: repository.created_at,
       pushedAt: repository.pushed_at,
       hasReleasesOrTags,
@@ -221,7 +307,14 @@ class GitHubRestClient {
       activity: emptyActivitySignals()
     };
 
-    if (repository.html_url !== null) {
+    if (isPrivate) {
+      collected.visibility = "private";
+      collected.redactedName = true;
+    } else {
+      collected.visibility = "public";
+    }
+
+    if (!isPrivate && repository.html_url !== null) {
       collected.url = repository.html_url;
     }
 
@@ -379,6 +472,7 @@ function asRepositoryResponse(value: unknown): GitHubRepositoryResponse {
     owner: { login: (owner as Record<string, string>).login },
     name: requireString(record, "name"),
     html_url: optionalNullableString(record, "html_url"),
+    private: requireBoolean(record, "private"),
     fork: requireBoolean(record, "fork"),
     archived: requireBoolean(record, "archived"),
     stargazers_count: requireNumber(record, "stargazers_count"),
@@ -477,6 +571,7 @@ interface GitHubRepositoryResponse {
   owner: { login: string };
   name: string;
   html_url: string | null;
+  private: boolean;
   fork: boolean;
   archived: boolean;
   stargazers_count: number;

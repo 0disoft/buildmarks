@@ -21,9 +21,13 @@ inputs:
     required: false
     default: assets/buildmarks-report
   token:
-    description: Optional GitHub token for public-data rate limits. Private scopes are not needed.
+    description: Optional token. Public-only mode uses it for rate limits; private-local mode requires an explicit owner-provided read token.
     required: false
     default: ""
+  private-local:
+    description: Opt into owner-supplied private-local collection. Requires an explicit token and redacts private repository names.
+    required: false
+    default: "false"
   max-repositories-scanned:
     description: Maximum public repositories to scan.
     required: false
@@ -44,6 +48,7 @@ runs:
       shell: bash
       env:
         BUILDMARKS_GENERATE_REPORT: ${{ inputs.generate-report }}
+        BUILDMARKS_PRIVATE_LOCAL: ${{ inputs.private-local }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
         BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
@@ -55,6 +60,15 @@ runs:
             ;;
           *)
             echo "::error title=Invalid generate-report::Expected generate-report to be exactly 'true' or 'false'."
+            exit 1
+            ;;
+        esac
+
+        case "$BUILDMARKS_PRIVATE_LOCAL" in
+          true|false)
+            ;;
+          *)
+            echo "::error title=Invalid private-local::Expected private-local to be exactly 'true' or 'false'."
             exit 1
             ;;
         esac
@@ -85,6 +99,7 @@ runs:
         BUILDMARKS_OUTPUT: ${{ inputs.output }}
         BUILDMARKS_REPORT_OUTPUT: ${{ inputs.report-output }}
         BUILDMARKS_TOKEN: ${{ inputs.token }}
+        BUILDMARKS_PRIVATE_LOCAL: ${{ inputs.private-local }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
         BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
@@ -103,6 +118,14 @@ runs:
           "$BUILDMARKS_ACTIVITY_WINDOW_DAYS"
         )
 
+        if [ "$BUILDMARKS_PRIVATE_LOCAL" = "true" ]; then
+          if [ -z "$BUILDMARKS_TOKEN" ]; then
+            echo "::error title=Missing private-local token::private-local mode requires an explicit token input."
+            exit 1
+          fi
+          args+=("--private-local")
+        fi
+
         if [ -n "$BUILDMARKS_TOKEN" ]; then
           args+=("--token" "$BUILDMARKS_TOKEN")
         fi
@@ -116,6 +139,7 @@ runs:
         BUILDMARKS_USERNAME: ${{ inputs.username }}
         BUILDMARKS_OUTPUT: ${{ inputs.output }}
         BUILDMARKS_TOKEN: ${{ inputs.token }}
+        BUILDMARKS_PRIVATE_LOCAL: ${{ inputs.private-local }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
         BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
@@ -132,6 +156,14 @@ runs:
           "--activity-window-days"
           "$BUILDMARKS_ACTIVITY_WINDOW_DAYS"
         )
+
+        if [ "$BUILDMARKS_PRIVATE_LOCAL" = "true" ]; then
+          if [ -z "$BUILDMARKS_TOKEN" ]; then
+            echo "::error title=Missing private-local token::private-local mode requires an explicit token input."
+            exit 1
+          fi
+          args+=("--private-local")
+        fi
 
         if [ -n "$BUILDMARKS_TOKEN" ]; then
           args+=("--token" "$BUILDMARKS_TOKEN")
