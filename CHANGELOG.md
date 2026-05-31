@@ -8,6 +8,13 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.4 - 2026-05-31
+
+- Reduce repetitive `signal`, `evidence`, and `found` wording on the front SVG cards.
+- Render compact highlight chips such as `Tests`, `CI`, and `Changelog` instead of long evidence sentences.
+- Show four front-card highlights so important maintenance marks are less likely to be hidden.
+- Keep longer explanations in reports and docs while making profile README cards cleaner.
+
 ## v0.1.3 - 2026-05-31
 
 - Add explicit private-local collection for owner-controlled GitHub Action and CLI runs.

@@ -26,10 +26,10 @@ describe("render-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Buildmarks Profile · Public Signals");
+    expect(svg).toContain("Buildmarks Profile · Public Activity");
     expect(svg).toContain("Project Care");
-    expect(svg).toContain("Found Signals");
-    expect(svg).toContain("signal band");
+    expect(svg).toContain("Highlights");
+    expect(svg).toContain("50-74 band");
     expect(svg).not.toContain("class=\"chip\">+ ");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
@@ -94,9 +94,9 @@ describe("render-github-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Buildmarks Profile · Public Signals");
+    expect(svg).toContain("Buildmarks Profile · Public Activity");
     expect(svg).toContain("Project Care");
-    expect(svg).toContain("signal band");
+    expect(svg).toContain("50-74 band");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
@@ -161,7 +161,7 @@ describe("render-repo-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Repository Signal Card");
     expect(svg).toContain("example-builder/usable-toolkit");
-    expect(svg).toContain("Buildmarks Repo · Public Signals");
+    expect(svg).toContain("Buildmarks Repo · Public Activity");
     expect(svg).toContain("Project Care");
   });
 

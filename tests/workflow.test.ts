@@ -66,7 +66,7 @@ describe("profile README workflow example", () => {
     };
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.3");
+    expect(metadata.version).toBe("0.1.4");
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -115,7 +115,9 @@ describe("profile README workflow example", () => {
     expect(changelog).toContain("Published the `buildmarks` npm package as a library package");
     expect(changelog).toContain("## v0.1.2 - 2026-05-31");
     expect(changelog).toContain("## v0.1.3 - 2026-05-31");
+    expect(changelog).toContain("## v0.1.4 - 2026-05-31");
     expect(changelog).toContain("explicit private-local collection");
+    expect(changelog).toContain("compact highlight chips");
     expect(changelog).toContain("private-local repository signal contract");
     expect(changelog).toContain("0disoft/buildmarks@v0");
     expect(changelog).toContain("no developer ranking");
@@ -162,7 +164,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.3`");
+    expect(npmPackaging).toContain("Current package version: `0.1.4`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");

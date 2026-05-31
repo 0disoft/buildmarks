@@ -18,8 +18,8 @@ const barMaxWidth = 254;
 const barHeight = 6;
 const rowStartY = 156;
 const rowGap = 29;
-const chipWidth = 198;
-const chipGap = 14;
+const chipWidth = 156;
+const chipGap = 12;
 const rightColumnX = 604;
 const overallUnitX = 674;
 const footerY = 397;
@@ -29,7 +29,7 @@ export function renderUserSignalCard(
   options: RenderCardOptions = {}
 ): string {
   const theme = options.theme ?? "auto";
-  const evidence = report.evidence.slice(0, 3);
+  const highlights = report.evidence.slice(0, 4).map((item) => evidenceToHighlight(item.label));
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
   const signalType = fitText(coerceString(report.signalType, "Public Signal Profile"), 42);
@@ -41,17 +41,17 @@ export function renderUserSignalCard(
   const activityWindowLabel = formatActivityWindow(report.activityWindowDays);
   const context = buildProfileCardContext(report);
   const disclosure = report.signalVisibility;
-  const signalScopeLabel = disclosure?.cardLabel ?? "Public GitHub signals";
+  const signalScopeLabel = formatScopeLabel(disclosure?.cardLabel ?? "Public GitHub signals");
   const typeLine = fitText(`${signalScopeLabel} · ${signalType}`, 56);
   const subtitle = disclosure?.privateRepositoriesIncluded === true
-    ? "Owner-supplied GitHub signals"
-    : "Public GitHub signals";
+    ? "Owner-supplied GitHub activity"
+    : "Public GitHub activity";
   const signalsLabel = disclosure?.privateRepositoriesIncluded === true
-    ? "Top owner-supplied signals"
-    : "Top public signals";
+    ? "Owner-supplied highlights"
+    : "Public highlights";
   const footerScope = disclosure?.privateRepositoriesIncluded === true
     ? "Private Included"
-    : "Public Signals";
+    : "Public Activity";
   const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
   const reportLink = renderReportLink(options.reportHref);
   const rows = signalDimensions.map((dimension, index) =>
@@ -64,7 +64,7 @@ export function renderUserSignalCard(
       context.rowValues[dimension]
     )
   );
-  const chips = evidence.map((item, index) => renderEvidenceChip(fitText(item.label, 28), index));
+  const chips = highlights.map((label, index) => renderEvidenceChip(label, index));
   const desc = buildDescription(report, overall);
   const activityWindowText = activityWindowLabel === ""
     ? ""
@@ -86,7 +86,7 @@ export function renderUserSignalCard(
   <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
   <text x="${rightColumnX}" y="122" class="overall overall-${overallTone}">${overall}</text>
   <text x="${overallUnitX}" y="128" class="overall-unit">/100</text>
-  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} signals</text>
+  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} marks</text>
   <text x="${rightColumnX}" y="160" class="metric-note">${repoCount} repos checked</text>
   <text x="${rightColumnX}" y="178" class="metric-note">${escapeXml(scoreBandLabel(overall))}</text>
 ${activityWindowText}
@@ -94,7 +94,7 @@ ${activityWindowText}
 ${rows.join("")}
   </g>
 ${renderLegend(318)}
-  <text x="36" y="338" class="section-label">Found Signals</text>
+  <text x="36" y="338" class="section-label">Highlights</text>
   <g aria-label="${escapeXml(signalsLabel)}">
 ${chips.join("")}
   </g>
@@ -116,11 +116,11 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="58" class="title">Buildmarks</text>
-  <text x="36" y="82" class="subtitle">Public GitHub signals</text>
+  <text x="36" y="82" class="subtitle">Public GitHub activity</text>
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
   <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
   <text x="62" y="228" class="fallback-body">${escapeXml(safeMessage)}</text>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Profile · Public Signals</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Profile · Public Activity</text>
 </svg>`;
 }
 
@@ -169,7 +169,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
   );
-  const chips = report.evidence.slice(0, 3).map((item, index) => renderEvidenceChip(fitText(item.label, 28), index));
+  const chips = report.evidence.slice(0, 4).map((item, index) => renderEvidenceChip(evidenceToHighlight(item.label), index));
   const desc = buildRepositoryDescription(report, overall);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -182,23 +182,23 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="36" y="80" class="subtitle">Repository GitHub signals</text>
+  <text x="36" y="80" class="subtitle">Repository GitHub activity</text>
   <text x="36" y="112" class="name">${escapeXml(repoName)}</text>
   <text x="36" y="136" class="type">Repository Signal Card</text>
   <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
   <text x="${rightColumnX}" y="122" class="overall overall-${overallTone}">${overall}</text>
   <text x="${overallUnitX}" y="128" class="overall-unit">/100</text>
-  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} signals</text>
+  <text x="${rightColumnX}" y="144" class="metric-note">${signalCount} marks</text>
   <text x="${rightColumnX}" y="162" class="metric-note">${escapeXml(scoreBandLabel(overall))}</text>
   <g aria-label="Repository dimension scores out of 100">
 ${rows.join("")}
   </g>
 ${renderLegend(318)}
-  <text x="36" y="338" class="section-label">Found Signals</text>
-  <g aria-label="Top public repository signals">
+  <text x="36" y="338" class="section-label">Highlights</text>
+  <g aria-label="Repository highlights">
 ${chips.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Repo · Public Signals</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Repo · Public Activity</text>
 </svg>`;
 }
 
@@ -253,10 +253,70 @@ function renderEvidenceChip(label: string, index: number): string {
   const x = 36 + index * (chipWidth + chipGap);
 
   return `
-    <g role="img" aria-label="${escapeXml(`Signal found: ${label}`)}">
+    <g role="img" aria-label="${escapeXml(`Highlight: ${label}`)}">
       <rect x="${x}" y="350" width="${chipWidth}" height="28" rx="6" class="chip-bg" />
       <text x="${x + 12}" y="369" class="chip">${escapeXml(label)}</text>
     </g>`;
+}
+
+function evidenceToHighlight(label: string): string {
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("test file")) {
+    return "Test Files";
+  }
+  if (normalized.includes("test")) {
+    return "Tests";
+  }
+  if (normalized.includes("ci") || normalized.includes("workflow")) {
+    return "CI";
+  }
+  if (normalized.includes("changelog") || normalized.includes("release notes")) {
+    return "Changelog";
+  }
+  if (normalized.includes("release") || normalized.includes("tag")) {
+    return "Releases";
+  }
+  if (normalized.includes("readme") || normalized.includes("usage")) {
+    return "Docs";
+  }
+  if (normalized.includes("license")) {
+    return "License";
+  }
+  if (normalized.includes("package") || normalized.includes("installable")) {
+    return "Package";
+  }
+  if (normalized.includes("security")) {
+    return "Security";
+  }
+  if (normalized.includes("contribution")) {
+    return "Contributing";
+  }
+  if (normalized.includes("code of conduct")) {
+    return "Conduct";
+  }
+  if (normalized.includes("demo") || normalized.includes("documentation")) {
+    return "Demo";
+  }
+  if (normalized.includes("compact")) {
+    return "Small Files";
+  }
+  if (normalized.includes("example") || normalized.includes("fixture")) {
+    return "Examples";
+  }
+
+  return fitText(label.replace(/\bfound\b/gi, "").trim(), 16);
+}
+
+function formatScopeLabel(label: string): string {
+  if (label === "Public + Private Signals") {
+    return "Public + Private";
+  }
+  if (label === "Public GitHub signals") {
+    return "Public GitHub";
+  }
+
+  return label.replace(/\s+signals\b/i, "");
 }
 
 function renderReportLink(href: string | undefined): string {
@@ -558,13 +618,13 @@ function scoreTone(score: number): "strong" | "middle" | "low" {
 function scoreBandLabel(score: number): string {
   const tone = scoreTone(score);
   if (tone === "strong") {
-    return "75+ signal band";
+    return "75+ band";
   }
   if (tone === "middle") {
-    return "50-74 signal band";
+    return "50-74 band";
   }
 
-  return "0-49 signal band";
+  return "0-49 band";
 }
 
 function formatActivityWindow(days: number | undefined): string {
