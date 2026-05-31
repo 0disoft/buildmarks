@@ -81,6 +81,7 @@
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
     .title { fill: var(--text); font: 700 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .brand-version { fill: var(--muted); font: 700 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .right { text-anchor: end; }
     .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -116,6 +117,7 @@
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
+  <text x="164" y="54" class="brand-version">v0.1.9</text>
   <text x="36" y="80" class="subtitle">Missing public GitHub signals</text>
   <text x="36" y="112" class="name">example-builder</text>
   <text x="36" y="136" class="type">What's Missing</text>

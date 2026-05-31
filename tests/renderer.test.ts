@@ -12,6 +12,7 @@ import {
 import type { ProfileInput } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
+const visibleVersion = ">v0.1.9</text>";
 
 describe("SVG renderer", () => {
   test("renders a readable profile card without executable SVG content", () => {
@@ -26,9 +27,11 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("<svg");
     expect(svg).toContain("Buildmarks");
+    expect(svg).toContain(visibleVersion);
     expect(svg).toContain("example &lt;builder&gt;");
     expect(svg).toContain("Buildmarks · 2026-05-28");
     expect(svg).toContain("Project Care");
+    expect(svg).toContain(visibleVersion);
     expect(svg).toContain("overall overall-");
     expect(svg).not.toContain("Public GitHub activity</text>");
     expect(svg).not.toContain("Owner-supplied GitHub activity");
@@ -139,6 +142,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("GitHub API limit reached");
     expect(svg).toContain("Public GitHub signals only");
     expect(svg).toContain("Card temporarily unavailable");
+    expect(svg).toContain(visibleVersion);
   });
 
   test("tolerates long names and missing generated date", () => {
@@ -169,6 +173,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("missing:");
     expect(svg).toContain("gaps found");
     expect(svg).toContain("Buildmarks Gaps · Public Signals");
+    expect(svg).toContain(visibleVersion);
     expect(svg).toContain("not a ranking");
   });
 
@@ -180,6 +185,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("example-builder/usable-toolkit");
     expect(svg).toContain("Project Care");
     expect(svg).toContain("Buildmarks Repo");
+    expect(svg).toContain(visibleVersion);
     expect(svg).not.toContain("Repository GitHub activity");
     expect(svg).toContain("role=\"progressbar\"");
   });

@@ -24,6 +24,7 @@ export {
   publicOnlySignalVisibility,
   signalDimensions
 } from "./shared/types";
+export { buildmarksVersion } from "./shared/version";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile";
 export {
   collectOwnerSuppliedGitHubProfile,

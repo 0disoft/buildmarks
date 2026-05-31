@@ -6,6 +6,7 @@ import {
   type UserSignalGapsReport,
   type UserSignalReport
 } from "../shared/types";
+import { buildmarksVersion } from "../shared/version";
 
 export interface RenderCardOptions {
   reportHref?: string;
@@ -26,6 +27,7 @@ const rightEdgeX = 704;
 const highlightLabelY = 318;
 const chipY = 330;
 const footerY = 388;
+const brandVersion = `v${buildmarksVersion}`;
 
 export function renderUserSignalCard(
   report: UserSignalReport,
@@ -63,7 +65,7 @@ export function renderUserSignalCard(
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  <text x="36" y="56" class="title">Buildmarks</text>
+  ${renderBrandHeader()}
   <text x="36" y="96" class="name">${escapeXml(username)}</text>
   <text x="${rightEdgeX}" y="58" class="subtitle right">Project Care</text>
   <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${overall}/100</text>
@@ -91,7 +93,7 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  <text x="36" y="58" class="title">Buildmarks</text>
+  ${renderBrandHeader(58)}
   <text x="36" y="82" class="subtitle">Public GitHub activity</text>
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
   <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
@@ -123,7 +125,7 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  <text x="36" y="56" class="title">Buildmarks</text>
+  ${renderBrandHeader()}
   <text x="36" y="80" class="subtitle">Missing public GitHub signals</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
   <text x="36" y="136" class="type">What's Missing</text>
@@ -156,7 +158,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  <text x="36" y="56" class="title">Buildmarks</text>
+  ${renderBrandHeader()}
   <text x="36" y="96" class="name">${escapeXml(repoName)}</text>
   <text x="${rightEdgeX}" y="58" class="subtitle right">Project Care</text>
   <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${overall}/100</text>
@@ -383,6 +385,7 @@ function renderStyles(): string {
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
     .title { fill: var(--text); font: 700 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .brand-version { fill: var(--muted); font: 700 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .right { text-anchor: end; }
     .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -414,6 +417,11 @@ function renderStyles(): string {
     .bar-low-start { stop-color: var(--low); }
     .bar-low-end { stop-color: var(--low-2); }
   `;
+}
+
+function renderBrandHeader(y = 56): string {
+  return `<text x="36" y="${y}" class="title">Buildmarks</text>
+  <text x="164" y="${y - 2}" class="brand-version">${escapeXml(brandVersion)}</text>`;
 }
 
 function buildDescription(report: UserSignalReport, overall: number): string {

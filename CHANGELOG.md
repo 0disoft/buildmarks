@@ -8,6 +8,10 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.9 - 2026-05-31
+
+- Show the Buildmarks package version beside the top card brand mark on generated SVG cards.
+
 ## v0.1.8 - 2026-05-31
 
 - Raise the default `max-repositories-scored` profile summary limit from 8 to 12 so default cards and reports reflect a wider project sample.
