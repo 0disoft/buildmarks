@@ -14,14 +14,15 @@ export interface RenderCardOptions {
 
 const cardWidth = 760;
 const cardHeight = 420;
-const barMaxWidth = 254;
+const barX = 336;
+const barMaxWidth = 372;
 const barHeight = 6;
 const rowStartY = 128;
 const rowGap = 29;
 const chipWidth = 156;
 const chipGap = 12;
-const rightColumnX = 604;
-const overallUnitX = 654;
+const scoreX = 306;
+const rightEdgeX = 704;
 const highlightLabelY = 318;
 const chipY = 330;
 const footerY = 388;
@@ -64,9 +65,8 @@ export function renderUserSignalCard(
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
   <text x="36" y="96" class="name">${escapeXml(username)}</text>
-  <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
-  <text x="${rightColumnX}" y="108" class="overall overall-${overallTone}">${overall}</text>
-  <text x="${overallUnitX}" y="112" class="overall-unit">/100</text>
+  <text x="${rightEdgeX}" y="58" class="subtitle right">Project Care</text>
+  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${overall}/100</text>
   <g aria-label="Dimension scores out of 100">
 ${rows.join("")}
   </g>
@@ -158,9 +158,8 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
   <text x="36" y="96" class="name">${escapeXml(repoName)}</text>
-  <text x="${rightColumnX}" y="72" class="subtitle">Project Care</text>
-  <text x="${rightColumnX}" y="108" class="overall overall-${overallTone}">${overall}</text>
-  <text x="${overallUnitX}" y="112" class="overall-unit">/100</text>
+  <text x="${rightEdgeX}" y="58" class="subtitle right">Project Care</text>
+  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${overall}/100</text>
   <g aria-label="Repository dimension scores out of 100">
 ${rows.join("")}
   </g>
@@ -193,17 +192,17 @@ function renderDimensionRow(
     return `
     <g role="img" aria-label="${escapeXml(ariaLabel)}">
       <text x="36" y="${labelY}" class="label">${escapeXml(label)}</text>
-      <text x="268" y="${labelY}" class="score">${escapeXml(unavailableText)}</text>
-      <rect x="324" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
+      <text x="${scoreX}" y="${labelY}" class="score">${escapeXml(unavailableText)}</text>
+      <rect x="${barX}" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
     </g>`;
   }
 
   return `
     <g role="img" aria-label="${escapeXml(`${label}: ${score} points out of 100`)}">
       <text x="36" y="${labelY}" class="label">${escapeXml(label)}</text>
-      <text x="268" y="${labelY}" class="score">${score}/100</text>
-      <rect x="324" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
-      <rect x="324" y="${barY}" width="${width}" height="${barHeight}" rx="3" class="bar bar-${tone}" role="progressbar" aria-label="${escapeXml(label)} score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}" />
+      <text x="${scoreX}" y="${labelY}" class="score">${score}/100</text>
+      <rect x="${barX}" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
+      <rect x="${barX}" y="${barY}" width="${width}" height="${barHeight}" rx="3" class="bar bar-${tone}" role="progressbar" aria-label="${escapeXml(label)} score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}" />
     </g>`;
 }
 
@@ -307,15 +306,15 @@ function renderDefs(): string {
       <stop offset="0%" class="stroke-start" />
       <stop offset="100%" class="stroke-end" />
     </linearGradient>
-    <linearGradient id="barStrong" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barStrong" x1="${barX}" y1="0" x2="${barX + barMaxWidth}" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-strong-start" />
       <stop offset="100%" class="bar-strong-end" />
     </linearGradient>
-    <linearGradient id="barMiddle" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barMiddle" x1="${barX}" y1="0" x2="${barX + barMaxWidth}" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-middle-start" />
       <stop offset="100%" class="bar-middle-end" />
     </linearGradient>
-    <linearGradient id="barLow" x1="324" y1="0" x2="578" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="barLow" x1="${barX}" y1="0" x2="${barX + barMaxWidth}" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="bar-low-start" />
       <stop offset="100%" class="bar-low-end" />
     </linearGradient>
@@ -385,9 +384,10 @@ function renderStyles(): string {
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
     .title { fill: var(--text); font: 700 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .right { text-anchor: end; }
     .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .type { fill: var(--accent); font: 700 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .overall { fill: var(--warning); font: 800 34px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .overall { fill: var(--warning); font: 800 26px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: end; }
     .overall-strong { fill: var(--accent); }
     .overall-middle { fill: var(--warning); }
     .overall-low { fill: var(--low); }

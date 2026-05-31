@@ -8,6 +8,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.6 - 2026-05-31
+
+- Rebalance the front SVG card layout so score bars use the right side of the card instead of leaving a mostly empty score column.
+- Render the `Project Care` score as a smaller top-right summary rather than a large detached number.
+- Refresh committed example SVG assets to match the current renderer.
+
 ## v0.1.5 - 2026-05-31
 
 - Simplify the front SVG card by removing source-disclosure subtitle lines, scope labels, repository counts, mark counts, activity-window text, score-band text, and the color legend.
