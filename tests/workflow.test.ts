@@ -37,7 +37,7 @@ describe("profile README workflow example", () => {
     expect(workflow).toContain("pull_request:");
     expect(workflow).toContain("permissions:");
     expect(workflow).toContain("contents: read");
-    expect(workflow).toContain("actions/checkout@v4");
+    expect(workflow).toContain("actions/checkout@v6");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("run: bun test");
     expect(workflow).toContain("run: bun run build");
