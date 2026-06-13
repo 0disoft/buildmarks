@@ -24,7 +24,7 @@ export function createStaticReport(
   options: CreateStaticReportOptions = {}
 ): BuildmarksStaticReport {
   const scoredProfile = scoreUserProfile(profile, options);
-  const gaps = analyzeSignalGaps(profile);
+  const gaps = analyzeSignalGaps(profile, options.now === undefined ? {} : { now: options.now });
 
   return {
     version: 1,
@@ -35,6 +35,12 @@ export function createStaticReport(
 }
 
 export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
+  const scopeSummary = report.profile.signalVisibility?.privateRepositoriesIncluded === true
+    ? "Owner-supplied private signals included · Not independently verifiable · Not a ranking"
+    : "Public GitHub evidence only · Not a ranking";
+  const gapScope = report.gaps.signalVisibility?.privateRepositoriesIncluded === true
+    ? "Improvement hints based on owner-supplied private-local and public signals."
+    : "Improvement hints based on missing public signals.";
   const dimensions = signalDimensions.map((dimension) => renderDimension(report.profile, dimension)).join("");
   const evidence = report.profile.evidence.map((item) => `<li>${escapeHtml(item.label)}</li>`).join("");
   const gaps = report.gaps.gaps.length === 0
@@ -116,6 +122,7 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
     .bar {
       height: 8px;
       border-radius: 999px;
+      background: rgba(15, 139, 108, 0.18);
       background: color-mix(in srgb, var(--accent), transparent 82%);
       overflow: hidden;
     }
@@ -135,7 +142,7 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
       <p class="muted">Buildmarks static report</p>
       <h1>${escapeHtml(report.profile.username)}</h1>
       <p class="score">${report.profile.overall}/100</p>
-      <p>${escapeHtml(report.profile.signalType)} · Public GitHub evidence only · Not a ranking</p>
+      <p>${escapeHtml(report.profile.signalType)} · ${escapeHtml(scopeSummary)}</p>
       <p class="muted">Generated ${escapeHtml(report.profile.generatedAt)}</p>
     </header>
 
@@ -151,7 +158,7 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
 
     <section>
       <h2>What's Missing</h2>
-      <p class="muted">Improvement hints based on missing public signals.</p>
+      <p class="muted">${escapeHtml(gapScope)}</p>
       <ul>${gaps}</ul>
     </section>
 
@@ -202,10 +209,14 @@ function safeScore(value: unknown): number {
 }
 
 function escapeHtml(value: string): string {
-  return value
+  return stripControlCharacters(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function stripControlCharacters(value: string): string {
+  return value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
 }

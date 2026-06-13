@@ -12,8 +12,8 @@ import {
 import type { ProfileInput } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
-const visibleVersion = ">v0.1.10</text>";
-const spacedBrandVersion = '<text x="190" y="54" class="brand-version">v0.1.10</text>';
+const visibleVersion = ">v0.1.11</text>";
+const spacedBrandVersion = '<text x="190" y="54" class="brand-version">v0.1.11</text>';
 
 describe("SVG renderer", () => {
   test("renders a readable profile card without executable SVG content", () => {
@@ -77,6 +77,43 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("<a href=");
     expect(svg).not.toContain("javascript:");
     expect(svg).not.toContain("View report");
+  });
+
+  test("drops non-http report link schemes", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const schemes = ["mailto:team@example.test", "vbscript:msgbox(1)", "data:text/html,<script>alert(1)</script>"];
+
+    schemes.forEach((reportHref) => {
+      const svg = renderUserSignalCard(report, { reportHref });
+
+      expect(svg).not.toContain("<a href=");
+      expect(svg).not.toContain("View report");
+    });
+  });
+
+  test("drops protocol-relative report links", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard(report, {
+      reportHref: "//evil.example/report.html"
+    });
+
+    expect(svg).not.toContain("<a href=");
+    expect(svg).not.toContain("evil.example");
+    expect(svg).not.toContain("View report");
+  });
+
+  test("strips XML control characters from rendered text", () => {
+    const report = scoreUserProfile(
+      {
+        ...(fixture as ProfileInput),
+        username: "bad\u0001name"
+      },
+      { now }
+    );
+    const svg = renderUserSignalCard(report);
+
+    expect(svg).toContain("badname");
+    expect(svg).not.toContain("\u0001");
   });
 
   test("discloses owner-supplied private signals when included", () => {
@@ -166,6 +203,17 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("undefined");
   });
 
+  test("falls back when generated date is not a valid date string", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard({
+      ...report,
+      generatedAt: "INVALID_DATE_STRING"
+    });
+
+    expect(svg).toContain("Buildmarks · ");
+    expect(svg).not.toContain("INVALID_DA");
+  });
+
   test("renders a signal gaps card as improvement hints, not a ranking", () => {
     const report = analyzeSignalGaps(fixture as ProfileInput, { now });
     const svg = renderSignalGapsCard(report);
@@ -177,6 +225,29 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Buildmarks Gaps · Public Signals");
     expect(svg).toContain(visibleVersion);
     expect(svg).toContain("not a ranking");
+  });
+
+  test("renders private-local signal gaps without public-only wording", () => {
+    const report = analyzeSignalGaps(
+      {
+        ...(fixture as ProfileInput),
+        signalVisibility: {
+          scope: "public-and-owner-supplied-private",
+          privateRepositoriesIncluded: true,
+          privateRepositoryNamesRedacted: true,
+          independentlyVerifiable: false,
+          cardLabel: "Public + Private Signals",
+          reportVisibility: "private-local"
+        }
+      },
+      { now }
+    );
+    const svg = renderSignalGapsCard(report);
+
+    expect(svg).toContain("Missing owner-supplied signals");
+    expect(svg).toContain("Buildmarks Gaps · Private-Local Signals");
+    expect(svg).not.toContain("Missing public GitHub signals");
+    expect(svg).not.toContain("Buildmarks Gaps · Public Signals");
   });
 
   test("renders a repository signal card for one repository", () => {

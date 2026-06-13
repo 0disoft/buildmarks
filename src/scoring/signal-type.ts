@@ -1,6 +1,7 @@
-import type { SignalDimension } from "../shared/types";
+import type { SignalDimension, SignalType } from "../shared/types";
 
-export function classifySignalType(dimensions: Record<SignalDimension, number>): string {
+export function classifySignalType(dimensions: Record<SignalDimension, number>): SignalType {
+  // Priority is intentional: each profile gets the strongest explanatory label, not every matching label.
   if (dimensions.maintainability >= 75 && dimensions.shipping >= 70) {
     return "Maintainer-Builder";
   }

@@ -17,6 +17,9 @@ describe("live public GitHub collector", () => {
     const repository = profile.repositories[0];
 
     expect(profile.username).toBe("example-builder");
+    expect(profile.activityAggregatesDeferred).toBe(true);
+    expect(profile.signalVisibility?.privateRepositoriesIncluded).toBe(false);
+    expect(profile.signalVisibility?.cardLabel).toBe("Public GitHub signals");
     expect(profile.repositories).toHaveLength(1);
     expect(repository).toMatchObject({
       owner: "example-builder",
@@ -80,10 +83,40 @@ describe("live public GitHub collector", () => {
       testFileCount: 1,
       exampleFileCount: 1,
       medianSourceFileBytes: 4200,
-      p90SourceFileBytes: 40_000,
+      p90SourceFileBytes: 26_480,
       oversizedSourceFileCount: 1,
       testToSourceRatio: 0.2
     });
+  });
+
+  test("counts source file tree entries even when GitHub omits the entry type", async () => {
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        tree: [
+          { path: "src/index.ts", size: 2400 },
+          { path: "tests/index.test.ts", size: 1000 }
+        ]
+      })
+    });
+
+    expect(profile.repositories[0]?.files.codebaseShape).toMatchObject({
+      sourceFileCount: 2,
+      testFileCount: 1,
+      medianSourceFileBytes: 1700,
+      p90SourceFileBytes: 2260,
+      testToSourceRatio: 0.5
+    });
+  });
+
+  test("preserves GitHub recursive tree truncation as an incomplete file-signal warning", async () => {
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        tree: [{ path: "src/index.ts", type: "blob", size: 2400 }],
+        treeTruncated: true
+      })
+    });
+
+    expect(profile.repositories[0]?.files.codebaseShape.treeTruncated).toBe(true);
   });
 
   test("uses one recursive tree request for repository file signals instead of content path probing", async () => {
@@ -114,7 +147,8 @@ describe("live public GitHub collector", () => {
       limits: {
         maxRepositoriesScannedPerProfile: 2,
         maxRepositoriesScoredPerProfile: 2,
-        repositoryActivityWindowDays: 365
+        repositoryActivityWindowDays: 365,
+        maxConcurrentRepositoryCollections: 3
       }
     };
 
@@ -138,7 +172,8 @@ describe("live public GitHub collector", () => {
       limits: {
         maxRepositoriesScannedPerProfile: 30,
         maxRepositoriesScoredPerProfile: 12,
-        repositoryActivityWindowDays: 180
+        repositoryActivityWindowDays: 180,
+        maxConcurrentRepositoryCollections: 3
       }
     };
 
@@ -153,6 +188,82 @@ describe("live public GitHub collector", () => {
     const profile = await collectPublicGitHubProfile("example-builder", { fetcher: makeGitHubFetch() });
 
     expect(profile.repositories[0]?.files.hasTests).toBe(false);
+  });
+
+  test("collects repositories with bounded concurrency while preserving order", async () => {
+    let activeCommunityRequests = 0;
+    let maxActiveCommunityRequests = 0;
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        repositories: [
+          makeRepositoryResponse("first"),
+          makeRepositoryResponse("second"),
+          makeRepositoryResponse("third"),
+          makeRepositoryResponse("fourth")
+        ],
+        onCommunityRequest: async () => {
+          activeCommunityRequests += 1;
+          maxActiveCommunityRequests = Math.max(maxActiveCommunityRequests, activeCommunityRequests);
+          await sleep(5);
+          activeCommunityRequests -= 1;
+        }
+      }),
+      policy: {
+        ...defaultGitHubCollectorPolicy,
+        limits: {
+          ...defaultGitHubCollectorPolicy.limits,
+          maxRepositoriesScannedPerProfile: 4,
+          maxRepositoriesScoredPerProfile: 4,
+          maxConcurrentRepositoryCollections: 2
+        }
+      }
+    });
+
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(["first", "second", "third", "fourth"]);
+    expect(maxActiveCommunityRequests).toBeLessThanOrEqual(2);
+  });
+
+  test("omits repository detail failures while preserving the rest of the profile", async () => {
+    const baseFetch = makeGitHubFetch({
+      repositories: [
+        makeRepositoryResponse("usable-toolkit"),
+        makeRepositoryResponse("broken-toolkit")
+      ]
+    });
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        const parsed = new URL(url);
+        if (parsed.pathname === "/repos/example-builder/broken-toolkit/git/trees/main") {
+          return jsonResponse({ tree: "invalid" });
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
+    expect(profile.repositoryCollectionFailureCount).toBe(1);
+  });
+
+  test("retries transient GitHub responses before failing collection", async () => {
+    const baseFetch = makeGitHubFetch();
+    let repositoryListAttempts = 0;
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        const parsed = new URL(url);
+        if (parsed.pathname === "/users/example-builder/repos") {
+          repositoryListAttempts += 1;
+          if (repositoryListAttempts === 1) {
+            return jsonResponse({ message: "temporary unavailable" }, { status: 503 });
+          }
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(repositoryListAttempts).toBe(2);
+    expect(profile.repositories).toHaveLength(1);
   });
 
   test("rejects invalid policy before any GitHub request is made", async () => {
@@ -182,7 +293,7 @@ describe("live public GitHub collector", () => {
         { message: "API rate limit exceeded" },
         {
           status: 403,
-          headers: { "x-ratelimit-reset": "1770000000" }
+          headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1770000000" }
         }
       );
 
@@ -190,6 +301,21 @@ describe("live public GitHub collector", () => {
       code: "github_rate_limited",
       status: 403,
       rateLimitReset: "1770000000"
+    });
+  });
+
+  test("does not classify unrelated GitHub forbidden responses as rate limits", async () => {
+    const fetcher: GitHubCollectorFetch = async () =>
+      jsonResponse(
+        { message: "Resource not accessible by integration" },
+        {
+          status: 403
+        }
+      );
+
+    await expect(collectPublicGitHubProfile("example-builder", { fetcher })).rejects.toMatchObject({
+      code: "github_request_failed",
+      status: 403
     });
   });
 
@@ -218,7 +344,8 @@ describe("live public GitHub collector", () => {
     expect(serialized).not.toContain("language");
     expect(serialized).not.toContain("rawCommitCount");
     expect(serialized).not.toContain("contributionStreak");
-    expect(serialized).not.toContain("private");
+    expect(serialized).not.toContain("\"visibility\":\"private\"");
+    expect(serialized).not.toContain("\"redactedName\":true");
   });
 
   test("collects owner-supplied private-local repositories with redacted private names", async () => {
@@ -247,6 +374,49 @@ describe("live public GitHub collector", () => {
     });
     expect(profile.repositories[1]?.url).toBeUndefined();
     expect(JSON.stringify(profile)).not.toContain("secret-product");
+  });
+
+  test("redacts names and URLs when every private-local repository is private", async () => {
+    const profile = await collectOwnerSuppliedGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        repositories: [
+          makeRepositoryResponse("secret-one", { private: true }),
+          makeRepositoryResponse("secret-two", { private: true })
+        ]
+      }),
+      token: "private-local-token"
+    });
+
+    expect(profile.repositories.map((repository) => repository.name)).toEqual([
+      "Private repository 1",
+      "Private repository 2"
+    ]);
+    expect(profile.repositories.every((repository) => repository.redactedName === true)).toBe(true);
+    expect(profile.repositories.every((repository) => repository.url === undefined)).toBe(true);
+    expect(JSON.stringify(profile)).not.toContain("secret-one");
+    expect(JSON.stringify(profile)).not.toContain("secret-two");
+  });
+
+  test("rejects private-local collection when the token owner does not match the requested username", async () => {
+    let repositoryListRequests = 0;
+
+    await expect(
+      collectOwnerSuppliedGitHubProfile("example-builder", {
+        fetcher: makeGitHubFetch({
+          authenticatedLogin: "other-owner",
+          onRequest: (url) => {
+            if (new URL(url).pathname === "/user/repos") {
+              repositoryListRequests += 1;
+            }
+          }
+        }),
+        token: "private-local-token"
+      })
+    ).rejects.toMatchObject({
+      code: "github_owner_mismatch"
+    });
+
+    expect(repositoryListRequests).toBe(0);
   });
 
   test("requires an explicit token before private-local collection", async () => {
@@ -279,11 +449,16 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
       "X-GitHub-Api-Version": "2026-03-10"
     });
 
+    if (parsed.pathname === "/user") {
+      return jsonResponse({ login: options.authenticatedLogin ?? "example-builder" });
+    }
+
     if (parsed.pathname === "/users/example-builder/repos" || parsed.pathname === "/user/repos") {
       return jsonResponse(repositories);
     }
 
     if (parsed.pathname.endsWith("/community/profile")) {
+      await options.onCommunityRequest?.();
       return jsonResponse({
         documentation: { html_url: "https://docs.example.test" },
         files: {
@@ -318,7 +493,7 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
             { path: "package.json" }
           ])
         ],
-        truncated: false
+        truncated: options.treeTruncated ?? false
       });
     }
 
@@ -367,5 +542,12 @@ function textResponse(body: string): Response {
 interface MakeGitHubFetchOptions {
   repositories?: unknown[];
   tree?: Array<{ path: string; type?: string; size?: number }>;
+  treeTruncated?: boolean;
   onRequest?: (url: string, init: RequestInit) => void;
+  onCommunityRequest?: () => Promise<void>;
+  authenticatedLogin?: string;
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }

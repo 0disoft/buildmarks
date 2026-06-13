@@ -67,8 +67,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.10");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.10"');
+    expect(metadata.version).toBe("0.1.11");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.11"');
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -123,7 +123,7 @@ describe("profile README workflow example", () => {
     expect(changelog).toContain("## v0.1.7 - 2026-05-31");
     expect(changelog).toContain("## v0.1.8 - 2026-05-31");
     expect(changelog).toContain("## v0.1.9 - 2026-05-31");
-    expect(changelog).toContain("## v0.1.10 - 2026-05-31");
+    expect(changelog).toContain("## v0.1.11 - 2026-06-13");
     expect(changelog).toContain("explicit private-local collection");
     expect(changelog).toContain("compact highlight chips");
     expect(changelog).toContain("Simplify the front SVG card");
@@ -177,7 +177,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.10`");
+    expect(npmPackaging).toContain("Current package version: `0.1.11`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");
@@ -297,6 +297,9 @@ describe("profile README workflow example", () => {
     expect(action).toContain("Invalid max-repositories-scanned");
     expect(action).toContain("Invalid max-repositories-scored");
     expect(action).toContain("Invalid activity-window-days");
+    expect(action).toContain("less than or equal to 100");
+    expect(action).toContain("less than or equal to 24");
+    expect(action).toContain("less than or equal to 3650");
     expect(action).toContain("Invalid private-local");
     expect(action).toContain("private-local mode requires an explicit token input");
     expect(action).toContain("set -euo pipefail");

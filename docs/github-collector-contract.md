@@ -56,6 +56,6 @@ This contract is now produced by the local `collectPublicGitHubProfile()` REST a
 
 The live adapter is intentionally narrow. It collects public repository metadata, public community profile file signals, selected public Git tree file signals, coarse codebase-shape aggregates, and release or tag presence. It does not collect private data, file contents, raw commit counts, contribution streaks, follower counts, language percentages, employer data, or hiring suitability signals.
 
-Activity aggregate fields are currently set to zero by the live adapter. Public issue-response, pull-request-review, and external-contributor aggregate collection is deferred until those API-cost and methodology rules are designed.
+Activity aggregate fields are currently set to zero by the live adapter, and collected live profiles set `activityAggregatesDeferred` so generated reports disclose that limitation. Public issue-response, pull-request-review, and external-contributor aggregate collection is deferred until those API-cost and methodology rules are designed.
 
 Operational rules are defined in [GitHub Collector Operations](github-collector-operations.md).

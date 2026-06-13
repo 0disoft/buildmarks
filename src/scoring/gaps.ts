@@ -17,13 +17,22 @@ export function analyzeSignalGaps(
   return {
     username: input.username,
     generatedAt,
+    ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
     gaps,
-    limitations: [
-      "Public GitHub data only.",
-      "These are improvement hints, not a developer ranking.",
-      "Private work and non-GitHub maintenance are not inferred."
-    ]
+    limitations: buildGapLimitations(input.signalVisibility?.privateRepositoriesIncluded === true)
   };
+}
+
+function buildGapLimitations(includesPrivateSignals: boolean): string[] {
+  return [
+    includesPrivateSignals
+      ? "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
+      : "Public GitHub data only.",
+    "These are improvement hints, not a developer ranking.",
+    includesPrivateSignals
+      ? "Employer work and non-GitHub maintenance are not inferred."
+      : "Private work and non-GitHub maintenance are not inferred."
+  ];
 }
 
 function repositorySignalGaps(repository: RepositoryInput): SignalGap[] {

@@ -12,6 +12,7 @@ export type {
   RepositoryVisibility,
   RepoSignal,
   SignalReportVisibility,
+  SignalType,
   SignalVisibilityDisclosure,
   SignalDimension,
   SignalGap,
@@ -22,7 +23,8 @@ export {
   dimensionLabels,
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
-  signalDimensions
+  signalDimensions,
+  signalTypes
 } from "./shared/types";
 export { buildmarksVersion } from "./shared/version";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile";
@@ -36,8 +38,10 @@ export {
 } from "./collector/github-client";
 export {
   defaultGitHubCollectorPolicy,
+  privateLocalGitHubCollectorPolicy,
   validateGitHubCollectorPolicy,
   type GitHubCollectorPolicy,
+  type GitHubCollectorPolicyMode,
   type GitHubCollectorPolicyValidation
 } from "./collector/policy";
 export {

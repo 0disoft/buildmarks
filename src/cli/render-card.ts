@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 import {
   renderFallbackCard,
   renderUserSignalCard,
@@ -47,15 +48,14 @@ export async function renderCardFile(
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown render failure";
     const svg = renderFallbackCard("Buildmarks report is temporarily unavailable");
-
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
       ok: false,
       inputPath: resolvedInputPath,
       outputPath: resolvedOutputPath,
       fallback: true,
-      error: message
+      error: appendWriteFailure(message, "Fallback SVG", writeError)
     };
   }
 }
@@ -156,6 +156,10 @@ export function parseProfileInput(value: unknown): ProfileInput {
     profile.activityWindowDays = record.activityWindowDays;
   }
 
+  if (typeof record.activityAggregatesDeferred === "boolean") {
+    profile.activityAggregatesDeferred = record.activityAggregatesDeferred;
+  }
+
   const signalVisibility = parseSignalVisibility(record.signalVisibility);
   if (signalVisibility !== undefined) {
     profile.signalVisibility = signalVisibility;
@@ -226,8 +230,7 @@ function parseCodebaseShape(value: unknown): CodebaseShapeSignals | undefined {
   }
 
   const record = value as Record<string, unknown>;
-
-  return {
+  const shape: CodebaseShapeSignals = {
     sourceFileCount: requireNumber(record, "sourceFileCount"),
     testFileCount: requireNumber(record, "testFileCount"),
     exampleFileCount: requireNumber(record, "exampleFileCount"),
@@ -236,6 +239,12 @@ function parseCodebaseShape(value: unknown): CodebaseShapeSignals | undefined {
     oversizedSourceFileCount: requireNumber(record, "oversizedSourceFileCount"),
     testToSourceRatio: requireNumber(record, "testToSourceRatio")
   };
+
+  if (typeof record.treeTruncated === "boolean") {
+    shape.treeTruncated = record.treeTruncated;
+  }
+
+  return shape;
 }
 
 function parseSignalVisibility(value: unknown): ProfileInput["signalVisibility"] | undefined {

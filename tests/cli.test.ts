@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { renderCardFile } from "../src/cli/render-card";
 import { renderGapsCardFile } from "../src/cli/render-gaps-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
+import { parsePositiveDecimalIntegerOption } from "../src/cli/options";
 import { renderRepoCardFile } from "../src/cli/render-repo-card";
 import { defaultGitHubCollectorPolicy, type GitHubCollectorFetch } from "../src";
 
@@ -80,6 +81,15 @@ describe("render-card CLI", () => {
     expect(result.error).toContain("repositories array");
     expect(svg).toContain("Buildmarks report is temporarily unavailable");
   });
+
+  test("returns an error result when fallback SVG writing also fails", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderCardFile(join(directory, "missing-profile.json"), directory);
+
+    expect(result.ok).toBe(false);
+    expect(result.fallback).toBe(true);
+    expect(result.error).toContain("Fallback SVG write failed");
+  });
 });
 
 describe("render-github-card CLI", () => {
@@ -131,7 +141,8 @@ describe("render-github-card CLI", () => {
         limits: {
           maxRepositoriesScannedPerProfile: 2,
           maxRepositoriesScoredPerProfile: 1,
-          repositoryActivityWindowDays: 365
+          repositoryActivityWindowDays: 365,
+          maxConcurrentRepositoryCollections: defaultGitHubCollectorPolicy.limits.maxConcurrentRepositoryCollections
         }
       }
     });
@@ -155,6 +166,15 @@ describe("render-github-card CLI", () => {
     expect(result.error).toBeDefined();
     expect(svg).toContain("Buildmarks GitHub report is temporarily unavailable");
     expect(svg).toContain("Public GitHub signals only");
+  });
+});
+
+describe("CLI option parsing", () => {
+  test("accepts only plain decimal positive integers for repository limits", () => {
+    expect(parsePositiveDecimalIntegerOption("--max-repositories-scanned", "12")).toBe(12);
+    expect(parsePositiveDecimalIntegerOption("--max-repositories-scanned", "0x10")).toContain("base-10");
+    expect(parsePositiveDecimalIntegerOption("--max-repositories-scanned", "1e2")).toContain("base-10");
+    expect(parsePositiveDecimalIntegerOption("--max-repositories-scanned", "0")).toContain("base-10");
   });
 });
 

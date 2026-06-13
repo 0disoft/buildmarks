@@ -1,9 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { buildGitHubCollectorPolicyFromCli, githubCliDefaultLimits, parsePositiveDecimalIntegerOption } from "./options";
+import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
-  defaultGitHubCollectorPolicy,
   normalizePublicGitHubProfile,
   renderFallbackCard,
   renderUserSignalCard,
@@ -55,15 +56,14 @@ export async function renderGitHubCardFile(
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown GitHub render failure";
     const svg = renderFallbackCard("Buildmarks GitHub report is temporarily unavailable");
-
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
       ok: false,
       username,
       outputPath: resolvedOutputPath,
       fallback: true,
-      error: message
+      error: appendWriteFailure(message, "Fallback SVG", writeError)
     };
   }
 }
@@ -83,14 +83,7 @@ async function main(args: readonly string[]): Promise<void> {
     token: parsed.token,
     privateLocal: parsed.privateLocal,
     reportHref: parsed.reportHref,
-    policy: {
-      ...defaultGitHubCollectorPolicy,
-      limits: {
-        maxRepositoriesScannedPerProfile: parsed.maxRepositoriesScanned,
-        maxRepositoriesScoredPerProfile: parsed.maxRepositoriesScored,
-        repositoryActivityWindowDays: parsed.activityWindowDays
-      }
-    }
+    policy: buildGitHubCollectorPolicyFromCli(parsed)
   });
 
   if (!result.ok) {
@@ -117,9 +110,9 @@ function parseArgs(args: readonly string[]):
   | { ok: false; message: string } {
   const positional: string[] = [];
   let token: string | undefined;
-  let maxRepositoriesScanned = defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile;
-  let maxRepositoriesScored = defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile;
-  let activityWindowDays = defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays;
+  let maxRepositoriesScanned = githubCliDefaultLimits.maxRepositoriesScannedPerProfile;
+  let maxRepositoriesScored = githubCliDefaultLimits.maxRepositoriesScoredPerProfile;
+  let activityWindowDays = githubCliDefaultLimits.repositoryActivityWindowDays;
   let reportHref: string | undefined;
   let privateLocal = false;
 
@@ -145,7 +138,7 @@ function parseArgs(args: readonly string[]):
     }
 
     if (arg === "--max-repositories-scanned") {
-      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
       if (typeof value === "string") {
         return { ok: false, message: value };
       }
@@ -155,7 +148,7 @@ function parseArgs(args: readonly string[]):
     }
 
     if (arg === "--max-repositories-scored") {
-      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
       if (typeof value === "string") {
         return { ok: false, message: value };
       }
@@ -165,7 +158,7 @@ function parseArgs(args: readonly string[]):
     }
 
     if (arg === "--activity-window-days") {
-      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
       if (typeof value === "string") {
         return { ok: false, message: value };
       }
@@ -206,19 +199,6 @@ function parseArgs(args: readonly string[]):
     : reportHref === undefined
       ? { ok: true, username, outputPath, token, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal }
       : { ok: true, username, outputPath, token, reportHref, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal };
-}
-
-function parsePositiveIntegerOption(name: string, rawValue: string | undefined): number | string {
-  if (rawValue === undefined || rawValue.trim() === "") {
-    return `Missing value for ${name}.`;
-  }
-
-  const value = Number(rawValue);
-  if (!Number.isInteger(value) || value <= 0) {
-    return `${name} must be a positive integer.`;
-  }
-
-  return value;
 }
 
 if (import.meta.main) {

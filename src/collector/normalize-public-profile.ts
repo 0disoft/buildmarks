@@ -10,6 +10,12 @@ export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): P
     username: profile.username,
     generatedAt: profile.collectedAt,
     ...(profile.activityWindowDays === undefined ? {} : { activityWindowDays: profile.activityWindowDays }),
+    ...(profile.activityAggregatesDeferred === undefined
+      ? {}
+      : { activityAggregatesDeferred: profile.activityAggregatesDeferred }),
+    ...(profile.repositoryCollectionFailureCount === undefined
+      ? {}
+      : { repositoryCollectionFailureCount: profile.repositoryCollectionFailureCount }),
     ...(profile.signalVisibility ? { signalVisibility: profile.signalVisibility } : {}),
     repositories: profile.repositories.map(normalizePublicGitHubRepository)
   };

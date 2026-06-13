@@ -124,7 +124,7 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.10`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.11`.
 
 Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
 
@@ -243,9 +243,9 @@ The default repository activity window is 365 days based on each repository's pu
 | `report-output` | `assets/buildmarks-report` | HTML and JSON report directory. |
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
-| `max-repositories-scanned` | `30` | Positive integer public repository scan limit. |
-| `max-repositories-scored` | `12` | Positive integer profile summary limit. |
-| `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`. |
+| `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100. |
+| `max-repositories-scored` | `12` | Positive integer profile summary limit, capped at 24. |
+| `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
 
 ## Example Card Assets
 
@@ -319,6 +319,7 @@ bun src/cli/render-github-report.ts octocat out/report --token "public-data-toke
 ```
 
 Like the SVG GitHub CLI, the report CLI requires tokens to be passed explicitly and writes fallback HTML/JSON files if collection fails.
+Add `--private-local` with an explicit owner-provided token when generating a private-local report.
 
 To generate a GitHub SVG with an evidence link manually:
 

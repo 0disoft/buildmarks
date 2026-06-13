@@ -9,6 +9,17 @@ export const signalDimensions = [
 
 export type SignalDimension = (typeof signalDimensions)[number];
 
+export const signalTypes = [
+  "Maintainer-Builder",
+  "Collaborator",
+  "Builder",
+  "High-Adoption Project",
+  "Independent Builder",
+  "General Signal Profile"
+] as const;
+
+export type SignalType = (typeof signalTypes)[number];
+
 export const dimensionLabels: Record<SignalDimension, string> = {
   maintainability: "Maintainability",
   completeness: "Project Completeness",
@@ -74,6 +85,7 @@ export interface CodebaseShapeSignals {
   p90SourceFileBytes: number;
   oversizedSourceFileCount: number;
   testToSourceRatio: number;
+  treeTruncated?: boolean;
 }
 
 export interface CollectedRepositoryFileSignals {
@@ -118,6 +130,8 @@ export interface CollectedGitHubProfile {
   username: string;
   collectedAt?: string;
   activityWindowDays?: number;
+  activityAggregatesDeferred?: boolean;
+  repositoryCollectionFailureCount?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: CollectedGitHubRepository[];
 }
@@ -126,6 +140,8 @@ export interface ProfileInput {
   username: string;
   generatedAt?: string;
   activityWindowDays?: number;
+  activityAggregatesDeferred?: boolean;
+  repositoryCollectionFailureCount?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: RepositoryInput[];
 }
@@ -190,7 +206,7 @@ export interface UserSignalReport {
   signalVisibility?: SignalVisibilityDisclosure;
   unavailableDimensions?: SignalDimension[];
   overall: number;
-  signalType: string;
+  signalType: SignalType;
   dimensions: Record<SignalDimension, number>;
   topRepos: RepoSignal[];
   evidence: Evidence[];
@@ -207,6 +223,7 @@ export interface SignalGap {
 export interface UserSignalGapsReport {
   username: string;
   generatedAt: string;
+  signalVisibility?: SignalVisibilityDisclosure;
   gaps: SignalGap[];
   limitations: string[];
 }

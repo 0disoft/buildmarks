@@ -5,9 +5,10 @@ import type {
   CollectedRepositoryActivitySignals,
   CollectedRepositoryFileSignals
 } from "../shared/types";
-import { privateLocalSignalVisibility } from "../shared/types";
+import { privateLocalSignalVisibility, publicOnlySignalVisibility } from "../shared/types";
 import {
   defaultGitHubCollectorPolicy,
+  privateLocalGitHubCollectorPolicy,
   type GitHubCollectorPolicy,
   validateGitHubCollectorPolicy
 } from "./policy";
@@ -16,6 +17,9 @@ const githubApiBaseUrl = "https://api.github.com";
 const githubApiVersion = "2026-03-10";
 const githubJsonAccept = "application/vnd.github+json";
 const githubRawAccept = "application/vnd.github.raw+json";
+const activityAggregatesDeferred = true;
+const githubRequestTimeoutMilliseconds = 10_000;
+const githubRequestRetryCount = 1;
 
 const ciPaths = [".github/workflows"];
 const testPaths = ["tests", "test", "__tests__", "spec"];
@@ -100,6 +104,7 @@ export type GitHubCollectorErrorCode =
   | "invalid_policy"
   | "missing_fetch"
   | "github_request_failed"
+  | "github_owner_mismatch"
   | "github_rate_limited"
   | "invalid_github_response";
 
@@ -129,8 +134,8 @@ export async function collectOwnerSuppliedGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
 ): Promise<CollectedGitHubProfile> {
-  const policy = options.policy ?? defaultGitHubCollectorPolicy;
-  const validation = validateGitHubCollectorPolicy(policy);
+  const policy = options.policy ?? privateLocalGitHubCollectorPolicy;
+  const validation = validateGitHubCollectorPolicy(policy, { mode: "private-local" });
   if (!validation.ok) {
     throw new GitHubCollectorError("invalid_policy", validation.errors.join(" "));
   }
@@ -148,6 +153,7 @@ export async function collectOwnerSuppliedGitHubProfile(
   }
 
   const client = new GitHubRestClient(fetcher, options.token);
+  await client.assertAuthenticatedOwner(username);
   const repositories = await client.listAuthenticatedOwnerRepositories(
     username,
     policy.limits.maxRepositoriesScannedPerProfile
@@ -155,23 +161,20 @@ export async function collectOwnerSuppliedGitHubProfile(
   const activeRepositories = repositories.filter((repository) =>
     wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
   );
-  const collectedRepositories: CollectedGitHubRepository[] = [];
-
-  for (let index = 0; index < activeRepositories.length; index += 1) {
-    const repository = activeRepositories[index];
-    if (repository === undefined) {
-      continue;
-    }
-
-    collectedRepositories.push(await client.collectRepository(repository, { privateOrdinal: index + 1 }));
-  }
+  const collected = await collectRepositories(
+    activeRepositories,
+    policy.limits.maxConcurrentRepositoryCollections,
+    (repository, index) => client.collectRepository(repository, { privateOrdinal: index + 1 })
+  );
 
   return {
     username,
     collectedAt: new Date().toISOString(),
     activityWindowDays: policy.limits.repositoryActivityWindowDays,
+    activityAggregatesDeferred,
+    ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
     signalVisibility: privateLocalSignalVisibility,
-    repositories: collectedRepositories
+    repositories: collected.repositories
   };
 }
 
@@ -195,17 +198,20 @@ export async function collectPublicGitHubProfile(
   const activeRepositories = repositories.filter((repository) =>
     wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
   );
-  const collectedRepositories: CollectedGitHubRepository[] = [];
-
-  for (const repository of activeRepositories) {
-    collectedRepositories.push(await client.collectRepository(repository));
-  }
+  const collected = await collectRepositories(
+    activeRepositories,
+    policy.limits.maxConcurrentRepositoryCollections,
+    (repository) => client.collectRepository(repository)
+  );
 
   return {
     username,
     collectedAt: new Date().toISOString(),
     activityWindowDays: policy.limits.repositoryActivityWindowDays,
-    repositories: collectedRepositories
+    activityAggregatesDeferred,
+    ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
+    signalVisibility: publicOnlySignalVisibility,
+    repositories: collected.repositories
   };
 }
 
@@ -214,6 +220,17 @@ class GitHubRestClient {
     private readonly fetcher: GitHubCollectorFetch,
     private readonly token?: string
   ) {}
+
+  async assertAuthenticatedOwner(username: string): Promise<void> {
+    const authenticatedUser = await this.fetchJson<unknown>("/user");
+    const login = asAuthenticatedUserLogin(authenticatedUser);
+    if (login.toLowerCase() !== username.toLowerCase()) {
+      throw new GitHubCollectorError(
+        "github_owner_mismatch",
+        `Private-local collection token belongs to ${login}, not ${username}.`
+      );
+    }
+  }
 
   async listUserRepositories(username: string, limit: number): Promise<GitHubRepositoryResponse[]> {
     const repositories: GitHubRepositoryResponse[] = [];
@@ -290,7 +307,7 @@ class GitHubRestClient {
       this.hasReleasesOrTags(owner, name),
       this.fetchRepositoryTree(owner, name, repository.default_branch)
     ]);
-    const fileSignals = this.collectFileSignals(treeEntries, repository);
+    const fileSignals = this.collectFileSignals(treeEntries.entries, repository, treeEntries.truncated);
     const privateLabel = options.privateOrdinal === undefined ? undefined : `Private repository ${options.privateOrdinal}`;
 
     const collected: CollectedGitHubRepository = {
@@ -323,55 +340,59 @@ class GitHubRestClient {
 
   collectFileSignals(
     treeEntries: readonly GitHubTreeEntry[],
-    repository: GitHubRepositoryResponse
+    repository: GitHubRepositoryResponse,
+    treeTruncated = false
   ): CollectedRepositoryFileSignals {
-    const treePaths = treeEntries.map((entry) => entry.path);
+    const treeSignals = collectTreePathSignals(treeEntries);
 
     return {
       hasReadme: false,
       hasLicense: false,
       hasUsageGuide: false,
-      hasCi: treeHasAnyPath(treePaths, ciPaths),
-      hasTests: treeHasAnyPath(treePaths, testPaths),
-      hasChangelog: treeHasAnyPath(treePaths, changelogPaths),
+      hasCi: treeSignals.hasCi,
+      hasTests: treeSignals.hasTests,
+      hasChangelog: treeSignals.hasChangelog,
       hasContributing: false,
       hasCodeOfConduct: false,
-      hasSecurityPolicy: treeHasAnyPath(treePaths, securityPolicyPaths),
-      hasDemoOrDocs: treeHasAnyPath(treePaths, demoOrDocsPaths) || hasNonEmptyString(repository.homepage),
-      hasPackageArtifact: treeHasAnyPath(treePaths, packageArtifactPaths),
-      codebaseShape: summarizeCodebaseShape(treeEntries)
+      hasSecurityPolicy: treeSignals.hasSecurityPolicy,
+      hasDemoOrDocs: treeSignals.hasDemoOrDocs || hasNonEmptyString(repository.homepage),
+      hasPackageArtifact: treeSignals.hasPackageArtifact,
+      codebaseShape: summarizeCodebaseShape(treeEntries, treeTruncated)
     };
   }
 
-  async fetchRepositoryTree(owner: string, repo: string, branch: string): Promise<GitHubTreeEntry[]> {
+  async fetchRepositoryTree(owner: string, repo: string, branch: string): Promise<GitHubTreeSummary> {
     const tree = await this.fetchJson<GitHubTreeResponse>(
       `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
       { allowMissing: true }
     );
 
     if (tree === null) {
-      return [];
+      return { entries: [], truncated: false };
     }
 
     if (!Array.isArray(tree.tree)) {
       throw new GitHubCollectorError("invalid_github_response", "GitHub tree response was missing tree array.");
     }
 
-    return tree.tree.flatMap((item) => {
-      if (typeof item.path !== "string") {
-        return [];
-      }
+    return {
+      entries: tree.tree.flatMap((item) => {
+        if (typeof item.path !== "string") {
+          return [];
+        }
 
-      const entry: GitHubTreeEntry = { path: item.path };
-      if (typeof item.type === "string") {
-        entry.type = item.type;
-      }
-      if (typeof item.size === "number" && Number.isFinite(item.size)) {
-        entry.size = Math.max(0, item.size);
-      }
+        const entry: GitHubTreeEntry = { path: item.path };
+        if (typeof item.type === "string") {
+          entry.type = item.type;
+        }
+        if (typeof item.size === "number" && Number.isFinite(item.size)) {
+          entry.size = Math.max(0, item.size);
+        }
 
-      return [entry];
-    });
+        return [entry];
+      }),
+      truncated: tree.truncated === true
+    };
   }
 
   async hasReleasesOrTags(owner: string, repo: string): Promise<boolean> {
@@ -410,7 +431,7 @@ class GitHubRestClient {
     return response.text();
   }
 
-  private request(path: string, options: { accept: string }): Promise<Response> {
+  private async request(path: string, options: { accept: string }): Promise<Response> {
     const headers: Record<string, string> = {
       Accept: options.accept,
       "X-GitHub-Api-Version": githubApiVersion
@@ -420,7 +441,34 @@ class GitHubRestClient {
       headers.Authorization = `Bearer ${this.token}`;
     }
 
-    return this.fetcher(`${githubApiBaseUrl}${path}`, { headers });
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= githubRequestRetryCount; attempt += 1) {
+      try {
+        const response = await fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
+          headers,
+          timeoutMilliseconds: githubRequestTimeoutMilliseconds
+        });
+
+        if (!shouldRetryResponse(response) || attempt === githubRequestRetryCount) {
+          return response;
+        }
+
+        await sleep(retryDelayMilliseconds(attempt));
+      } catch (error) {
+        lastError = error;
+        if (attempt === githubRequestRetryCount) {
+          break;
+        }
+
+        await sleep(retryDelayMilliseconds(attempt));
+      }
+    }
+
+    throw new GitHubCollectorError(
+      "github_request_failed",
+      `GitHub API request failed before a response was received while requesting ${path}: ${errorMessage(lastError)}`
+    );
   }
 }
 
@@ -457,6 +505,46 @@ function emptyActivitySignals(): CollectedRepositoryActivitySignals {
   };
 }
 
+async function collectRepositories(
+  repositories: readonly GitHubRepositoryResponse[],
+  concurrency: number,
+  collect: (repository: GitHubRepositoryResponse, index: number) => Promise<CollectedGitHubRepository>
+): Promise<CollectedRepositoryBatch> {
+  const results: Array<CollectedGitHubRepository | undefined> = new Array(repositories.length);
+  const workerCount = Math.min(Math.max(1, concurrency), repositories.length);
+  let nextIndex = 0;
+  let failureCount = 0;
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const repository = repositories[index];
+        if (repository === undefined) {
+          return;
+        }
+
+        try {
+          results[index] = await collect(repository, index);
+        } catch {
+          failureCount += 1;
+        }
+      }
+    })
+  );
+
+  return {
+    repositories: results.filter((repository): repository is CollectedGitHubRepository => repository !== undefined),
+    failureCount
+  };
+}
+
+interface CollectedRepositoryBatch {
+  repositories: CollectedGitHubRepository[];
+  failureCount: number;
+}
+
 function asRepositoryResponse(value: unknown): GitHubRepositoryResponse {
   if (typeof value !== "object" || value === null) {
     throw new GitHubCollectorError("invalid_github_response", "GitHub repository response item was not an object.");
@@ -486,12 +574,25 @@ function asRepositoryResponse(value: unknown): GitHubRepositoryResponse {
   return repository;
 }
 
+function asAuthenticatedUserLogin(value: unknown): string {
+  if (typeof value !== "object" || value === null) {
+    throw new GitHubCollectorError("invalid_github_response", "GitHub authenticated user response was not an object.");
+  }
+
+  const login = (value as Record<string, unknown>).login;
+  if (typeof login !== "string" || login.trim() === "") {
+    throw new GitHubCollectorError("invalid_github_response", "GitHub authenticated user response was missing login.");
+  }
+
+  return login;
+}
+
 async function assertOkResponse(response: Response, path: string): Promise<void> {
   if (response.ok) {
     return;
   }
 
-  if (response.status === 403 || response.status === 429) {
+  if (isRateLimitResponse(response)) {
     const reset = response.headers.get("x-ratelimit-reset") ?? response.headers.get("retry-after") ?? undefined;
     const options = reset === undefined
       ? { status: response.status }
@@ -510,8 +611,54 @@ async function assertOkResponse(response: Response, path: string): Promise<void>
   );
 }
 
+function isRateLimitResponse(response: Response): boolean {
+  if (response.status === 429) {
+    return true;
+  }
+
+  if (response.status !== 403) {
+    return false;
+  }
+
+  return response.headers.get("x-ratelimit-remaining") === "0" || response.headers.has("retry-after");
+}
+
 function isMissingResponse(response: Response): boolean {
   return response.status === 404 || response.status === 409;
+}
+
+async function fetchWithTimeout(
+  fetcher: GitHubCollectorFetch,
+  url: string,
+  options: { headers: Record<string, string>; timeoutMilliseconds: number }
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMilliseconds);
+
+  try {
+    return await fetcher(url, {
+      headers: options.headers,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function shouldRetryResponse(response: Response): boolean {
+  return response.status === 429 || (response.status >= 500 && response.status <= 599);
+}
+
+function retryDelayMilliseconds(attempt: number): number {
+  return 150 + attempt * 250;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown error";
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function requireString(record: Record<string, unknown>, key: string): string {
@@ -604,35 +751,97 @@ interface GitHubTreeEntry {
   size?: number;
 }
 
-function treeHasAnyPath(treePaths: readonly string[], candidatePaths: readonly string[]): boolean {
-  const normalizedTreePaths = new Set(treePaths.map(normalizeTreePath));
-
-  return candidatePaths.some((candidate) => {
-    const normalizedCandidate = normalizeTreePath(candidate);
-
-    for (const treePath of normalizedTreePaths) {
-      if (treePath === normalizedCandidate || treePath.startsWith(`${normalizedCandidate}/`)) {
-        return true;
-      }
-    }
-
-    return false;
-  });
+interface GitHubTreeSummary {
+  entries: GitHubTreeEntry[];
+  truncated: boolean;
 }
 
 function normalizeTreePath(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\/+/, "").toLowerCase();
 }
 
-function summarizeCodebaseShape(treeEntries: readonly GitHubTreeEntry[]): CodebaseShapeSignals {
-  const sourceFiles = treeEntries.filter(isCountableSourceFile);
-  const sourceSizes = sourceFiles
-    .map((entry) => entry.size)
-    .filter((size): size is number => size !== undefined && Number.isFinite(size));
-  const testFileCount = sourceFiles.filter((entry) => isTestPath(entry.path)).length;
-  const exampleFileCount = treeEntries.filter((entry) => isExamplePath(entry.path)).length;
-  const oversizedSourceFileCount = sourceSizes.filter((size) => size > 32_000).length;
-  const sourceFileCount = sourceFiles.length;
+interface TreePathSignals {
+  hasCi: boolean;
+  hasTests: boolean;
+  hasChangelog: boolean;
+  hasSecurityPolicy: boolean;
+  hasDemoOrDocs: boolean;
+  hasPackageArtifact: boolean;
+}
+
+function collectTreePathSignals(treeEntries: readonly GitHubTreeEntry[]): TreePathSignals {
+  const signals: TreePathSignals = {
+    hasCi: false,
+    hasTests: false,
+    hasChangelog: false,
+    hasSecurityPolicy: false,
+    hasDemoOrDocs: false,
+    hasPackageArtifact: false
+  };
+  const matchers = [
+    { key: "hasCi", candidates: ciPaths },
+    { key: "hasTests", candidates: testPaths },
+    { key: "hasChangelog", candidates: changelogPaths },
+    { key: "hasSecurityPolicy", candidates: securityPolicyPaths },
+    { key: "hasDemoOrDocs", candidates: demoOrDocsPaths },
+    { key: "hasPackageArtifact", candidates: packageArtifactPaths }
+  ] as const;
+
+  for (const entry of treeEntries) {
+    const normalizedPath = normalizeTreePath(entry.path);
+    for (const matcher of matchers) {
+      if (signals[matcher.key]) {
+        continue;
+      }
+
+      signals[matcher.key] = matcher.candidates.some((candidate) =>
+        pathMatchesCandidate(normalizedPath, normalizeTreePath(candidate))
+      );
+    }
+
+    if (Object.values(signals).every(Boolean)) {
+      break;
+    }
+  }
+
+  return signals;
+}
+
+function pathMatchesCandidate(normalizedPath: string, normalizedCandidate: string): boolean {
+  return normalizedPath === normalizedCandidate || normalizedPath.startsWith(`${normalizedCandidate}/`);
+}
+
+function summarizeCodebaseShape(
+  treeEntries: readonly GitHubTreeEntry[],
+  treeTruncated = false
+): CodebaseShapeSignals {
+  const sourceSizes: number[] = [];
+  let sourceFileCount = 0;
+  let testFileCount = 0;
+  let exampleFileCount = 0;
+  let oversizedSourceFileCount = 0;
+
+  for (const entry of treeEntries) {
+    if (isExamplePath(entry.path)) {
+      exampleFileCount += 1;
+    }
+
+    if (!isCountableSourceFile(entry)) {
+      continue;
+    }
+
+    sourceFileCount += 1;
+    if (isTestPath(entry.path)) {
+      testFileCount += 1;
+    }
+
+    if (entry.size !== undefined && Number.isFinite(entry.size)) {
+      sourceSizes.push(entry.size);
+      if (entry.size > 32_000) {
+        oversizedSourceFileCount += 1;
+      }
+    }
+  }
 
   return {
     sourceFileCount,
@@ -641,7 +850,8 @@ function summarizeCodebaseShape(treeEntries: readonly GitHubTreeEntry[]): Codeba
     medianSourceFileBytes: percentile(sourceSizes, 0.5),
     p90SourceFileBytes: percentile(sourceSizes, 0.9),
     oversizedSourceFileCount,
-    testToSourceRatio: sourceFileCount === 0 ? 0 : roundRatio(testFileCount / sourceFileCount)
+    testToSourceRatio: sourceFileCount === 0 ? 0 : roundRatio(testFileCount / sourceFileCount),
+    ...(treeTruncated ? { treeTruncated: true } : {})
   };
 }
 
@@ -705,9 +915,14 @@ function percentile(values: readonly number[], percentileValue: number): number 
   }
 
   const sorted = [...values].sort((left, right) => left - right);
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * percentileValue) - 1));
+  const clampedPercentile = Math.max(0, Math.min(1, percentileValue));
+  const rawIndex = (sorted.length - 1) * clampedPercentile;
+  const lowerIndex = Math.floor(rawIndex);
+  const upperIndex = Math.ceil(rawIndex);
+  const lower = sorted[lowerIndex] ?? 0;
+  const upper = sorted[upperIndex] ?? lower;
 
-  return Math.round(sorted[index] ?? 0);
+  return Math.round(lower + (upper - lower) * (rawIndex - lowerIndex));
 }
 
 function roundRatio(value: number): number {

@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { analyzeSignalGaps, renderFallbackCard, renderSignalGapsCard } from "../index";
 import { parseProfileInput } from "./render-card";
+import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 
 export interface RenderGapsCardFileResult {
   ok: boolean;
@@ -37,15 +38,14 @@ export async function renderGapsCardFile(
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown gaps render failure";
     const svg = renderFallbackCard("Buildmarks signal gaps report is temporarily unavailable");
-
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
       ok: false,
       inputPath: resolvedInputPath,
       outputPath: resolvedOutputPath,
       fallback: true,
-      error: message
+      error: appendWriteFailure(message, "Fallback SVG", writeError)
     };
   }
 }

@@ -7,6 +7,7 @@ import {
   type RepositoryInput
 } from "../index";
 import { parseProfileInput } from "./render-card";
+import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 
 export interface RenderRepoCardFileResult {
   ok: boolean;
@@ -50,8 +51,7 @@ export async function renderRepoCardFile(
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown repository render failure";
     const svg = renderFallbackCard("Buildmarks repository signal report is temporarily unavailable");
-
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
       ok: false,
@@ -59,7 +59,7 @@ export async function renderRepoCardFile(
       outputPath: resolvedOutputPath,
       repository: repositoryRef,
       fallback: true,
-      error: message
+      error: appendWriteFailure(message, "Fallback SVG", writeError)
     };
   }
 }

@@ -1,15 +1,19 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { buildGitHubCollectorPolicyFromCli, githubCliDefaultLimits, parsePositiveDecimalIntegerOption } from "./options";
+import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 import {
+  collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
   createStaticReport,
-  defaultGitHubCollectorPolicy,
   normalizePublicGitHubProfile,
   renderStaticReportHtml,
   type CollectPublicGitHubProfileOptions
 } from "../index";
 
-export interface RenderGitHubReportFilesOptions extends CollectPublicGitHubProfileOptions {}
+export interface RenderGitHubReportFilesOptions extends CollectPublicGitHubProfileOptions {
+  privateLocal?: boolean;
+}
 
 export interface RenderGitHubReportFilesResult {
   ok: boolean;
@@ -32,7 +36,9 @@ export async function renderGitHubReportFiles(
   await mkdir(resolvedOutputDirectory, { recursive: true });
 
   try {
-    const collected = await collectPublicGitHubProfile(username, options);
+    const collected = options.privateLocal === true
+      ? await collectOwnerSuppliedGitHubProfile(username, options)
+      : await collectPublicGitHubProfile(username, options);
     const profile = normalizePublicGitHubProfile(collected);
     const scoringOptions = options.policy === undefined
       ? {}
@@ -69,8 +75,12 @@ export async function renderGitHubReportFiles(
 </body>
 </html>`;
 
-    await writeFile(htmlPath, fallbackHtml, "utf8");
-    await writeFile(jsonPath, `${JSON.stringify(fallbackReport, null, 2)}\n`, "utf8");
+    const fallbackWriteFailures = (
+      await Promise.all([
+        tryWriteTextFile(htmlPath, fallbackHtml),
+        tryWriteTextFile(jsonPath, `${JSON.stringify(fallbackReport, null, 2)}\n`)
+      ])
+    ).filter((failure): failure is string => failure !== undefined);
 
     return {
       ok: false,
@@ -78,7 +88,7 @@ export async function renderGitHubReportFiles(
       outputDirectory: resolvedOutputDirectory,
       htmlPath,
       jsonPath,
-      error: message
+      error: appendWriteFailure(message, "Fallback report", fallbackWriteFailures.join("; ") || undefined)
     };
   }
 }
@@ -88,7 +98,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-report.ts <github-username> <output-directory> [--token <token>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
+      "Usage: bun src/cli/render-github-report.ts <github-username> <output-directory> [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
     );
     process.exitCode = 2;
     return;
@@ -96,14 +106,8 @@ async function main(args: readonly string[]): Promise<void> {
 
   const result = await renderGitHubReportFiles(parsed.username, parsed.outputDirectory, {
     token: parsed.token,
-    policy: {
-      ...defaultGitHubCollectorPolicy,
-      limits: {
-        maxRepositoriesScannedPerProfile: parsed.maxRepositoriesScanned,
-        maxRepositoriesScoredPerProfile: parsed.maxRepositoriesScored,
-        repositoryActivityWindowDays: parsed.activityWindowDays
-      }
-    }
+    privateLocal: parsed.privateLocal,
+    policy: buildGitHubCollectorPolicyFromCli(parsed)
   });
 
   if (!result.ok) {
@@ -125,13 +129,15 @@ function parseArgs(args: readonly string[]):
       maxRepositoriesScanned: number;
       maxRepositoriesScored: number;
       activityWindowDays: number;
+      privateLocal: boolean;
     }
   | { ok: false; message: string } {
   const positional: string[] = [];
   let token: string | undefined;
-  let maxRepositoriesScanned = defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile;
-  let maxRepositoriesScored = defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile;
-  let activityWindowDays = defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays;
+  let maxRepositoriesScanned = githubCliDefaultLimits.maxRepositoriesScannedPerProfile;
+  let maxRepositoriesScored = githubCliDefaultLimits.maxRepositoriesScoredPerProfile;
+  let activityWindowDays = githubCliDefaultLimits.repositoryActivityWindowDays;
+  let privateLocal = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -149,8 +155,13 @@ function parseArgs(args: readonly string[]):
       continue;
     }
 
+    if (arg === "--private-local") {
+      privateLocal = true;
+      continue;
+    }
+
     if (arg === "--max-repositories-scanned") {
-      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
       if (typeof value === "string") {
         return { ok: false, message: value };
       }
@@ -160,7 +171,7 @@ function parseArgs(args: readonly string[]):
     }
 
     if (arg === "--max-repositories-scored") {
-      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
       if (typeof value === "string") {
         return { ok: false, message: value };
       }
@@ -170,7 +181,7 @@ function parseArgs(args: readonly string[]):
     }
 
     if (arg === "--activity-window-days") {
-      const value = parsePositiveIntegerOption(arg, args[index + 1]);
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
       if (typeof value === "string") {
         return { ok: false, message: value };
       }
@@ -195,22 +206,10 @@ function parseArgs(args: readonly string[]):
   }
 
   return token === undefined
-    ? { ok: true, username, outputDirectory, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays }
-    : { ok: true, username, outputDirectory, token, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays };
+    ? { ok: true, username, outputDirectory, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal }
+    : { ok: true, username, outputDirectory, token, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal };
 }
 
-function parsePositiveIntegerOption(name: string, rawValue: string | undefined): number | string {
-  if (rawValue === undefined || rawValue.trim() === "") {
-    return `Missing value for ${name}.`;
-  }
-
-  const value = Number(rawValue);
-  if (!Number.isInteger(value) || value <= 0) {
-    return `${name} must be a positive integer.`;
-  }
-
-  return value;
-}
 
 if (import.meta.main) {
   await main(process.argv.slice(2));

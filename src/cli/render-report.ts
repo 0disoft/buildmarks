@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createStaticReport, renderStaticReportHtml } from "../index";
 import { parseProfileInput } from "./render-card";
+import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 
 export interface RenderReportFileResult {
   ok: boolean;
@@ -57,8 +58,12 @@ export async function renderReportFiles(
 </body>
 </html>`;
 
-    await writeFile(htmlPath, fallbackHtml, "utf8");
-    await writeFile(jsonPath, `${JSON.stringify(fallbackReport, null, 2)}\n`, "utf8");
+    const fallbackWriteFailures = (
+      await Promise.all([
+        tryWriteTextFile(htmlPath, fallbackHtml),
+        tryWriteTextFile(jsonPath, `${JSON.stringify(fallbackReport, null, 2)}\n`)
+      ])
+    ).filter((failure): failure is string => failure !== undefined);
 
     return {
       ok: false,
@@ -66,7 +71,7 @@ export async function renderReportFiles(
       outputDirectory: resolvedOutputDirectory,
       htmlPath,
       jsonPath,
-      error: message
+      error: appendWriteFailure(message, "Fallback report", fallbackWriteFailures.join("; ") || undefined)
     };
   }
 }

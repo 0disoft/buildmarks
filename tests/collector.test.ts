@@ -13,6 +13,12 @@ describe("public GitHub collector contract", () => {
     expect(profile.username).toBe("example-builder");
     expect(profile.generatedAt).toBe("2026-05-28T00:00:00.000Z");
     expect(profile.activityWindowDays).toBe(365);
+    expect(
+      normalizePublicGitHubProfile({
+        ...(fixture as CollectedGitHubProfile),
+        repositoryCollectionFailureCount: 2
+      }).repositoryCollectionFailureCount
+    ).toBe(2);
     expect(usableToolkit).toMatchObject({
       owner: "example-builder",
       name: "usable-toolkit",

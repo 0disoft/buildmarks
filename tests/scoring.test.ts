@@ -1,11 +1,28 @@
 import { describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
-import { analyzeSignalGaps, scoreUserProfile } from "../src";
-import type { ProfileInput } from "../src";
+import { analyzeSignalGaps, classifySignalType, scoreRepository, scoreUserProfile, signalTypes } from "../src";
+import type { ProfileInput, SignalDimension } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
 
 describe("profile scoring", () => {
+  test("classifies every documented profile signal type", () => {
+    expect(signalTypes).toEqual([
+      "Maintainer-Builder",
+      "Collaborator",
+      "Builder",
+      "High-Adoption Project",
+      "Independent Builder",
+      "General Signal Profile"
+    ]);
+    expect(classifySignalType(dimensionScores({ maintainability: 80, shipping: 70 }))).toBe("Maintainer-Builder");
+    expect(classifySignalType(dimensionScores({ collaboration: 80 }))).toBe("Collaborator");
+    expect(classifySignalType(dimensionScores({ completeness: 80, shipping: 65 }))).toBe("Builder");
+    expect(classifySignalType(dimensionScores({ externalValidation: 80 }))).toBe("High-Adoption Project");
+    expect(classifySignalType(dimensionScores({ completeness: 70, collaboration: 20 }))).toBe("Independent Builder");
+    expect(classifySignalType(dimensionScores({ completeness: 40 }))).toBe("General Signal Profile");
+  });
+
   test("scores public engineering signals and excludes archived repositories", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
 
@@ -164,6 +181,42 @@ describe("profile scoring", () => {
     expect(report.dimensions.externalValidation).toBeLessThanOrEqual(100);
   });
 
+  test("caps normalized influence from one dominant repository", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const dominantRepository = {
+      ...sourceRepository,
+      name: "dominant-public-repo",
+      stars: 100_000,
+      forks: 10_000,
+      issueResponseCount: 100,
+      pullRequestReviewCount: 100,
+      externalContributorCount: 100
+    };
+    const quietPeer = {
+      ...sourceRepository,
+      stars: 0,
+      forks: 0,
+      issueResponseCount: 0,
+      pullRequestReviewCount: 0,
+      externalContributorCount: 0
+    };
+    const report = scoreUserProfile(
+      {
+        username: "cap-check",
+        repositories: [
+          dominantRepository,
+          { ...quietPeer, name: "quiet-peer-one" },
+          { ...quietPeer, name: "quiet-peer-two" }
+        ]
+      },
+      { now }
+    );
+
+    expect(scoreRepository(dominantRepository, { now }).dimensions.externalValidation.score).toBe(100);
+    expect(scoreRepository(quietPeer, { now }).dimensions.externalValidation.score).toBe(0);
+    expect(report.dimensions.externalValidation).toBeLessThanOrEqual(36);
+  });
+
   test("does not score public adoption against private-local profiles", () => {
     const report = scoreUserProfile(
       {
@@ -208,6 +261,43 @@ describe("profile scoring", () => {
 
     expect(report.activityWindowDays).toBe(180);
     expect(report.limitations).toContain("Repositories are filtered to activity within the last 180 days.");
+  });
+
+  test("discloses when GitHub truncates repository file trees", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const report = scoreUserProfile(
+      {
+        username: "truncated-tree-profile",
+        repositories: [
+          {
+            ...sourceRepository,
+            codebaseShape: {
+              ...(sourceRepository.codebaseShape!),
+              treeTruncated: true
+            }
+          }
+        ]
+      },
+      { now }
+    );
+
+    expect(report.limitations).toContain(
+      "Some GitHub repository file trees were truncated, so file-based signals may be incomplete."
+    );
+  });
+
+  test("discloses omitted repositories when GitHub detail collection partially fails", () => {
+    const report = scoreUserProfile(
+      {
+        ...(fixture as ProfileInput),
+        repositoryCollectionFailureCount: 2
+      },
+      { now }
+    );
+
+    expect(report.limitations).toContain(
+      "2 repositories could not be collected from GitHub and were omitted from this report."
+    );
   });
 
   test("treats public collaboration as context for independent-builder profiles", () => {
@@ -258,3 +348,15 @@ describe("profile scoring", () => {
     expect(report.limitations).toContain("These are improvement hints, not a developer ranking.");
   });
 });
+
+function dimensionScores(overrides: Partial<Record<SignalDimension, number>>): Record<SignalDimension, number> {
+  return {
+    maintainability: 0,
+    completeness: 0,
+    collaboration: 0,
+    shipping: 0,
+    consistency: 0,
+    externalValidation: 0,
+    ...overrides
+  };
+}

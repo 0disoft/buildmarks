@@ -6,6 +6,7 @@ import {
   type ProfileInput,
   type RepoSignal,
   type SignalDimension,
+  type SignalType,
   type UserSignalReport
 } from "../shared/types";
 import { classifySignalType } from "./signal-type";
@@ -26,6 +27,7 @@ export function scoreUserProfile(
   const includesPrivateSignals = input.signalVisibility?.privateRepositoriesIncluded === true;
   const maxRepositories = resolveMaxRepositories(options.maxRepositories);
   const eligibleRepositories = input.repositories.filter((repository) => !repository.isFork && !repository.isArchived);
+  const hasTruncatedFileTree = eligibleRepositories.some((repository) => repository.codebaseShape?.treeTruncated === true);
   const topRepos = eligibleRepositories
     .map((repository) => scoreRepository(repository, options))
     .sort((left, right) => right.weight * right.overall - left.weight * left.overall)
@@ -61,7 +63,10 @@ export function scoreUserProfile(
       topRepos.length,
       includesPrivateSignals,
       signalType,
-      input.activityWindowDays
+      input.activityWindowDays,
+      hasTruncatedFileTree,
+      input.activityAggregatesDeferred === true,
+      input.repositoryCollectionFailureCount ?? 0
     )
   };
 }
@@ -76,8 +81,7 @@ function averageDimensions(repositories: readonly RepoSignal[]): Record<SignalDi
     return empty;
   }
 
-  const totalWeight = repositories.reduce((total, repository) => total + repository.weight, 0);
-  const cappedWeights = repositories.map((repository) => cappedWeight(repository, totalWeight));
+  const cappedWeights = capRepositoryWeights(repositories);
   const cappedTotal = cappedWeights.reduce((total, weight) => total + weight, 0);
 
   signalDimensions.forEach((dimension) => {
@@ -91,12 +95,38 @@ function averageDimensions(repositories: readonly RepoSignal[]): Record<SignalDi
   return empty;
 }
 
-function cappedWeight(repository: RepoSignal, totalWeight: number): number {
-  if (totalWeight <= 0) {
-    return repository.weight;
+function capRepositoryWeights(repositories: readonly RepoSignal[]): number[] {
+  const weights = repositories.map((repository) => Math.max(0, repository.weight));
+  if (weights.length === 0) {
+    return [];
   }
 
-  return Math.min(repository.weight, totalWeight * MAX_SINGLE_REPO_SHARE);
+  const maxShare = Math.max(MAX_SINGLE_REPO_SHARE, 1 / weights.length);
+  let cappedWeights = weights;
+
+  for (let iteration = 0; iteration < 32; iteration += 1) {
+    const cappedTotal = cappedWeights.reduce((total, weight) => total + weight, 0);
+    if (cappedTotal <= 0) {
+      return cappedWeights;
+    }
+
+    const maxWeight = cappedTotal * maxShare;
+    let changed = false;
+    const nextWeights = cappedWeights.map((weight) => {
+      const nextWeight = Math.min(weight, maxWeight);
+      if (Math.abs(nextWeight - weight) > 0.000001) {
+        changed = true;
+      }
+      return nextWeight;
+    });
+
+    cappedWeights = nextWeights;
+    if (!changed) {
+      return cappedWeights;
+    }
+  }
+
+  return cappedWeights;
 }
 
 function collectProfileEvidence(repositories: readonly RepoSignal[]): Evidence[] {
@@ -108,8 +138,11 @@ function buildLimitations(
   eligible: number,
   scored: number,
   includesPrivateSignals: boolean,
-  signalType: string,
-  activityWindowDays: number | undefined
+  signalType: SignalType,
+  activityWindowDays: number | undefined,
+  hasTruncatedFileTree: boolean,
+  activityAggregatesDeferred: boolean,
+  repositoryCollectionFailureCount: number
 ): string[] {
   const limitations = [
     includesPrivateSignals
@@ -131,6 +164,20 @@ function buildLimitations(
 
   if (activityWindowDays !== undefined) {
     limitations.push(`Repositories are filtered to activity within the last ${activityWindowDays} days.`);
+  }
+
+  if (hasTruncatedFileTree) {
+    limitations.push("Some GitHub repository file trees were truncated, so file-based signals may be incomplete.");
+  }
+
+  if (activityAggregatesDeferred) {
+    limitations.push("Live GitHub issue, pull request, and external contributor aggregates are deferred in this version.");
+  }
+
+  if (repositoryCollectionFailureCount > 0) {
+    limitations.push(
+      `${repositoryCollectionFailureCount} repositories could not be collected from GitHub and were omitted from this report.`
+    );
   }
 
   if (total !== eligible) {

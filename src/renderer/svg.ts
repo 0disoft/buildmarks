@@ -105,16 +105,21 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
 
 export function renderSignalGapsCard(report: UserSignalGapsReport, options: RenderCardOptions = {}): string {
   const theme = options.theme ?? "auto";
+  const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
   const generatedDate = formatDate(report.generatedAt);
   const visibleGaps = report.gaps.slice(0, 4);
   const gapCount = report.gaps.length;
   const rows = visibleGaps.length === 0
-    ? [renderEmptyGapRow()]
+    ? [renderEmptyGapRow(includesPrivateSignals)]
     : visibleGaps.map((gap, index) => renderGapRow(gap.repository, gap.dimension, gap.missing, 156 + index * 54));
+  const scopeLabel = includesPrivateSignals ? "Missing owner-supplied signals" : "Missing public GitHub signals";
+  const footerScope = includesPrivateSignals ? "Private-Local Signals" : "Public Signals";
   const desc = visibleGaps.length === 0
-    ? `No obvious public signal gaps detected for ${usernameRaw}. Public GitHub data only.`
+    ? includesPrivateSignals
+      ? `No obvious owner-supplied signal gaps detected for ${usernameRaw}. Private-local signals are not independently verifiable.`
+      : `No obvious public signal gaps detected for ${usernameRaw}. Public GitHub data only.`
     : `Signal gaps for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} missing ${gap.missing.join(", ")}`).join("; ")}.`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -127,14 +132,14 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   ${renderBrandHeader()}
-  <text x="36" y="80" class="subtitle">Missing public GitHub signals</text>
+  <text x="36" y="80" class="subtitle">${escapeXml(scopeLabel)}</text>
   <text x="36" y="112" class="name">${escapeXml(username)}</text>
   <text x="36" y="136" class="type">What's Missing</text>
   <text x="604" y="112" class="gap-count">${gapCount} gaps found</text>
-  <g aria-label="Signal gaps detected from public repository evidence">
+  <g aria-label="${escapeXml(includesPrivateSignals ? "Signal gaps detected from owner-supplied private-local repository evidence" : "Signal gaps detected from public repository evidence")}">
 ${rows.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Gaps · Public Signals · ${escapeXml(generatedDate)}</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Gaps · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
 </svg>`;
 }
 
@@ -294,12 +299,19 @@ function renderGapRow(repository: string, dimension: SignalDimension, missing: s
     </g>`;
 }
 
-function renderEmptyGapRow(): string {
+function renderEmptyGapRow(includesPrivateSignals = false): string {
+  const title = includesPrivateSignals
+    ? "No obvious owner-supplied signal gaps detected"
+    : "No obvious public signal gaps detected";
+  const body = includesPrivateSignals
+    ? "This reflects owner-supplied private-local repository evidence."
+    : "This only reflects public GitHub repository evidence.";
+
   return `
-    <g role="img" aria-label="No obvious public signal gaps detected">
+    <g role="img" aria-label="${escapeXml(title)}">
       <rect x="36" y="150" width="688" height="74" rx="10" class="chip-bg" />
-      <text x="62" y="188" class="fallback-title">No obvious public signal gaps detected</text>
-      <text x="62" y="216" class="fallback-body">This only reflects public GitHub repository evidence.</text>
+      <text x="62" y="188" class="fallback-title">${escapeXml(title)}</text>
+      <text x="62" y="216" class="fallback-body">${escapeXml(body)}</text>
     </g>`;
 }
 
@@ -508,7 +520,7 @@ function countRepositorySignals(report: RepoSignal): number {
 }
 
 function escapeXml(value: string): string {
-  return value
+  return stripInvalidXmlCharacters(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -522,7 +534,7 @@ function sanitizeHref(value: unknown): string | null {
   }
 
   const trimmed = value.trim();
-  if (trimmed === "" || /[\u0000-\u001f\u007f]/.test(trimmed)) {
+  if (trimmed === "" || trimmed.startsWith("//") || /[\u0000-\u001f\u007f]/.test(trimmed)) {
     return null;
   }
 
@@ -535,6 +547,10 @@ function sanitizeHref(value: unknown): string | null {
   }
 
   return trimmed;
+}
+
+function stripInvalidXmlCharacters(value: string): string {
+  return value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
 }
 
 function coerceString(value: unknown, fallback: string): string {
@@ -550,8 +566,11 @@ function fitText(value: string, maxLength: number): string {
 }
 
 function formatDate(value: unknown): string {
-  if (typeof value === "string" && value.length >= 10) {
-    return value.slice(0, 10);
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
   }
 
   return new Date().toISOString().slice(0, 10);

@@ -35,6 +35,15 @@ describe("static report", () => {
     expect(report.repositories[0]?.name).toBe("usable-toolkit");
   });
 
+  test("uses the same generated timestamp for profile and gap reports", () => {
+    const report = createStaticReport(fixture as ProfileInput, {
+      now: new Date("2026-05-28T00:00:00.000Z")
+    });
+
+    expect(report.profile.generatedAt).toBe("2026-05-28T00:00:00.000Z");
+    expect(report.gaps.generatedAt).toBe("2026-05-28T00:00:00.000Z");
+  });
+
   test("renders an HTML report without executable script content", () => {
     const report = createStaticReport(fixture as ProfileInput);
     const html = renderStaticReportHtml(report);
@@ -46,6 +55,30 @@ describe("static report", () => {
     expect(html).toContain("Repository Signals");
     expect(html).toContain("Not a ranking");
     expect(html).not.toContain("<script");
+  });
+
+  test("labels private-local static reports as owner-supplied and not independently verifiable", () => {
+    const report = createStaticReport({
+      ...(fixture as ProfileInput),
+      signalVisibility: {
+        scope: "public-and-owner-supplied-private",
+        privateRepositoriesIncluded: true,
+        privateRepositoryNamesRedacted: true,
+        independentlyVerifiable: false,
+        cardLabel: "Public + Private Signals",
+        reportVisibility: "private-local"
+      }
+    });
+    const html = renderStaticReportHtml(report);
+
+    expect(report.gaps.signalVisibility?.privateRepositoriesIncluded).toBe(true);
+    expect(report.gaps.limitations).toContain(
+      "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
+    );
+    expect(html).toContain("Owner-supplied private signals included");
+    expect(html).toContain("Not independently verifiable");
+    expect(html).toContain("owner-supplied private-local and public signals");
+    expect(html).not.toContain("Public GitHub evidence only · Not a ranking");
   });
 
   test("writes HTML and JSON report files", async () => {
@@ -73,8 +106,31 @@ describe("static report", () => {
     expect(result.ok).toBe(true);
     expect(html).toContain("Buildmarks static report");
     expect(html).toContain("example-builder");
+    expect(html).toContain("rgba(15, 139, 108, 0.18)");
+    expect(html).toContain("color-mix(in srgb, var(--accent), transparent 82%)");
+    expect(html).toContain("Live GitHub issue, pull request, and external contributor aggregates are deferred");
     expect(json.version).toBe(1);
     expect(json.profile.username).toBe("example-builder");
+  });
+
+  test("writes private-local HTML and JSON reports from owner-supplied GitHub data", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderGitHubReportFiles("example-builder", directory, {
+      fetcher: makeGitHubFetch([githubRepositoryResponse("private-toolkit", { private: true })]),
+      privateLocal: true,
+      token: "private-local-token"
+    });
+    const html = await readFile(result.htmlPath, "utf8");
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
+      profile: { signalVisibility?: { privateRepositoriesIncluded: boolean } };
+      repositories: Array<{ name: string }>;
+    };
+
+    expect(result.ok).toBe(true);
+    expect(html).toContain("Owner-supplied private signals included");
+    expect(json.profile.signalVisibility?.privateRepositoriesIncluded).toBe(true);
+    expect(json.repositories[0]?.name).toBe("Private repository 1");
+    expect(JSON.stringify(json)).not.toContain("private-toolkit");
   });
 
   test("passes the GitHub policy repository summary limit into report generation", async () => {
@@ -96,7 +152,8 @@ describe("static report", () => {
         limits: {
           maxRepositoriesScannedPerProfile: 2,
           maxRepositoriesScoredPerProfile: 1,
-          repositoryActivityWindowDays: 365
+          repositoryActivityWindowDays: 365,
+          maxConcurrentRepositoryCollections: 3
         }
       }
     });
@@ -170,7 +227,11 @@ function makeGitHubFetch(repositories = [githubRepositoryResponse("usable-toolki
   return async (url) => {
     const parsed = new URL(url);
 
-    if (parsed.pathname === "/users/example-builder/repos") {
+    if (parsed.pathname === "/user") {
+      return jsonResponse({ login: "example-builder" });
+    }
+
+    if (parsed.pathname === "/users/example-builder/repos" || parsed.pathname === "/user/repos") {
       return jsonResponse(repositories);
     }
 
@@ -213,12 +274,12 @@ function makeGitHubFetch(repositories = [githubRepositoryResponse("usable-toolki
   };
 }
 
-function githubRepositoryResponse(name: string) {
+function githubRepositoryResponse(name: string, options: { private?: boolean } = {}) {
   return {
     owner: { login: "example-builder" },
     name,
     html_url: `https://github.com/example-builder/${name}`,
-    private: false,
+    private: options.private ?? false,
     fork: false,
     archived: false,
     stargazers_count: 42,

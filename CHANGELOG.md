@@ -8,6 +8,18 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.11 - 2026-06-13
+
+- Preserve GitHub recursive tree truncation warnings through collected file signals and profile report limitations.
+- Reject non-decimal CLI repository limit values such as hexadecimal or exponent notation.
+- Fall back to the current date when SVG card input contains an invalid generated date string.
+- Collect repository details with bounded concurrency and disclose deferred live activity aggregates in generated reports.
+- Classify GitHub 403 responses more precisely, reject private-local token owner mismatches, and keep private-local report and gap disclosures out of public-only wording.
+- Harden fallback artifact writes and SVG/HTML text sanitization for malformed output paths, protocol-relative report links, and control characters.
+- Type profile signal classifications as a fixed public union and tighten public-only private-repository disclosure validation.
+- Split public-only and private-local GitHub collector policy validation, disclose public-only collection explicitly, align static-report timestamps, and avoid duplicate scoring in combined GitHub artifact generation.
+- Omit individual repositories that fail detail collection while disclosing the omitted count, add bounded live-collector policy caps, and apply short GitHub request timeouts with transient retries.
+
 ## v0.1.10 - 2026-05-31
 
 - Add clearer spacing between the Buildmarks brand mark and the visible package version on generated SVG cards.

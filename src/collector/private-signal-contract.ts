@@ -120,6 +120,10 @@ export function validatePrivateRepositorySignalContract(
     errors.push("Private repository reports must default to private-local visibility.");
   }
 
+  if (!contract.enabled && !isPublicOnlyDisclosure(contract.disclosure)) {
+    errors.push("Public-only repository cards must use the public-only disclosure.");
+  }
+
   for (const prohibited of ["raw commit count", "follower count", "language percentage"]) {
     if (!contract.prohibitedEvidence.includes(prohibited)) {
       errors.push(`Private repository contract must prohibit ${prohibited}.`);
@@ -130,4 +134,15 @@ export function validatePrivateRepositorySignalContract(
     ok: errors.length === 0,
     errors
   };
+}
+
+function isPublicOnlyDisclosure(disclosure: SignalVisibilityDisclosure): boolean {
+  return (
+    disclosure.scope === publicOnlySignalVisibility.scope &&
+    disclosure.privateRepositoriesIncluded === publicOnlySignalVisibility.privateRepositoriesIncluded &&
+    disclosure.privateRepositoryNamesRedacted === publicOnlySignalVisibility.privateRepositoryNamesRedacted &&
+    disclosure.independentlyVerifiable === publicOnlySignalVisibility.independentlyVerifiable &&
+    disclosure.cardLabel === publicOnlySignalVisibility.cardLabel &&
+    disclosure.reportVisibility === publicOnlySignalVisibility.reportVisibility
+  );
 }

@@ -95,6 +95,21 @@ describe("private repository signal contract", () => {
     );
   });
 
+  test("rejects public-only contracts with non-public disclosures", () => {
+    const unsafe: PrivateRepositorySignalContract = {
+      ...publicOnlyPrivateRepositorySignalContract,
+      disclosure: {
+        ...publicOnlySignalVisibility,
+        cardLabel: "Top Secret Engineer"
+      }
+    };
+
+    const validation = validatePrivateRepositorySignalContract(unsafe);
+
+    expect(validation.ok).toBe(false);
+    expect(validation.errors).toContain("Public-only repository cards must use the public-only disclosure.");
+  });
+
   test("documents private-local mode without changing the public collector", async () => {
     const privateContract = await readFile("docs/private-repository-signal-contract.md", "utf8");
     const collectorContract = await readFile("docs/github-collector-contract.md", "utf8");
