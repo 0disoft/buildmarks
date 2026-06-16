@@ -11,6 +11,15 @@ import { createEvidence } from "./evidence";
 
 const RECENT_DAYS = 180;
 
+export const repositoryOverallWeights = {
+  maintainability: 0.25,
+  completeness: 0.2,
+  collaboration: 0.2,
+  shipping: 0.15,
+  consistency: 0.1,
+  externalValidation: 0.1
+} satisfies Record<SignalDimension, number>;
+
 type ScoredPart = {
   passed: boolean;
   points: number;
@@ -140,13 +149,10 @@ function scoreExternalValidation(repository: RepositoryInput): DimensionScore {
 }
 
 function weightedOverall(dimensions: Record<SignalDimension, DimensionScore>): number {
-  const score =
-    clampScore(dimensions.maintainability.score) * 0.25 +
-    clampScore(dimensions.completeness.score) * 0.2 +
-    clampScore(dimensions.collaboration.score) * 0.2 +
-    clampScore(dimensions.shipping.score) * 0.15 +
-    clampScore(dimensions.consistency.score) * 0.1 +
-    clampScore(dimensions.externalValidation.score) * 0.1;
+  const score = signalDimensions.reduce(
+    (total, dimension) => total + clampScore(dimensions[dimension].score) * repositoryOverallWeights[dimension],
+    0
+  );
 
   return clampScore(Math.round(score));
 }

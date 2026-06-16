@@ -6,6 +6,113 @@ import {
 
 export const githubCliDefaultLimits = defaultGitHubCollectorPolicy.limits;
 
+export interface CommonGitHubCliOptions {
+  token?: string;
+  maxRepositoriesScanned: number;
+  maxRepositoriesScored: number;
+  activityWindowDays: number;
+  privateLocal: boolean;
+  reportHref?: string;
+}
+
+export interface ParsedCommonGitHubCliOptions extends CommonGitHubCliOptions {
+  positional: string[];
+}
+
+export function parseCommonGitHubCliOptions(
+  args: readonly string[],
+  options: { allowReportHref?: boolean } = {}
+): { ok: true; value: ParsedCommonGitHubCliOptions } | { ok: false; message: string } {
+  const positional: string[] = [];
+  let token: string | undefined;
+  let maxRepositoriesScanned = githubCliDefaultLimits.maxRepositoriesScannedPerProfile;
+  let maxRepositoriesScored = githubCliDefaultLimits.maxRepositoriesScoredPerProfile;
+  let activityWindowDays = githubCliDefaultLimits.repositoryActivityWindowDays;
+  let privateLocal = false;
+  let reportHref: string | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) {
+      continue;
+    }
+
+    if (arg === "--token") {
+      const value = args[index + 1];
+      if (value === undefined || value.trim() === "") {
+        return { ok: false, message: "Missing value for --token." };
+      }
+      token = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--private-local") {
+      privateLocal = true;
+      continue;
+    }
+
+    if (arg === "--max-repositories-scanned") {
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
+      if (typeof value === "string") {
+        return { ok: false, message: value };
+      }
+      maxRepositoriesScanned = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--max-repositories-scored") {
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
+      if (typeof value === "string") {
+        return { ok: false, message: value };
+      }
+      maxRepositoriesScored = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--activity-window-days") {
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
+      if (typeof value === "string") {
+        return { ok: false, message: value };
+      }
+      activityWindowDays = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--report-href" && options.allowReportHref === true) {
+      const value = args[index + 1];
+      if (value === undefined || value.trim() === "") {
+        return { ok: false, message: "Missing value for --report-href." };
+      }
+      reportHref = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--")) {
+      return { ok: false, message: `Unknown option: ${arg}` };
+    }
+
+    positional.push(arg);
+  }
+
+  return {
+    ok: true,
+    value: {
+      positional,
+      maxRepositoriesScanned,
+      maxRepositoriesScored,
+      activityWindowDays,
+      privateLocal,
+      ...(token === undefined ? {} : { token }),
+      ...(reportHref === undefined ? {} : { reportHref })
+    }
+  };
+}
+
 export function parsePositiveDecimalIntegerOption(name: string, rawValue: string | undefined): number | string {
   if (rawValue === undefined || rawValue.trim() === "") {
     return `Missing value for ${name}.`;

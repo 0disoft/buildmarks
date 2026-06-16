@@ -63,6 +63,27 @@ describe("live public GitHub collector", () => {
     });
   });
 
+  test("detects common CI configuration files beyond GitHub Actions", async () => {
+    const ciPaths = [
+      ".circleci/config.yml",
+      ".travis.yml",
+      "Jenkinsfile",
+      "azure-pipelines.yml",
+      ".gitlab-ci.yml",
+      ".drone.yml"
+    ];
+
+    for (const path of ciPaths) {
+      const profile = await collectPublicGitHubProfile("example-builder", {
+        fetcher: makeGitHubFetch({
+          tree: [{ path }]
+        })
+      });
+
+      expect(profile.repositories[0]?.files.hasCi).toBe(true);
+    }
+  });
+
   test("summarizes repository tree shape without reading file contents or lines", async () => {
     const profile = await collectPublicGitHubProfile("example-builder", {
       fetcher: makeGitHubFetch({

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
 import {
   analyzeSignalGaps,
+  buildmarksVersion,
   renderFallbackCard,
   renderRepositorySignalCard,
   renderSignalGapsCard,
@@ -12,8 +13,8 @@ import {
 import type { ProfileInput } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
-const visibleVersion = ">v0.1.11</text>";
-const spacedBrandVersion = '<text x="190" y="54" class="brand-version">v0.1.11</text>';
+const visibleVersion = `>v${buildmarksVersion}</text>`;
+const spacedBrandVersion = `<text x="190" y="54" class="brand-version">v${buildmarksVersion}</text>`;
 
 describe("SVG renderer", () => {
   test("renders a readable profile card without executable SVG content", () => {

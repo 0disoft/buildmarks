@@ -52,7 +52,7 @@ export {
   type PrivateRepositorySignalContract,
   type PrivateRepositorySignalContractValidation
 } from "./collector/private-signal-contract";
-export { scoreRepository } from "./scoring/score-repo";
+export { repositoryOverallWeights, scoreRepository } from "./scoring/score-repo";
 export { scoreUserProfile, type ScoreUserProfileOptions } from "./scoring/score-user";
 export { analyzeSignalGaps } from "./scoring/gaps";
 export { classifySignalType } from "./scoring/signal-type";

@@ -1,11 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
-import { analyzeSignalGaps, classifySignalType, scoreRepository, scoreUserProfile, signalTypes } from "../src";
+import {
+  analyzeSignalGaps,
+  classifySignalType,
+  repositoryOverallWeights,
+  scoreRepository,
+  scoreUserProfile,
+  signalDimensions,
+  signalTypes
+} from "../src";
 import type { ProfileInput, SignalDimension } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
 
 describe("profile scoring", () => {
+  test("keeps repository overall weights explicit and normalized", () => {
+    const totalWeight = signalDimensions.reduce((total, dimension) => total + repositoryOverallWeights[dimension], 0);
+
+    expect(Object.keys(repositoryOverallWeights).sort()).toEqual([...signalDimensions].sort());
+    expect(totalWeight).toBeCloseTo(1, 6);
+  });
+
   test("classifies every documented profile signal type", () => {
     expect(signalTypes).toEqual([
       "Maintainer-Builder",

@@ -21,7 +21,15 @@ const activityAggregatesDeferred = true;
 const githubRequestTimeoutMilliseconds = 10_000;
 const githubRequestRetryCount = 1;
 
-const ciPaths = [".github/workflows"];
+const ciPaths = [
+  ".github/workflows",
+  ".circleci/config.yml",
+  ".travis.yml",
+  "Jenkinsfile",
+  "azure-pipelines.yml",
+  ".gitlab-ci.yml",
+  ".drone.yml"
+];
 const testPaths = ["tests", "test", "__tests__", "spec"];
 const changelogPaths = ["CHANGELOG.md", "CHANGELOG", "changelog.md"];
 const securityPolicyPaths = ["SECURITY.md", ".github/SECURITY.md"];

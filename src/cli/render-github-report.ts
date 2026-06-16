@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { buildGitHubCollectorPolicyFromCli, githubCliDefaultLimits, parsePositiveDecimalIntegerOption } from "./options";
+import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 import {
   collectOwnerSuppliedGitHubProfile,
@@ -132,71 +132,12 @@ function parseArgs(args: readonly string[]):
       privateLocal: boolean;
     }
   | { ok: false; message: string } {
-  const positional: string[] = [];
-  let token: string | undefined;
-  let maxRepositoriesScanned = githubCliDefaultLimits.maxRepositoriesScannedPerProfile;
-  let maxRepositoriesScored = githubCliDefaultLimits.maxRepositoriesScoredPerProfile;
-  let activityWindowDays = githubCliDefaultLimits.repositoryActivityWindowDays;
-  let privateLocal = false;
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === undefined) {
-      continue;
-    }
-
-    if (arg === "--token") {
-      const value = args[index + 1];
-      if (value === undefined || value.trim() === "") {
-        return { ok: false, message: "Missing value for --token." };
-      }
-      token = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--private-local") {
-      privateLocal = true;
-      continue;
-    }
-
-    if (arg === "--max-repositories-scanned") {
-      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
-      if (typeof value === "string") {
-        return { ok: false, message: value };
-      }
-      maxRepositoriesScanned = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--max-repositories-scored") {
-      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
-      if (typeof value === "string") {
-        return { ok: false, message: value };
-      }
-      maxRepositoriesScored = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--activity-window-days") {
-      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
-      if (typeof value === "string") {
-        return { ok: false, message: value };
-      }
-      activityWindowDays = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--")) {
-      return { ok: false, message: `Unknown option: ${arg}` };
-    }
-
-    positional.push(arg);
+  const common = parseCommonGitHubCliOptions(args);
+  if (common.ok === false) {
+    return common;
   }
 
+  const { positional, ...options } = common.value;
   const [username, outputDirectory] = positional;
   if (username === undefined || username.trim() === "") {
     return { ok: false, message: "GitHub username is required." };
@@ -205,9 +146,7 @@ function parseArgs(args: readonly string[]):
     return { ok: false, message: "Output report directory is required." };
   }
 
-  return token === undefined
-    ? { ok: true, username, outputDirectory, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal }
-    : { ok: true, username, outputDirectory, token, maxRepositoriesScanned, maxRepositoriesScored, activityWindowDays, privateLocal };
+  return { ok: true, username, outputDirectory, ...options };
 }
 
 

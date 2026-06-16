@@ -8,6 +8,13 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.12 - 2026-06-16
+
+- Share common GitHub CLI option parsing across live GitHub card, report, and artifact commands.
+- Expose repository overall score weights as a typed constant and test that the weights stay normalized.
+- Detect common CI configuration files beyond GitHub Actions, including CircleCI, Travis CI, Jenkins, Azure Pipelines, GitLab CI, and Drone.
+- Derive renderer version assertions from the package version export instead of hard-coding the current version string in tests.
+
 ## v0.1.11 - 2026-06-13
 
 - Preserve GitHub recursive tree truncation warnings through collected file signals and profile report limitations.

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { renderCardFile } from "../src/cli/render-card";
 import { renderGapsCardFile } from "../src/cli/render-gaps-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
-import { parsePositiveDecimalIntegerOption } from "../src/cli/options";
+import { parseCommonGitHubCliOptions, parsePositiveDecimalIntegerOption } from "../src/cli/options";
 import { renderRepoCardFile } from "../src/cli/render-repo-card";
 import { defaultGitHubCollectorPolicy, type GitHubCollectorFetch } from "../src";
 
@@ -175,6 +175,35 @@ describe("CLI option parsing", () => {
     expect(parsePositiveDecimalIntegerOption("--max-repositories-scanned", "0x10")).toContain("base-10");
     expect(parsePositiveDecimalIntegerOption("--max-repositories-scanned", "1e2")).toContain("base-10");
     expect(parsePositiveDecimalIntegerOption("--max-repositories-scanned", "0")).toContain("base-10");
+  });
+
+  test("parses common GitHub CLI options separately from positional arguments", () => {
+    const parsed = parseCommonGitHubCliOptions([
+      "example-builder",
+      "out.svg",
+      "--token",
+      "token",
+      "--private-local",
+      "--max-repositories-scanned",
+      "7",
+      "--report-href",
+      "./report.html"
+    ], { allowReportHref: true });
+    const disallowedReportHref = parseCommonGitHubCliOptions(["example-builder", "--report-href", "./report.html"]);
+
+    expect(parsed).toEqual({
+      ok: true,
+      value: {
+        positional: ["example-builder", "out.svg"],
+        token: "token",
+        privateLocal: true,
+        maxRepositoriesScanned: 7,
+        maxRepositoriesScored: defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile,
+        activityWindowDays: defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays,
+        reportHref: "./report.html"
+      }
+    });
+    expect(disallowedReportHref).toEqual({ ok: false, message: "Unknown option: --report-href" });
   });
 });
 
