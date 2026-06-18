@@ -1,6 +1,6 @@
 {
   "name": "buildmarks",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Public GitHub engineering signal cards for profile READMEs.",
   "license": "0BSD",
   "keywords": [
@@ -38,11 +38,16 @@
   "scripts": {
     "check": "bun test",
     "test": "bun test",
+    "typecheck": "tsc --noEmit",
     "build": "bun build src/index.ts src/cli/render-card.ts src/cli/render-github-artifacts.ts src/cli/render-github-card.ts src/cli/render-github-report.ts src/cli/render-gaps-card.ts src/cli/render-repo-card.ts src/cli/render-report.ts --outdir dist --target node",
     "build:card": "bun src/cli/render-card.ts fixtures/example-public-profile.json out/example-card.svg",
     "build:gaps-card": "bun src/cli/render-gaps-card.ts fixtures/example-public-profile.json out/example-gaps-card.svg",
     "build:repo-card": "bun src/cli/render-repo-card.ts fixtures/example-public-profile.json usable-toolkit out/example-repo-card.svg",
     "build:report": "bun src/cli/render-report.ts fixtures/example-public-profile.json out/report",
     "pack:dry-run": "npm pack --dry-run"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "^6.0.3"
   }
 }

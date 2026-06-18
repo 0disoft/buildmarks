@@ -10,10 +10,10 @@ Buildmarks summarizes six dimensions:
 
 - Maintainability
 - Project Completeness
-- Collaboration
+- Usability Surface
 - Shipping Evidence
 - Consistency
-- Public Adoption
+- Project Stewardship
 
 Each repository receives a dimension score from 0 to 100. A profile report summarizes the highest-signal eligible repositories, excluding forks and archived repositories by default.
 
@@ -23,12 +23,12 @@ The v0 overall repository score uses this weighting:
 
 - Maintainability: 25%
 - Project Completeness: 20%
-- Collaboration: 20%
+- Usability Surface: 15%
 - Shipping Evidence: 15%
 - Consistency: 10%
-- Public Adoption: 10%
+- Project Stewardship: 15%
 
-The weighting intentionally keeps stars and forks weak. Popularity is useful context, not proof of engineering quality.
+The weighting intentionally keeps popularity and public collaboration traces out of the default profile-card dimensions. Stars, forks, issue responses, public reviews, and external contributor traces are context, not proof of engineering quality.
 
 ## Evidence
 
@@ -45,9 +45,8 @@ Signals come from public repository evidence such as:
 - contribution guide
 - code of conduct
 - security policy
-- public issue response traces
-- public pull request review traces
-- external contributor traces
+
+Popularity and public participation signals are not primary dimensions because they can be absent for healthy solo projects, private-local inputs, early projects, or repositories where issue and pull request activity is handled elsewhere.
 
 Every score must expose evidence. If a future implementation cannot explain a score, it should not render that score.
 

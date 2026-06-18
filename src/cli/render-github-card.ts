@@ -80,9 +80,9 @@ async function main(args: readonly string[]): Promise<void> {
   }
 
   const result = await renderGitHubCardFile(parsed.username, parsed.outputPath, {
-    token: parsed.token,
     privateLocal: parsed.privateLocal,
-    reportHref: parsed.reportHref,
+    ...(parsed.token === undefined ? {} : { token: parsed.token }),
+    ...(parsed.reportHref === undefined ? {} : { reportHref: parsed.reportHref }),
     policy: buildGitHubCollectorPolicyFromCli(parsed)
   });
 
@@ -114,12 +114,15 @@ function parseArgs(args: readonly string[]):
   }
 
   const { positional, ...options } = common.value;
-  const [username, outputPath] = positional;
+  const [username, outputPath, ...extra] = positional;
   if (username === undefined || username.trim() === "") {
     return { ok: false, message: "GitHub username is required." };
   }
   if (outputPath === undefined || outputPath.trim() === "") {
     return { ok: false, message: "Output SVG path is required." };
+  }
+  if (extra.length > 0) {
+    return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
   }
 
   return { ok: true, username, outputPath, ...options };

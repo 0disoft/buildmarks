@@ -2,12 +2,13 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
-import { renderCardFile } from "../src/cli/render-card";
+import fixture from "../fixtures/example-public-profile.json";
+import { parseProfileInput, renderCardFile } from "../src/cli/render-card";
 import { renderGapsCardFile } from "../src/cli/render-gaps-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
 import { parseCommonGitHubCliOptions, parsePositiveDecimalIntegerOption } from "../src/cli/options";
 import { renderRepoCardFile } from "../src/cli/render-repo-card";
-import { defaultGitHubCollectorPolicy, type GitHubCollectorFetch } from "../src";
+import { defaultGitHubCollectorPolicy, privateLocalSignalVisibility, type GitHubCollectorFetch, type ProfileInput } from "../src";
 
 const tempDirectories: string[] = [];
 
@@ -65,7 +66,7 @@ describe("render-card CLI", () => {
     expect(result.fallback).toBe(true);
     expect(result.error).toBeDefined();
     expect(svg).toContain("Buildmarks report is temporarily unavailable");
-    expect(svg).toContain("Public GitHub signals only");
+    expect(svg).toContain("No signal score is shown");
   });
 
   test("writes a fallback SVG when the input shape is invalid", async () => {
@@ -90,6 +91,113 @@ describe("render-card CLI", () => {
     expect(result.ok).toBe(false);
     expect(result.fallback).toBe(true);
     expect(result.error).toContain("Fallback SVG write failed");
+  });
+
+  test("rejects unexpected positional arguments before rendering", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "cards", "extra-arg-card.svg");
+    const result = runBunScript([
+      "src/cli/render-card.ts",
+      "fixtures/example-public-profile.json",
+      outputPath,
+      "unexpected"
+    ]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("Unexpected positional argument: unexpected");
+  });
+
+  test("rejects invalid numeric profile input instead of silently normalizing it", () => {
+    const profile = fixture as ProfileInput;
+    const repository = profile.repositories[0]!;
+
+    expect(() => parseProfileInput({ ...profile, activityWindowDays: 0 })).toThrow("activityWindowDays");
+    expect(() => parseProfileInput({ ...profile, repositoryCollectionFailureCount: 1.5 })).toThrow(
+      "repositoryCollectionFailureCount"
+    );
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...repository, stars: -1 }]
+    })).toThrow("stars");
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{
+        ...repository,
+        codebaseShape: {
+          ...repository.codebaseShape!,
+          medianSourceFileBytes: -1
+        }
+      }]
+    })).toThrow("medianSourceFileBytes");
+  });
+
+  test("rejects unredacted private repository records in local profile input", () => {
+    const profile = fixture as ProfileInput;
+    const repository = profile.repositories[0]!;
+    const privateRepository = {
+      ...repository,
+      visibility: "private",
+      redactedName: true,
+      name: "Private repository 1",
+      url: undefined
+    };
+
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [privateRepository]
+    })).toThrow("private-local signalVisibility");
+    expect(parseProfileInput({
+      ...profile,
+      signalVisibility: privateLocalSignalVisibility,
+      repositories: [privateRepository]
+    }).repositories[0]).toMatchObject({
+      name: "Private repository 1",
+      visibility: "private",
+      redactedName: true
+    });
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...privateRepository, name: "secret-toolkit" }]
+    })).toThrow("must be redacted");
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...privateRepository, redactedName: false }]
+    })).toThrow("redactedName");
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...repository, name: "Private repository 1", redactedName: true }]
+    })).toThrow("visibility to private");
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...privateRepository, url: "https://github.com/example-builder/secret-toolkit" }]
+    })).toThrow("omit repository url");
+  });
+
+  test("rejects inconsistent local signal visibility disclosures", () => {
+    const profile = fixture as ProfileInput;
+
+    expect(() => parseProfileInput({
+      ...profile,
+      signalVisibility: {
+        scope: "public-and-owner-supplied-private",
+        privateRepositoriesIncluded: true,
+        privateRepositoryNamesRedacted: true,
+        independentlyVerifiable: false,
+        cardLabel: "Public + Private Signals",
+        reportVisibility: "public-safe"
+      }
+    })).toThrow("private-local signalVisibility");
+    expect(() => parseProfileInput({
+      ...profile,
+      signalVisibility: {
+        scope: "public-only",
+        privateRepositoriesIncluded: false,
+        privateRepositoryNamesRedacted: true,
+        independentlyVerifiable: true,
+        cardLabel: "Public GitHub signals",
+        reportVisibility: "public-safe"
+      }
+    })).toThrow("public-only signalVisibility");
   });
 });
 
@@ -168,7 +276,7 @@ describe("render-github-card CLI", () => {
     expect(result.fallback).toBe(true);
     expect(result.error).toBeDefined();
     expect(svg).toContain("Buildmarks GitHub report is temporarily unavailable");
-    expect(svg).toContain("Public GitHub signals only");
+    expect(svg).toContain("No signal score is shown");
   });
 });
 
@@ -188,7 +296,7 @@ describe("CLI option parsing", () => {
       "token",
       "--private-local",
       "--max-repositories-scanned",
-      "7",
+      "17",
       "--report-href",
       "./report.html"
     ], { allowReportHref: true });
@@ -200,13 +308,42 @@ describe("CLI option parsing", () => {
         positional: ["example-builder", "out.svg"],
         token: "token",
         privateLocal: true,
-        maxRepositoriesScanned: 7,
+        maxRepositoriesScanned: 17,
         maxRepositoriesScored: defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile,
         activityWindowDays: defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays,
         reportHref: "./report.html"
       }
     });
     expect(disallowedReportHref).toEqual({ ok: false, message: "Unknown option: --report-href" });
+  });
+
+  test("rejects GitHub CLI limits that violate collector policy before collection starts", () => {
+    expect(parseCommonGitHubCliOptions([
+      "example-builder",
+      "--max-repositories-scanned",
+      "101"
+    ])).toEqual({
+      ok: false,
+      message: "Max repositories scanned per profile must be less than or equal to 100."
+    });
+    expect(parseCommonGitHubCliOptions([
+      "example-builder",
+      "--max-repositories-scanned",
+      "1",
+      "--max-repositories-scored",
+      "2"
+    ])).toEqual({
+      ok: false,
+      message: "Max repositories scanned per profile must be greater than or equal to max repositories scored."
+    });
+    expect(parseCommonGitHubCliOptions([
+      "example-builder",
+      "--activity-window-days",
+      "3651"
+    ])).toEqual({
+      ok: false,
+      message: "Repository activity window days must be less than or equal to 3650."
+    });
   });
 });
 
@@ -337,4 +474,17 @@ function jsonResponse(
       ...options.headers
     }
   });
+}
+
+function runBunScript(args: string[]): { exitCode: number | null; stderr: string } {
+  const result = Bun.spawnSync({
+    cmd: [process.execPath, ...args],
+    stdout: "pipe",
+    stderr: "pipe"
+  });
+
+  return {
+    exitCode: result.exitCode,
+    stderr: new TextDecoder().decode(result.stderr)
+  };
 }

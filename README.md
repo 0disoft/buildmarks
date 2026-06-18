@@ -9,7 +9,7 @@ No streaks.
 No commit vanity.
 No language pie charts.
 
-Just public signals for maintainability, completeness, shipping evidence, collaboration, and consistency.
+Just public signals for maintainability, completeness, usability, shipping evidence, consistency, and stewardship.
 ```
 
 ## Quick Start: GitHub Profile README
@@ -69,13 +69,13 @@ Buildmarks focuses on these public signal areas:
 ```txt
 maintainability
 project completeness
+usability surface
 shipping evidence
-collaboration traces
 consistency
-public adoption with strict caps
+project stewardship
 ```
 
-For independent-builder profiles, low public collaboration samples are treated as context on the card instead of a front-card penalty. The detailed report still keeps the underlying dimension scores inspectable.
+The front-card dimensions avoid popularity and collaboration traces because those signals can be missing, deferred, or context-dependent. Stars, forks, public issue traces, and public review traces may still appear as inspectable evidence in reports, but they are not default tier rows.
 
 Examples of signals:
 
@@ -86,14 +86,13 @@ Examples of signals:
 - test configuration or test directory
 - coarse codebase shape signals such as test-file ratio and source-file size buckets
 - issue and pull request templates
-- public pull request or issue response traces
 - demo, documentation, or package links
 
 ## Anti-Gaming Principles
 
 - Raw commit count is not a primary score.
 - Contribution streak is not scored.
-- Stars and forks must be capped and treated as weak adoption signals.
+- Stars and forks are not default profile-card tier dimensions.
 - Forked repositories are excluded by default.
 - Archived repositories are excluded by default.
 - One popular repository must not dominate the whole profile.
@@ -124,7 +123,7 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.14`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.15`.
 
 Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
 
@@ -229,7 +228,7 @@ Minimal action usage:
 
 Set `generate-report: "false"` when you only want the SVG card.
 
-Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact private repository names, omit private repository URLs, mark the card as `Public + Private Signals`, and keep public adoption as `N/A` because private adoption cannot be verified from public GitHub.
+Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact private repository names, omit private repository URLs, mark the card as `Public + Private Signals`, and use the same file, release, maintenance, usability, and stewardship dimensions as public-only cards.
 
 Action inputs are intentionally strict: `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
 
@@ -243,7 +242,7 @@ The default repository activity window is 365 days based on each repository's pu
 | `report-output` | `assets/buildmarks-report` | HTML and JSON report directory. |
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
-| `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100. |
+| `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
 | `max-repositories-scored` | `12` | Positive integer profile summary limit, capped at 24. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
 
@@ -293,7 +292,7 @@ To choose another repository from a profile JSON file:
 bun src/cli/render-repo-card.ts path/to/profile.json owner/repo out/repo-card.svg
 ```
 
-Repository cards are useful inside project READMEs because they show one repository's maintainability, completeness, shipping, collaboration, consistency, and external validation signals without turning the owner profile into a leaderboard.
+Repository cards are useful inside project READMEs because they show one repository's maintainability, completeness, usability, shipping, consistency, and stewardship signals without turning the owner profile into a leaderboard.
 
 ## Generate an Inspectable Static Report
 
@@ -334,6 +333,7 @@ Buildmarks uses Bun for the current v0 scaffold.
 ```bash
 bun run check
 bun test
+bun run typecheck
 bun run build
 bun run build:card
 bun run build:gaps-card
@@ -344,7 +344,7 @@ npm pack --dry-run
 
 The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.
 
-Repository CI runs the core test, build, sample SVG, sample report, and npm package dry-run checks on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.
+Repository CI runs dependency installation from the lockfile, core tests, TypeScript typecheck, build, sample SVG, sample report, and npm package dry-run checks on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.
 
 ## Contributing and Security
 

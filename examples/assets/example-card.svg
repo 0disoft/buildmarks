@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
   <title id="title">Buildmarks GitHub signal card for example-builder</title>
-  <desc id="desc">24 distinct signals found across 2 summarized repositories. Overall public signal tier is Gold I, with 61 out of 100 available in the report. Maintainability Platinum V, 72 out of 100, Project Completeness Gold I, 64 out of 100, Collaboration Gold III, 45 out of 100, Shipping Evidence Gold II, 58 out of 100, Consistency Platinum II, 85 out of 100, Public Adoption Gold III, 41 out of 100. Public GitHub data only; not a developer ranking.</desc>
+  <desc id="desc">21 distinct signals found across 2 summarized repositories. Overall public signal tier is Gold I, with 67 out of 100 available in the report. Maintainability Platinum V, 72 out of 100, Project Completeness Gold I, 64 out of 100, Usability Surface Gold I, 60 out of 100, Shipping Evidence Gold II, 58 out of 100, Consistency Platinum II, 85 out of 100, Project Stewardship Gold I, 60 out of 100. Public GitHub data only; not a developer ranking.</desc>
   <defs>
     <linearGradient id="panelStroke" x1="18" y1="18" x2="742" y2="402" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="stroke-start" />
@@ -117,7 +117,7 @@
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="190" y="54" class="brand-version">v0.1.14</text>
+  <text x="190" y="54" class="brand-version">v0.1.15</text>
   <text x="36" y="96" class="name">example-builder</text>
   <text x="704" y="58" class="subtitle right">Public Signal Tier</text>
   <text x="704" y="92" class="overall overall-middle">Gold I</text>
@@ -135,11 +135,11 @@
       <rect x="336" y="148" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="148" width="238" height="6" rx="3" class="bar bar-middle" role="progressbar" aria-label="Project Completeness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="64" />
     </g>
-    <g role="img" aria-label="Collaboration: Gold III, 45 points out of 100">
-      <text x="36" y="186" class="label">Collaboration</text>
-      <text x="306" y="186" class="score">Gold III</text>
+    <g role="img" aria-label="Usability Surface: Gold I, 60 points out of 100">
+      <text x="36" y="186" class="label">Usability Surface</text>
+      <text x="306" y="186" class="score">Gold I</text>
       <rect x="336" y="177" width="372" height="6" rx="3" class="track" aria-hidden="true" />
-      <rect x="336" y="177" width="167" height="6" rx="3" class="bar bar-low" role="progressbar" aria-label="Collaboration score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="45" />
+      <rect x="336" y="177" width="223" height="6" rx="3" class="bar bar-middle" role="progressbar" aria-label="Usability Surface score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60" />
     </g>
     <g role="img" aria-label="Shipping Evidence: Gold II, 58 points out of 100">
       <text x="36" y="215" class="label">Shipping Evidence</text>
@@ -153,11 +153,11 @@
       <rect x="336" y="235" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="235" width="316" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="85" />
     </g>
-    <g role="img" aria-label="Public Adoption: Gold III, 41 points out of 100">
-      <text x="36" y="273" class="label">Public Adoption</text>
-      <text x="306" y="273" class="score">Gold III</text>
+    <g role="img" aria-label="Project Stewardship: Gold I, 60 points out of 100">
+      <text x="36" y="273" class="label">Project Stewardship</text>
+      <text x="306" y="273" class="score">Gold I</text>
       <rect x="336" y="264" width="372" height="6" rx="3" class="track" aria-hidden="true" />
-      <rect x="336" y="264" width="153" height="6" rx="3" class="bar bar-low" role="progressbar" aria-label="Public Adoption score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="41" />
+      <rect x="336" y="264" width="223" height="6" rx="3" class="bar bar-middle" role="progressbar" aria-label="Project Stewardship score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60" />
     </g>
   </g>
   <text x="36" y="318" class="section-label">Highlights</text>

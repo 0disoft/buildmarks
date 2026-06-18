@@ -51,9 +51,15 @@ export async function renderGapsCardFile(
 }
 
 async function main(args: readonly string[]): Promise<void> {
-  const [inputPath, outputPath] = args;
+  const [inputPath, outputPath, ...extra] = args;
 
   if (inputPath === undefined || outputPath === undefined) {
+    console.error("Usage: bun src/cli/render-gaps-card.ts <profile.json> <output.svg>");
+    process.exitCode = 2;
+    return;
+  }
+  if (extra.length > 0) {
+    console.error(`Unexpected positional argument: ${extra[0]}`);
     console.error("Usage: bun src/cli/render-gaps-card.ts <profile.json> <output.svg>");
     process.exitCode = 2;
     return;

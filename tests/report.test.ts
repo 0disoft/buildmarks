@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
@@ -78,6 +78,8 @@ describe("static report", () => {
     expect(html).toContain("Owner-supplied private signals included");
     expect(html).toContain("Not independently verifiable");
     expect(html).toContain("owner-supplied private-local and public signals");
+    expect(html).not.toContain("<h3>Public Adoption</h3>");
+    expect(html).not.toContain("<p><strong>N/A</strong></p>");
     expect(html).not.toContain("Public GitHub evidence only · Not a ranking");
   });
 
@@ -90,6 +92,26 @@ describe("static report", () => {
     expect(result.ok).toBe(true);
     expect(html).toContain("Buildmarks static report");
     expect(json.version).toBe(1);
+  });
+
+  test("preserves repository collection failures through local JSON report rendering", async () => {
+    const directory = await makeTempDirectory();
+    const inputPath = join(directory, "profile-with-failures.json");
+    await writeFile(inputPath, JSON.stringify({
+      ...(fixture as ProfileInput),
+      repositoryCollectionFailureCount: 2
+    }), "utf8");
+
+    const result = await renderReportFiles(inputPath, directory);
+    const html = await readFile(result.htmlPath, "utf8");
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
+      profile: { limitations: string[] };
+    };
+    const limitation = "2 repositories could not be collected from GitHub and were omitted from this report.";
+
+    expect(result.ok).toBe(true);
+    expect(html).toContain(limitation);
+    expect(json.profile.limitations).toContain(limitation);
   });
 
   test("writes HTML and JSON reports from public GitHub data", async () => {
@@ -201,6 +223,23 @@ describe("static report", () => {
     expect(json.profile.username).toBe("example-builder");
   });
 
+  test("percent-encodes generated report links with reserved path characters", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderGitHubArtifacts(
+      "example-builder",
+      join(directory, "cards #1", "buildmarks.svg"),
+      join(directory, "report #1"),
+      {
+        fetcher: makeGitHubFetch()
+      }
+    );
+    const svg = await readFile(result.svgPath, "utf8");
+
+    expect(result.ok).toBe(true);
+    expect(svg).toContain("<a href=\"../report%20%231/buildmarks-report.html\"");
+    expect(svg).not.toContain("<a href=\"../report #1/buildmarks-report.html\"");
+  });
+
   test("writes fallback report files when public GitHub collection fails", async () => {
     const directory = await makeTempDirectory();
     const result = await renderGitHubReportFiles("example-builder", directory, {
@@ -212,8 +251,28 @@ describe("static report", () => {
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
     expect(html).toContain("Buildmarks GitHub report unavailable");
+    expect(html).toContain("No signal score is shown");
+    expect(html).not.toContain("Public GitHub signals only");
     expect(json.ok).toBe(false);
     expect(json.error).toBeDefined();
+  });
+
+  test("writes scope-neutral fallback artifacts when private-local GitHub collection fails", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderGitHubArtifacts("example-builder", join(directory, "buildmarks.svg"), join(directory, "report"), {
+      fetcher: async () => jsonResponse({ message: "bad credentials" }, { status: 401 }),
+      privateLocal: true,
+      token: "private-local-token"
+    });
+    const svg = await readFile(result.svgPath, "utf8");
+    const html = await readFile(result.htmlPath, "utf8");
+
+    expect(result.ok).toBe(false);
+    expect(result.fallback).toBe(true);
+    expect(svg).toContain("No signal score is shown");
+    expect(html).toContain("No signal score is shown");
+    expect(svg).not.toContain("Public GitHub signals only");
+    expect(html).not.toContain("Public GitHub signals only");
   });
 });
 

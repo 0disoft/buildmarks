@@ -90,6 +90,10 @@ runs:
           echo "::error title=Invalid max-repositories-scored::Expected a value less than or equal to 24."
           exit 1
         fi
+        if (( BUILDMARKS_MAX_REPOSITORIES_SCANNED < BUILDMARKS_MAX_REPOSITORIES_SCORED )); then
+          echo "::error title=Invalid repository limits::Expected max-repositories-scanned to be greater than or equal to max-repositories-scored."
+          exit 1
+        fi
 
         if [[ ! "$BUILDMARKS_ACTIVITY_WINDOW_DAYS" =~ ^[1-9][0-9]*$ ]]; then
           echo "::error title=Invalid activity-window-days::Expected a positive integer."

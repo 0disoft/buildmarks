@@ -37,9 +37,12 @@ describe("SVG renderer", () => {
     expect(svg).toContain(visibleVersion);
     expect(svg).toContain("overall overall-");
     expect(svg).toContain(">Gold I</text>");
-    expect(svg).toContain(">Gold III</text>");
     expect(svg).toContain(">Platinum V</text>");
     expect(svg).toContain(">Platinum II</text>");
+    expect(svg).toContain("Usability Surface: Gold I, 60 points out of 100");
+    expect(svg).toContain("Project Stewardship: Gold I, 60 points out of 100");
+    expect(svg).not.toContain("Collaboration:");
+    expect(svg).not.toContain("Public Adoption:");
     expect(svg).not.toContain("Public GitHub activity</text>");
     expect(svg).not.toContain("Owner-supplied GitHub activity");
     expect(svg).not.toContain("repos checked");
@@ -107,6 +110,16 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("View report");
   });
 
+  test("falls back to the auto theme for invalid runtime theme values", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard(report, {
+      theme: "dark\" onload=\"alert(1)" as "auto"
+    });
+
+    expect(svg).toContain("class=\"card card-auto\"");
+    expect(svg).not.toContain("onload=");
+  });
+
   test("strips XML control characters from rendered text", () => {
     const report = scoreUserProfile(
       {
@@ -145,26 +158,21 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("<text x=\"36\" y=\"273\" class=\"label\">Public Adoption</text>");
     expect(svg).not.toContain(">N/A</text>");
     expect(svg).not.toContain("Public Adoption: not available for this card");
-    expect(svg).toContain("Public Adoption is not available for private-local cards");
+    expect(svg).not.toContain("Public Adoption is not available for private-local cards");
+    expect(svg).toContain("Project Stewardship");
     expect(svg).toContain("not independently verifiable from public GitHub");
     expect(svg).not.toContain("Public data only · Updated");
   });
 
-  test("contextualizes low collaboration for independent builders", () => {
+  test("does not render context-dependent collaboration or adoption rows", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard({
-      ...report,
-      signalType: "Independent Builder",
-      dimensions: {
-        ...report.dimensions,
-        collaboration: 7
-      }
-    });
+    const svg = renderUserSignalCard(report);
 
     expect(svg).not.toContain("Collaboration Context");
     expect(svg).not.toContain(">solo</text>");
-    expect(svg).toContain("Collaboration is treated as solo context, not a front-card tier.");
-    expect(svg).not.toContain("Collaboration: Gold V, 7 points out of 100");
+    expect(svg).not.toContain("Collaboration is treated as solo context, not a front-card tier.");
+    expect(svg).not.toContain("Collaboration:");
+    expect(svg).not.toContain("Public Adoption:");
   });
 
   test("renders low scores as Gold V instead of an insufficient signal label", () => {
@@ -175,20 +183,22 @@ describe("SVG renderer", () => {
       dimensions: {
         maintainability: 0,
         completeness: 24,
-        collaboration: 25,
+        usability: 25,
         shipping: 55,
         consistency: 80,
-        externalValidation: 100
+        stewardship: 100
       }
     });
 
     expect(svg).toContain("Public Signal Tier");
     expect(svg).toContain(">Gold V</text>");
     expect(svg).toContain("Project Completeness: Gold V, 24 points out of 100");
-    expect(svg).toContain("Collaboration: Gold IV, 25 points out of 100");
+    expect(svg).toContain("Usability Surface: Gold IV, 25 points out of 100");
     expect(svg).toContain("Shipping Evidence: Gold II, 55 points out of 100");
     expect(svg).toContain("Consistency: Platinum III, 80 points out of 100");
-    expect(svg).toContain("Public Adoption: Diamond I, 100 points out of 100");
+    expect(svg).toContain("Project Stewardship: Diamond I, 100 points out of 100");
+    expect(svg).not.toContain("Public Adoption:");
+    expect(svg).not.toContain("Collaboration:");
     expect(svg).not.toContain("Insufficient Public Signal");
     expect(svg).not.toContain("Bronze");
     expect(svg).not.toContain("Silver");
@@ -202,20 +212,20 @@ describe("SVG renderer", () => {
       dimensions: {
         maintainability: 88,
         completeness: 90,
-        collaboration: 92,
+        usability: 92,
         shipping: 94,
         consistency: 96,
-        externalValidation: 98
+        stewardship: 98
       }
     });
 
     expect(svg).toContain("Overall public signal tier is Diamond V, with 90 out of 100 available in the report.");
     expect(svg).toContain("Maintainability: Platinum I, 88 points out of 100");
     expect(svg).toContain("Project Completeness: Diamond V, 90 points out of 100");
-    expect(svg).toContain("Collaboration: Diamond IV, 92 points out of 100");
+    expect(svg).toContain("Usability Surface: Diamond IV, 92 points out of 100");
     expect(svg).toContain("Shipping Evidence: Diamond III, 94 points out of 100");
     expect(svg).toContain("Consistency: Diamond II, 96 points out of 100");
-    expect(svg).toContain("Public Adoption: Diamond I, 98 points out of 100");
+    expect(svg).toContain("Project Stewardship: Diamond I, 98 points out of 100");
   });
 
   test("keeps the repository activity window off the front card", () => {
@@ -236,7 +246,8 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("width=\"760\" height=\"420\"");
     expect(svg).toContain("GitHub API limit reached");
-    expect(svg).toContain("Public GitHub signals only");
+    expect(svg).toContain("No signal score is shown");
+    expect(svg).toContain("Buildmarks signals");
     expect(svg).toContain("Card temporarily unavailable");
     expect(svg).toContain(visibleVersion);
   });

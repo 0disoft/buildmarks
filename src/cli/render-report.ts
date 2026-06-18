@@ -53,7 +53,7 @@ export async function renderReportFiles(
 <body>
   <main>
     <h1>Buildmarks report unavailable</h1>
-    <p>Public GitHub signals only. Not a developer ranking.</p>
+    <p>No signal score is shown. Not a developer ranking.</p>
   </main>
 </body>
 </html>`;
@@ -77,9 +77,15 @@ export async function renderReportFiles(
 }
 
 async function main(args: readonly string[]): Promise<void> {
-  const [inputPath, outputDirectory] = args;
+  const [inputPath, outputDirectory, ...extra] = args;
 
   if (inputPath === undefined || outputDirectory === undefined) {
+    console.error("Usage: bun src/cli/render-report.ts <profile.json> <output-directory>");
+    process.exitCode = 2;
+    return;
+  }
+  if (extra.length > 0) {
+    console.error(`Unexpected positional argument: ${extra[0]}`);
     console.error("Usage: bun src/cli/render-report.ts <profile.json> <output-directory>");
     process.exitCode = 2;
     return;

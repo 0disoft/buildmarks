@@ -8,6 +8,15 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.15 - 2026-06-18
+
+- Replace context-dependent `Collaboration` and `Public Adoption` front-card dimensions with always-measurable `Usability Surface` and `Project Stewardship` dimensions.
+- Keep popularity and public collaboration traces out of default profile-card tier rows so cards do not show unavailable or deferred signal categories.
+- Reject private or redacted local repository inputs unless the profile uses private-local signal visibility disclosure.
+- Disclose reports with no eligible repositories instead of silently rendering an unexplained Gold V card.
+- Normalize invalid runtime SVG theme values to the safe auto theme.
+- Make fallback SVG and HTML output scope-neutral so failed private-local runs do not claim public-only signal coverage.
+
 ## v0.1.14 - 2026-06-18
 
 - Omit unavailable and context-only dimensions from profile card tier rows so private-local cards no longer show `Public Adoption` as `N/A` on the visual card face.

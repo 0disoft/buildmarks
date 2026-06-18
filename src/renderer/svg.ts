@@ -51,7 +51,7 @@ export function renderUserSignalCard(
   report: UserSignalReport,
   options: RenderCardOptions = {}
 ): string {
-  const theme = options.theme ?? "auto";
+  const theme = normalizeTheme(options.theme);
   const highlights = report.evidence.slice(0, 4).map((item) => evidenceToHighlight(item.label));
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
@@ -102,14 +102,14 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
   <title id="title">Buildmarks fallback card</title>
-  <desc id="desc">${escapeXml(message)} Public GitHub signals only. Not a developer ranking.</desc>
+  <desc id="desc">${escapeXml(message)} No signal score is shown. Not a developer ranking.</desc>
   ${renderDefs()}
   <style>${renderStyles()}</style>
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   ${renderBrandHeader(58)}
-  <text x="36" y="82" class="subtitle">Public GitHub activity</text>
+  <text x="36" y="82" class="subtitle">Buildmarks signals</text>
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
   <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
   <text x="62" y="228" class="fallback-body">${escapeXml(safeMessage)}</text>
@@ -118,7 +118,7 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
 }
 
 export function renderSignalGapsCard(report: UserSignalGapsReport, options: RenderCardOptions = {}): string {
-  const theme = options.theme ?? "auto";
+  const theme = normalizeTheme(options.theme);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
@@ -158,7 +158,7 @@ ${rows.join("")}
 }
 
 export function renderRepositorySignalCard(report: RepoSignal, options: RenderCardOptions = {}): string {
-  const theme = options.theme ?? "auto";
+  const theme = normalizeTheme(options.theme);
   const repoNameRaw = `${report.owner}/${report.name}`;
   const repoName = fitText(repoNameRaw, 38);
   const overall = safeScore(report.overall);
@@ -446,15 +446,12 @@ function buildDescription(report: UserSignalReport, overall: number): string {
       return `${dimensionLabels[dimension]} ${scoreTier(score)}, ${score} out of 100`;
     })
     .join(", ");
-  const collaborationContext = context.contextualDimensions.has("collaboration")
-    ? " Collaboration is treated as solo context, not a front-card tier."
-    : "";
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
-    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}.${collaborationContext} Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
   }
 
-  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}.${collaborationContext} Public GitHub data only; not a developer ranking.`;
+  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
 }
 
 type ProfileCardContext = {
@@ -463,10 +460,6 @@ type ProfileCardContext = {
 
 function buildProfileCardContext(report: UserSignalReport): ProfileCardContext {
   const contextualDimensions = new Set(report.unavailableDimensions ?? []);
-
-  if (report.signalType === "Independent Builder" && safeScore(report.dimensions.collaboration) < 40) {
-    contextualDimensions.add("collaboration");
-  }
 
   return { contextualDimensions };
 }
@@ -594,4 +587,8 @@ function scoreTier(score: number): string {
   const tier = tierBands.find((band) => safe >= band.minimum);
 
   return tier?.label ?? "Gold V";
+}
+
+function normalizeTheme(value: unknown): "auto" | "dark" | "light" {
+  return value === "dark" || value === "light" || value === "auto" ? value : "auto";
 }

@@ -41,10 +41,16 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
   const gapScope = report.gaps.signalVisibility?.privateRepositoriesIncluded === true
     ? "Improvement hints based on owner-supplied private-local and public signals."
     : "Improvement hints based on missing public signals.";
-  const dimensions = signalDimensions.map((dimension) => renderDimension(report.profile, dimension)).join("");
+  const dimensions = signalDimensions
+    .filter((dimension) => report.profile.unavailableDimensions?.includes(dimension) !== true)
+    .map((dimension) => renderDimension(report.profile, dimension))
+    .join("");
   const evidence = report.profile.evidence.map((item) => `<li>${escapeHtml(item.label)}</li>`).join("");
+  const noGapsMessage = report.gaps.signalVisibility?.privateRepositoriesIncluded === true
+    ? "No obvious owner-supplied signal gaps detected."
+    : "No obvious public signal gaps detected.";
   const gaps = report.gaps.gaps.length === 0
-    ? "<li>No obvious public signal gaps detected.</li>"
+    ? `<li>${escapeHtml(noGapsMessage)}</li>`
     : report.gaps.gaps
       .slice(0, 12)
       .map((gap) => `<li><strong>${escapeHtml(gap.repository)}</strong> · ${escapeHtml(dimensionLabels[gap.dimension])}: missing ${escapeHtml(gap.missing.join(", "))}</li>`)
@@ -177,14 +183,6 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
 }
 
 function renderDimension(report: UserSignalReport, dimension: SignalDimension): string {
-  if (report.unavailableDimensions?.includes(dimension) === true) {
-    return `<article class="item">
-    <h3>${escapeHtml(dimensionLabels[dimension])}</h3>
-    <p><strong>N/A</strong></p>
-    <p class="muted">Not available for this card.</p>
-  </article>`;
-  }
-
   const score = safeScore(report.dimensions[dimension]);
 
   return `<article class="item">

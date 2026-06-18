@@ -1,6 +1,7 @@
 import {
   defaultGitHubCollectorPolicy,
   privateLocalGitHubCollectorPolicy,
+  validateGitHubCollectorPolicy,
   type GitHubCollectorPolicy
 } from "../collector/policy";
 
@@ -97,6 +98,19 @@ export function parseCommonGitHubCliOptions(
     }
 
     positional.push(arg);
+  }
+
+  const policy = buildGitHubCollectorPolicyFromCli({
+    privateLocal,
+    maxRepositoriesScanned,
+    maxRepositoriesScored,
+    activityWindowDays
+  });
+  const validation = validateGitHubCollectorPolicy(policy, {
+    mode: privateLocal ? "private-local" : "public-only"
+  });
+  if (!validation.ok) {
+    return { ok: false, message: validation.errors.join(" ") };
   }
 
   return {

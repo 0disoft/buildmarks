@@ -80,7 +80,7 @@ export async function renderGitHubArtifacts(
 <body>
   <main>
     <h1>Buildmarks GitHub report unavailable</h1>
-    <p>Public GitHub signals only. Not a developer ranking.</p>
+    <p>No signal score is shown. Not a developer ranking.</p>
   </main>
 </body>
 </html>`;
@@ -118,8 +118,8 @@ async function main(args: readonly string[]): Promise<void> {
   }
 
   const result = await renderGitHubArtifacts(parsed.username, parsed.svgOutputPath, parsed.reportOutputDirectory, {
-    token: parsed.token,
     privateLocal: parsed.privateLocal,
+    ...(parsed.token === undefined ? {} : { token: parsed.token }),
     policy: buildGitHubCollectorPolicyFromCli(parsed)
   });
 
@@ -153,7 +153,7 @@ function parseArgs(args: readonly string[]):
   }
 
   const { positional, ...options } = common.value;
-  const [username, svgOutputPath, reportOutputDirectory] = positional;
+  const [username, svgOutputPath, reportOutputDirectory, ...extra] = positional;
   if (username === undefined || username.trim() === "") {
     return { ok: false, message: "GitHub username is required." };
   }
@@ -163,6 +163,9 @@ function parseArgs(args: readonly string[]):
   if (reportOutputDirectory === undefined || reportOutputDirectory.trim() === "") {
     return { ok: false, message: "Output report directory is required." };
   }
+  if (extra.length > 0) {
+    return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
+  }
 
   return { ok: true, username, svgOutputPath, reportOutputDirectory, ...options };
 }
@@ -171,7 +174,14 @@ function toSvgRelativeHref(svgPath: string, reportHtmlPath: string): string {
   const relativePath = relative(dirname(svgPath), reportHtmlPath).replaceAll("\\", "/");
   const href = relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
 
-  return encodeURI(href);
+  return encodeRelativePathHref(href);
+}
+
+function encodeRelativePathHref(href: string): string {
+  return href
+    .split("/")
+    .map((segment) => segment === "." || segment === ".." ? segment : encodeURIComponent(segment))
+    .join("/");
 }
 
 if (import.meta.main) {

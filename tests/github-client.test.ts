@@ -184,7 +184,8 @@ describe("live public GitHub collector", () => {
     const fetcher = makeGitHubFetch({
       repositories: [
         makeRepositoryResponse("recent"),
-        makeRepositoryResponse("old", { pushedAt: "2024-01-01T00:00:00Z" })
+        makeRepositoryResponse("old", { pushedAt: "2024-01-01T00:00:00Z" }),
+        makeRepositoryResponse("future", { pushedAt: "2999-01-01T00:00:00Z" })
       ],
       onRequest: (url) => calls.push(url)
     });
@@ -203,6 +204,7 @@ describe("live public GitHub collector", () => {
     expect(profile.activityWindowDays).toBe(180);
     expect(profile.repositories.map((repository) => repository.name)).toEqual(["recent"]);
     expect(calls.some((url) => url.includes("/repos/example-builder/old/"))).toBe(false);
+    expect(calls.some((url) => url.includes("/repos/example-builder/future/"))).toBe(false);
   });
 
   test("treats missing optional content paths as absent instead of failing collection", async () => {

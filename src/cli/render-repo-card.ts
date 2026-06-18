@@ -65,9 +65,15 @@ export async function renderRepoCardFile(
 }
 
 async function main(args: readonly string[]): Promise<void> {
-  const [inputPath, repositoryRef, outputPath] = args;
+  const [inputPath, repositoryRef, outputPath, ...extra] = args;
 
   if (inputPath === undefined || repositoryRef === undefined || outputPath === undefined) {
+    console.error("Usage: bun src/cli/render-repo-card.ts <profile.json> <repo|owner/repo> <output.svg>");
+    process.exitCode = 2;
+    return;
+  }
+  if (extra.length > 0) {
+    console.error(`Unexpected positional argument: ${extra[0]}`);
     console.error("Usage: bun src/cli/render-repo-card.ts <profile.json> <repo|owner/repo> <output.svg>");
     process.exitCode = 2;
     return;

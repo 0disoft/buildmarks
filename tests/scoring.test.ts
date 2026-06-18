@@ -3,6 +3,7 @@ import fixture from "../fixtures/example-public-profile.json";
 import {
   analyzeSignalGaps,
   classifySignalType,
+  privateLocalSignalVisibility,
   repositoryOverallWeights,
   scoreRepository,
   scoreUserProfile,
@@ -24,17 +25,17 @@ describe("profile scoring", () => {
   test("classifies every documented profile signal type", () => {
     expect(signalTypes).toEqual([
       "Maintainer-Builder",
-      "Collaborator",
+      "Productized Builder",
       "Builder",
-      "High-Adoption Project",
-      "Independent Builder",
+      "Steady Shipper",
+      "Well-Documented Project",
       "General Signal Profile"
     ]);
-    expect(classifySignalType(dimensionScores({ maintainability: 80, shipping: 70 }))).toBe("Maintainer-Builder");
-    expect(classifySignalType(dimensionScores({ collaboration: 80 }))).toBe("Collaborator");
+    expect(classifySignalType(dimensionScores({ maintainability: 80, stewardship: 70, shipping: 70 }))).toBe("Maintainer-Builder");
+    expect(classifySignalType(dimensionScores({ usability: 80, shipping: 70 }))).toBe("Productized Builder");
     expect(classifySignalType(dimensionScores({ completeness: 80, shipping: 65 }))).toBe("Builder");
-    expect(classifySignalType(dimensionScores({ externalValidation: 80 }))).toBe("High-Adoption Project");
-    expect(classifySignalType(dimensionScores({ completeness: 70, collaboration: 20 }))).toBe("Independent Builder");
+    expect(classifySignalType(dimensionScores({ consistency: 80, shipping: 65 }))).toBe("Steady Shipper");
+    expect(classifySignalType(dimensionScores({ usability: 80 }))).toBe("Well-Documented Project");
     expect(classifySignalType(dimensionScores({ completeness: 40 }))).toBe("General Signal Profile");
   });
 
@@ -44,7 +45,7 @@ describe("profile scoring", () => {
     expect(report.username).toBe("example-builder");
     expect(report.topRepos.map((repo) => repo.name)).not.toContain("archived-widget");
     expect(report.overall).toBeGreaterThan(40);
-    expect(report.dimensions.maintainability).toBeGreaterThan(report.dimensions.collaboration);
+    expect(report.dimensions.maintainability).toBeGreaterThan(report.dimensions.stewardship);
     expect(report.evidence.length).toBeGreaterThan(0);
     expect(report.limitations).toContain("Forked and archived repositories are excluded by default.");
   });
@@ -55,6 +56,20 @@ describe("profile scoring", () => {
     expect(report.topRepos).toHaveLength(1);
     expect(report.topRepos[0]?.name).toBe("usable-toolkit");
     expect(report.limitations).toContain("Only the highest-signal 1 eligible repositories are summarized in this card.");
+  });
+
+  test("discloses when no eligible repositories can be scored", () => {
+    const report = scoreUserProfile(
+      {
+        username: "empty-profile",
+        repositories: []
+      },
+      { now }
+    );
+
+    expect(report.overall).toBe(0);
+    expect(report.topRepos).toEqual([]);
+    expect(report.limitations).toContain("No eligible repositories were available to score.");
   });
 
   test("does not depend on raw commit count, streaks, followers, or language percentages", () => {
@@ -174,7 +189,30 @@ describe("profile scoring", () => {
     expect(oversizedShape.evidence.some((item) => item.label === "Compact source file shape")).toBe(false);
   });
 
-  test("keeps external validation finite when numeric inputs are not finite", () => {
+  test("does not treat future repository timestamps as recent activity", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const present = scoreRepository(
+      {
+        ...sourceRepository,
+        pushedAt: now.toISOString()
+      },
+      { now }
+    );
+    const future = scoreRepository(
+      {
+        ...sourceRepository,
+        pushedAt: "2026-06-28T00:00:00.000Z"
+      },
+      { now }
+    );
+
+    expect(present.dimensions.maintainability.evidence.some((item) => item.label === "Recent maintenance activity")).toBe(true);
+    expect(future.dimensions.maintainability.evidence.some((item) => item.label === "Recent maintenance activity")).toBe(false);
+    expect(future.dimensions.shipping.evidence.some((item) => item.label === "Recent shipping or maintenance activity")).toBe(false);
+    expect(future.dimensions.consistency.evidence.some((item) => item.label === "Repository has recent public activity")).toBe(false);
+  });
+
+  test("keeps profile scores finite when numeric popularity inputs are not finite", () => {
     const sourceRepository = (fixture as ProfileInput).repositories[0]!;
     const poisoned = {
       ...(fixture as ProfileInput),
@@ -191,12 +229,14 @@ describe("profile scoring", () => {
     const report = scoreUserProfile(poisoned, { now });
 
     expect(Number.isFinite(report.overall)).toBe(true);
-    expect(Number.isFinite(report.dimensions.externalValidation)).toBe(true);
-    expect(report.dimensions.externalValidation).toBeGreaterThanOrEqual(0);
-    expect(report.dimensions.externalValidation).toBeLessThanOrEqual(100);
+    signalDimensions.forEach((dimension) => {
+      expect(Number.isFinite(report.dimensions[dimension])).toBe(true);
+      expect(report.dimensions[dimension]).toBeGreaterThanOrEqual(0);
+      expect(report.dimensions[dimension]).toBeLessThanOrEqual(100);
+    });
   });
 
-  test("caps normalized influence from one dominant repository", () => {
+  test("does not let popularity and deferred public activity create a front-card dimension", () => {
     const sourceRepository = (fixture as ProfileInput).repositories[0]!;
     const dominantRepository = {
       ...sourceRepository,
@@ -215,24 +255,17 @@ describe("profile scoring", () => {
       pullRequestReviewCount: 0,
       externalContributorCount: 0
     };
-    const report = scoreUserProfile(
-      {
-        username: "cap-check",
-        repositories: [
-          dominantRepository,
-          { ...quietPeer, name: "quiet-peer-one" },
-          { ...quietPeer, name: "quiet-peer-two" }
-        ]
-      },
-      { now }
-    );
+    const dominantScore = scoreRepository(dominantRepository, { now });
+    const quietScore = scoreRepository(quietPeer, { now });
 
-    expect(scoreRepository(dominantRepository, { now }).dimensions.externalValidation.score).toBe(100);
-    expect(scoreRepository(quietPeer, { now }).dimensions.externalValidation.score).toBe(0);
-    expect(report.dimensions.externalValidation).toBeLessThanOrEqual(36);
+    expect(signalDimensions).not.toContain("externalValidation" as SignalDimension);
+    signalDimensions.forEach((dimension) => {
+      expect(dominantScore.dimensions[dimension].score).toBe(quietScore.dimensions[dimension].score);
+    });
+    expect(dominantScore.weight).toBe(quietScore.weight);
   });
 
-  test("does not score public adoption against private-local profiles", () => {
+  test("uses the same always-measurable dimensions for private-local profiles", () => {
     const report = scoreUserProfile(
       {
         ...(fixture as ProfileInput),
@@ -247,22 +280,45 @@ describe("profile scoring", () => {
       },
       { now }
     );
-    const scoredDimensions = [
-      report.dimensions.maintainability,
-      report.dimensions.completeness,
-      report.dimensions.collaboration,
-      report.dimensions.shipping,
-      report.dimensions.consistency
-    ];
+    const scoredDimensions = signalDimensions.map((dimension) => report.dimensions[dimension]);
     const expectedOverall = Math.round(
       scoredDimensions.reduce((total, score) => total + score, 0) / scoredDimensions.length
     );
 
-    expect(report.unavailableDimensions).toContain("externalValidation");
+    expect(report.unavailableDimensions).toBeUndefined();
     expect(report.overall).toBe(expectedOverall);
     expect(report.limitations).toContain(
-      "Public adoption is shown as N/A because private repository adoption is not publicly verifiable."
+      "Private-local cards use the same file, release, maintenance, and stewardship dimensions as public-only cards."
     );
+  });
+
+  test("rejects private repository scoring without private-local disclosure", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
+    const privateRepository = {
+      ...sourceRepositoryWithoutUrl,
+      name: "Private repository 1",
+      visibility: "private" as const,
+      redactedName: true
+    };
+
+    expect(() => scoreUserProfile({
+      username: "private-without-disclosure",
+      repositories: [privateRepository]
+    }, { now })).toThrow("private-local signal visibility");
+    expect(() => scoreUserProfile({
+      username: "redacted-without-private-visibility",
+      repositories: [{
+        ...sourceRepositoryWithoutUrl,
+        name: "Private repository 1",
+        redactedName: true
+      }]
+    }, { now })).toThrow("visibility to private");
+    expect(scoreUserProfile({
+      username: "private-with-disclosure",
+      signalVisibility: privateLocalSignalVisibility,
+      repositories: [privateRepository]
+    }, { now }).dimensions.stewardship).toBeGreaterThan(0);
   });
 
   test("carries repository activity window into report limitations", () => {
@@ -315,7 +371,7 @@ describe("profile scoring", () => {
     );
   });
 
-  test("treats public collaboration as context for independent-builder profiles", () => {
+  test("does not add context-only collaboration penalties for solo-looking profiles", () => {
     const sourceRepository = (fixture as ProfileInput).repositories[0]!;
     const report = scoreUserProfile(
       {
@@ -335,23 +391,14 @@ describe("profile scoring", () => {
       },
       { now }
     );
-    const scoredDimensions = [
-      report.dimensions.maintainability,
-      report.dimensions.completeness,
-      report.dimensions.shipping,
-      report.dimensions.consistency,
-      report.dimensions.externalValidation
-    ];
+    const scoredDimensions = signalDimensions.map((dimension) => report.dimensions[dimension]);
     const expectedOverall = Math.round(
       scoredDimensions.reduce((total, score) => total + score, 0) / scoredDimensions.length
     );
 
-    expect(report.signalType).toBe("Independent Builder");
-    expect(report.dimensions.collaboration).toBeLessThan(40);
+    expect(signalDimensions).not.toContain("collaboration" as SignalDimension);
     expect(report.overall).toBe(expectedOverall);
-    expect(report.limitations).toContain(
-      "Public collaboration is treated as context for independent-builder profiles."
-    );
+    expect(report.limitations).not.toContain("Public collaboration is treated as context for independent-builder profiles.");
   });
 
   test("finds public signal gaps without treating them as a ranking", () => {
@@ -368,10 +415,10 @@ function dimensionScores(overrides: Partial<Record<SignalDimension, number>>): R
   return {
     maintainability: 0,
     completeness: 0,
-    collaboration: 0,
+    usability: 0,
     shipping: 0,
     consistency: 0,
-    externalValidation: 0,
+    stewardship: 0,
     ...overrides
   };
 }

@@ -58,12 +58,19 @@ function repositorySignalGaps(repository: RepositoryInput): SignalGap[] {
     [!repository.hasDemoOrDocs, "docs or demo"]
   ], "Shipping signals show the project is usable, not just browsable.");
 
-  pushGap(gaps, repository, "collaboration", [
+  pushGap(gaps, repository, "usability", [
+    [!repository.hasUsageGuide, "usage guide"],
+    [!repository.hasDemoOrDocs, "docs or demo"],
+    [!repository.hasPackageArtifact, "package manifest"],
+    [(repository.codebaseShape?.exampleFileCount ?? 0) === 0, "example or fixture files"]
+  ], "Usability signals help someone run, try, and understand the project quickly.");
+
+  pushGap(gaps, repository, "stewardship", [
     [!repository.hasContributing, "contribution guide"],
     [!repository.hasCodeOfConduct, "code of conduct"],
-    [repository.issueResponseCount === 0, "public issue response trace"],
-    [repository.pullRequestReviewCount === 0, "public review trace"]
-  ], "Collaboration signals help external contributors participate.");
+    [!repository.hasSecurityPolicy, "security policy"],
+    [!repository.hasChangelog, "changelog"]
+  ], "Stewardship signals show the project has clear ownership and care paths.");
 
   return gaps;
 }

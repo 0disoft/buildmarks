@@ -1,20 +1,20 @@
 export const signalDimensions = [
   "maintainability",
   "completeness",
-  "collaboration",
+  "usability",
   "shipping",
   "consistency",
-  "externalValidation"
+  "stewardship"
 ] as const;
 
 export type SignalDimension = (typeof signalDimensions)[number];
 
 export const signalTypes = [
   "Maintainer-Builder",
-  "Collaborator",
+  "Productized Builder",
   "Builder",
-  "High-Adoption Project",
-  "Independent Builder",
+  "Steady Shipper",
+  "Well-Documented Project",
   "General Signal Profile"
 ] as const;
 
@@ -23,10 +23,10 @@ export type SignalType = (typeof signalTypes)[number];
 export const dimensionLabels: Record<SignalDimension, string> = {
   maintainability: "Maintainability",
   completeness: "Project Completeness",
-  collaboration: "Collaboration",
+  usability: "Usability Surface",
   shipping: "Shipping Evidence",
   consistency: "Consistency",
-  externalValidation: "Public Adoption"
+  stewardship: "Project Stewardship"
 };
 
 export type EvidenceLevel = "positive" | "neutral" | "negative";

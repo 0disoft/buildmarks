@@ -14,10 +14,10 @@ const RECENT_DAYS = 180;
 export const repositoryOverallWeights = {
   maintainability: 0.25,
   completeness: 0.2,
-  collaboration: 0.2,
+  usability: 0.15,
   shipping: 0.15,
   consistency: 0.1,
-  externalValidation: 0.1
+  stewardship: 0.15
 } satisfies Record<SignalDimension, number>;
 
 type ScoredPart = {
@@ -56,13 +56,12 @@ export function scoreRepository(
       part(repository.hasSecurityPolicy, 1, "Security policy found", "file", repository.name),
       part(wasRecentlyPushed(repository.pushedAt, now), 3, "Recent maintenance activity", "repository", repository.name)
     ]),
-    collaboration: scoreBooleanDimension("collaboration", [
-      part(repository.pullRequestReviewCount > 0, 4, "Public PR review activity", "pull_request", repository.name),
-      part(repository.issueResponseCount > 0, 4, "Public issue response activity", "issue", repository.name),
-      part(repository.hasContributing, 3, "Contribution guide found", "file", repository.name),
-      part(repository.hasCodeOfConduct, 2, "Code of conduct found", "file", repository.name),
-      part(repository.externalContributorCount > 0, 4, "External contributor activity", "repository", repository.name),
-      part(repository.pullRequestReviewCount >= 3, 3, "Multiple public reviews found", "pull_request", repository.name)
+    usability: scoreBooleanDimension("usability", [
+      part(repository.hasReadme, 3, "README found", "file", repository.name),
+      part(repository.hasUsageGuide, 4, "README includes usage guidance", "file", repository.name),
+      part(repository.hasDemoOrDocs, 3, "Demo or documentation link found", "repository", repository.name),
+      part(repository.hasPackageArtifact, 3, "Package or installable artifact found", "repository", repository.name),
+      part(hasExampleSurface(repository), 2, "Example or fixture surface found", "file", repository.name)
     ]),
     shipping: scoreBooleanDimension("shipping", [
       part(repository.hasReleases, 4, "Release or tag found", "release", repository.name),
@@ -77,7 +76,14 @@ export function scoreRepository(
       part(repository.hasChangelog, 1, "Changelog found", "file", repository.name),
       part(repository.hasReleases, 2, "Release found", "release", repository.name)
     ]),
-    externalValidation: scoreExternalValidation(repository)
+    stewardship: scoreBooleanDimension("stewardship", [
+      part(repository.hasLicense, 3, "License file found", "file", repository.name),
+      part(repository.hasSecurityPolicy, 3, "Security policy found", "file", repository.name),
+      part(repository.hasContributing, 3, "Contribution guide found", "file", repository.name),
+      part(repository.hasCodeOfConduct, 2, "Code of conduct found", "file", repository.name),
+      part(repository.hasChangelog, 2, "Changelog or release notes found", "file", repository.name),
+      part(wasRecentlyPushed(repository.pushedAt, now), 2, "Recent stewardship activity", "repository", repository.name)
+    ])
   } satisfies Record<SignalDimension, DimensionScore>;
 
   const overall = weightedOverall(dimensions);
@@ -86,7 +92,7 @@ export function scoreRepository(
   return {
     owner: repository.owner,
     name: repository.name,
-    url: repository.url,
+    ...(repository.url === undefined ? {} : { url: repository.url }),
     dimensions,
     overall,
     weight,
@@ -124,30 +130,6 @@ function scoreBooleanDimension(
   };
 }
 
-function scoreExternalValidation(repository: RepositoryInput): DimensionScore {
-  const starScore = logCap(repository.stars, 500) * 30;
-  const forkScore = logCap(repository.forks, 100) * 20;
-  const contributorScore = logCap(repository.externalContributorCount, 20) * 30;
-  const responseScore = logCap(repository.issueResponseCount, 20) * 10;
-  const reviewScore = logCap(repository.pullRequestReviewCount, 20) * 10;
-  const score = Math.round(starScore + forkScore + contributorScore + responseScore + reviewScore);
-
-  return {
-    key: "externalValidation",
-    label: dimensionLabels.externalValidation,
-    score: clampScore(score),
-    maxScore: 100,
-    evidence: [
-      createEvidence(
-        "neutral",
-        "Stars, forks, and public participation use strict caps",
-        "repository",
-        repository.name
-      )
-    ]
-  };
-}
-
 function weightedOverall(dimensions: Record<SignalDimension, DimensionScore>): number {
   const score = signalDimensions.reduce(
     (total, dimension) => total + clampScore(dimensions[dimension].score) * repositoryOverallWeights[dimension],
@@ -164,19 +146,13 @@ function repoWeight(dimensions: Record<SignalDimension, DimensionScore>): number
       clampScore(dimensions.completeness.score) / 100 * 0.3 +
       clampScore(dimensions.maintainability.score) / 100 * 0.3 +
       clampScore(dimensions.shipping.score) / 100 * 0.25 +
-      clampScore(dimensions.externalValidation.score) / 100 * 0.15
+      clampScore(dimensions.stewardship.score) / 100 * 0.15
     ).toFixed(3)
   );
 }
 
 function collectTopEvidence(dimensions: Record<SignalDimension, DimensionScore>): Evidence[] {
   return signalDimensions.flatMap((dimension) => dimensions[dimension].evidence).slice(0, 5);
-}
-
-function logCap(value: number, cap: number): number {
-  const sanitizedValue = Number.isFinite(value) ? Math.max(0, value) : 0;
-  const sanitizedCap = Number.isFinite(cap) && cap > 0 ? cap : 1;
-  return Math.min(1, Math.log1p(sanitizedValue) / Math.log1p(sanitizedCap));
 }
 
 function clampScore(value: number): number {
@@ -193,7 +169,9 @@ function wasRecentlyPushed(value: string | null, now: Date): boolean {
     return false;
   }
 
-  return now.getTime() - date.getTime() <= RECENT_DAYS * 24 * 60 * 60 * 1000;
+  const ageMilliseconds = now.getTime() - date.getTime();
+
+  return ageMilliseconds >= 0 && ageMilliseconds <= RECENT_DAYS * 24 * 60 * 60 * 1000;
 }
 
 function hasLivedAtLeast(value: string | null, now: Date, days: number): boolean {

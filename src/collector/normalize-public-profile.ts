@@ -8,7 +8,7 @@ import type {
 export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): ProfileInput {
   return {
     username: profile.username,
-    generatedAt: profile.collectedAt,
+    ...(profile.collectedAt === undefined ? {} : { generatedAt: profile.collectedAt }),
     ...(profile.activityWindowDays === undefined ? {} : { activityWindowDays: profile.activityWindowDays }),
     ...(profile.activityAggregatesDeferred === undefined
       ? {}
@@ -25,7 +25,7 @@ function normalizePublicGitHubRepository(repository: CollectedGitHubProfile["rep
   return {
     owner: repository.owner,
     name: repository.name,
-    url: repository.url,
+    ...(repository.url === undefined ? {} : { url: repository.url }),
     ...(repository.visibility ? { visibility: repository.visibility } : {}),
     ...(repository.redactedName === undefined ? {} : { redactedName: repository.redactedName }),
     isFork: repository.isFork,

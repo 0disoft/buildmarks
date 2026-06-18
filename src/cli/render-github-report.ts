@@ -70,7 +70,7 @@ export async function renderGitHubReportFiles(
 <body>
   <main>
     <h1>Buildmarks GitHub report unavailable</h1>
-    <p>Public GitHub signals only. Not a developer ranking.</p>
+    <p>No signal score is shown. Not a developer ranking.</p>
   </main>
 </body>
 </html>`;
@@ -105,8 +105,8 @@ async function main(args: readonly string[]): Promise<void> {
   }
 
   const result = await renderGitHubReportFiles(parsed.username, parsed.outputDirectory, {
-    token: parsed.token,
     privateLocal: parsed.privateLocal,
+    ...(parsed.token === undefined ? {} : { token: parsed.token }),
     policy: buildGitHubCollectorPolicyFromCli(parsed)
   });
 
@@ -138,12 +138,15 @@ function parseArgs(args: readonly string[]):
   }
 
   const { positional, ...options } = common.value;
-  const [username, outputDirectory] = positional;
+  const [username, outputDirectory, ...extra] = positional;
   if (username === undefined || username.trim() === "") {
     return { ok: false, message: "GitHub username is required." };
   }
   if (outputDirectory === undefined || outputDirectory.trim() === "") {
     return { ok: false, message: "Output report directory is required." };
+  }
+  if (extra.length > 0) {
+    return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
   }
 
   return { ok: true, username, outputDirectory, ...options };

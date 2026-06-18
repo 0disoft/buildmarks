@@ -39,7 +39,9 @@ describe("profile README workflow example", () => {
     expect(workflow).toContain("contents: read");
     expect(workflow).toContain("actions/checkout@v6");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
+    expect(workflow).toContain("run: bun install --frozen-lockfile");
     expect(workflow).toContain("run: bun test");
+    expect(workflow).toContain("run: bun run typecheck");
     expect(workflow).toContain("run: bun run build");
     expect(workflow).toContain("run: bun run build:card");
     expect(workflow).toContain("run: bun run build:report");
@@ -63,12 +65,13 @@ describe("profile README workflow example", () => {
       repository?: { type?: string; url?: string };
       scripts?: Record<string, string>;
       version?: string;
+      devDependencies?: Record<string, string>;
     };
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.14");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.14"');
+    expect(metadata.version).toBe("0.1.15");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.15"');
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -102,6 +105,9 @@ describe("profile README workflow example", () => {
       expect(metadata.files).toContain(packagedPath);
     }
     expect(metadata.scripts?.["pack:dry-run"]).toBe("npm pack --dry-run");
+    expect(metadata.scripts?.typecheck).toBe("tsc --noEmit");
+    expect(metadata.devDependencies?.["@types/bun"]).toBeDefined();
+    expect(metadata.devDependencies?.typescript).toBeDefined();
     expect(metadata.files).toContain("CHANGELOG.md");
     expect(metadata.bin).toBeUndefined();
   });
@@ -162,7 +168,9 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("candidate-only");
     expect(readme).toContain("backend-free profile README generation");
     expect(readme).toContain("The composite action generates artifacts only");
-    expect(readme).toContain("Repository CI runs the core test, build, sample SVG, sample report, and npm package dry-run checks");
+    expect(readme).toContain(
+      "Repository CI runs dependency installation from the lockfile, core tests, TypeScript typecheck, build, sample SVG, sample report, and npm package dry-run checks"
+    );
     expect(readme).toContain("The CI workflow is read-only");
   });
 
@@ -177,7 +185,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.14`");
+    expect(npmPackaging).toContain("Current package version: `0.1.15`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");
@@ -296,6 +304,8 @@ describe("profile README workflow example", () => {
     expect(action).toContain("Expected generate-report to be exactly 'true' or 'false'.");
     expect(action).toContain("Invalid max-repositories-scanned");
     expect(action).toContain("Invalid max-repositories-scored");
+    expect(action).toContain("Invalid repository limits");
+    expect(action).toContain("max-repositories-scanned to be greater than or equal to max-repositories-scored");
     expect(action).toContain("Invalid activity-window-days");
     expect(action).toContain("less than or equal to 100");
     expect(action).toContain("less than or equal to 24");

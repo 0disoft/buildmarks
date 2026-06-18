@@ -23,6 +23,8 @@ export function scoreUserProfile(
   input: ProfileInput,
   options: ScoreUserProfileOptions = {}
 ): UserSignalReport {
+  validatePrivateRepositoryDisclosure(input);
+
   const generatedAt = input.generatedAt ?? (options.now ?? new Date()).toISOString();
   const includesPrivateSignals = input.signalVisibility?.privateRepositoriesIncluded === true;
   const maxRepositories = resolveMaxRepositories(options.maxRepositories);
@@ -35,15 +37,9 @@ export function scoreUserProfile(
 
   const dimensions = averageDimensions(topRepos);
   const signalType = classifySignalType(dimensions);
-  const overallDimensions = includesPrivateSignals
-    ? signalDimensions.filter((dimension) => dimension !== "externalValidation")
-    : signalDimensions;
-  const contextualOverallDimensions = signalType === "Independent Builder"
-    ? overallDimensions.filter((dimension) => dimension !== "collaboration")
-    : overallDimensions;
   const overall = Math.round(
-    contextualOverallDimensions.reduce((total, dimension) => total + dimensions[dimension], 0) /
-      contextualOverallDimensions.length
+    signalDimensions.reduce((total, dimension) => total + dimensions[dimension], 0) /
+      signalDimensions.length
   );
 
   return {
@@ -51,7 +47,6 @@ export function scoreUserProfile(
     generatedAt,
     ...(input.activityWindowDays === undefined ? {} : { activityWindowDays: input.activityWindowDays }),
     ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
-    ...(includesPrivateSignals ? { unavailableDimensions: ["externalValidation" as const] } : {}),
     overall,
     signalType,
     dimensions,
@@ -155,11 +150,9 @@ function buildLimitations(
   ];
 
   if (includesPrivateSignals) {
-    limitations.push("Public adoption is shown as N/A because private repository adoption is not publicly verifiable.");
-  }
-
-  if (signalType === "Independent Builder") {
-    limitations.push("Public collaboration is treated as context for independent-builder profiles.");
+    limitations.push(
+      "Private-local cards use the same file, release, maintenance, and stewardship dimensions as public-only cards."
+    );
   }
 
   if (activityWindowDays !== undefined) {
@@ -178,6 +171,10 @@ function buildLimitations(
     limitations.push(
       `${repositoryCollectionFailureCount} repositories could not be collected from GitHub and were omitted from this report.`
     );
+  }
+
+  if (eligible === 0) {
+    limitations.push("No eligible repositories were available to score.");
   }
 
   if (total !== eligible) {
@@ -211,4 +208,39 @@ function resolveMaxRepositories(value: number | undefined): number {
   }
 
   return value;
+}
+
+function validatePrivateRepositoryDisclosure(input: ProfileInput): void {
+  const privateRepositories = input.repositories.filter((repository) => {
+    if (repository.visibility === "private") {
+      return true;
+    }
+    if (repository.redactedName === true || isRedactedPrivateRepositoryName(repository.name)) {
+      throw new Error("Redacted private repository inputs must set visibility to private.");
+    }
+    return false;
+  });
+  if (privateRepositories.length === 0) {
+    return;
+  }
+
+  if (input.signalVisibility?.privateRepositoriesIncluded !== true) {
+    throw new Error("Private repository inputs require private-local signal visibility disclosure.");
+  }
+
+  privateRepositories.forEach((repository) => {
+    if (repository.redactedName !== true) {
+      throw new Error("Private repository inputs must redact repository names.");
+    }
+    if (repository.url !== undefined) {
+      throw new Error("Private repository inputs must omit repository URLs.");
+    }
+    if (!isRedactedPrivateRepositoryName(repository.name)) {
+      throw new Error("Private repository inputs must use redacted repository names.");
+    }
+  });
+}
+
+function isRedactedPrivateRepositoryName(value: string): boolean {
+  return /^Private repository(?: [1-9][0-9]*)?$/.test(value);
 }

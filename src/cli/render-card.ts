@@ -2,6 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { appendWriteFailure, tryWriteTextFile } from "./write-output";
 import {
+  privateLocalSignalVisibility,
+  publicOnlySignalVisibility,
   renderFallbackCard,
   renderUserSignalCard,
   scoreUserProfile,
@@ -71,7 +73,7 @@ async function main(args: readonly string[]): Promise<void> {
   }
 
   const result = await renderCardFile(parsed.inputPath, parsed.outputPath, {
-    reportHref: parsed.reportHref
+    ...(parsed.reportHref === undefined ? {} : { reportHref: parsed.reportHref })
   });
 
   if (!result.ok) {
@@ -112,12 +114,15 @@ function parseArgs(args: readonly string[]):
     positional.push(arg);
   }
 
-  const [inputPath, outputPath] = positional;
+  const [inputPath, outputPath, ...extra] = positional;
   if (inputPath === undefined || inputPath.trim() === "") {
     return { ok: false, message: "Profile JSON path is required." };
   }
   if (outputPath === undefined || outputPath.trim() === "") {
     return { ok: false, message: "Output SVG path is required." };
+  }
+  if (extra.length > 0) {
+    return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
   }
 
   return reportHref === undefined
@@ -152,18 +157,25 @@ export function parseProfileInput(value: unknown): ProfileInput {
     profile.generatedAt = record.generatedAt;
   }
 
-  if (typeof record.activityWindowDays === "number" && Number.isFinite(record.activityWindowDays)) {
-    profile.activityWindowDays = record.activityWindowDays;
+  const activityWindowDays = optionalPositiveInteger(record, "activityWindowDays");
+  if (activityWindowDays !== undefined) {
+    profile.activityWindowDays = activityWindowDays;
   }
 
   if (typeof record.activityAggregatesDeferred === "boolean") {
     profile.activityAggregatesDeferred = record.activityAggregatesDeferred;
   }
 
+  const repositoryCollectionFailureCount = optionalNonNegativeInteger(record, "repositoryCollectionFailureCount");
+  if (repositoryCollectionFailureCount !== undefined) {
+    profile.repositoryCollectionFailureCount = repositoryCollectionFailureCount;
+  }
+
   const signalVisibility = parseSignalVisibility(record.signalVisibility);
   if (signalVisibility !== undefined) {
     profile.signalVisibility = signalVisibility;
   }
+  validateProfileSignalVisibility(profile);
 
   return profile;
 }
@@ -174,13 +186,19 @@ function parseRepositoryInput(value: unknown): RepositoryInput {
   }
 
   const record = value as Record<string, unknown>;
+  const visibility = parseRepositoryVisibility(record.visibility);
+  const redactedName = optionalBoolean(record, "redactedName");
+  const name = requireString(record, "name");
+  const url = optionalString(record, "url");
+  validatePrivateRepositoryInput(record, { name, url, visibility, redactedName });
+
   const repository: RepositoryInput = {
     owner: requireString(record, "owner"),
-    name: requireString(record, "name"),
+    name,
     isFork: requireBoolean(record, "isFork"),
     isArchived: requireBoolean(record, "isArchived"),
-    stars: requireNumber(record, "stars"),
-    forks: requireNumber(record, "forks"),
+    stars: requireNonNegativeInteger(record, "stars"),
+    forks: requireNonNegativeInteger(record, "forks"),
     createdAt: requireNullableString(record, "createdAt"),
     pushedAt: requireNullableString(record, "pushedAt"),
     hasReadme: requireBoolean(record, "hasReadme"),
@@ -195,21 +213,21 @@ function parseRepositoryInput(value: unknown): RepositoryInput {
     hasReleases: requireBoolean(record, "hasReleases"),
     hasDemoOrDocs: requireBoolean(record, "hasDemoOrDocs"),
     hasPackageArtifact: requireBoolean(record, "hasPackageArtifact"),
-    issueResponseCount: requireNumber(record, "issueResponseCount"),
-    pullRequestReviewCount: requireNumber(record, "pullRequestReviewCount"),
-    externalContributorCount: requireNumber(record, "externalContributorCount")
+    issueResponseCount: requireNonNegativeInteger(record, "issueResponseCount"),
+    pullRequestReviewCount: requireNonNegativeInteger(record, "pullRequestReviewCount"),
+    externalContributorCount: requireNonNegativeInteger(record, "externalContributorCount")
   };
 
-  if (typeof record.url === "string") {
-    repository.url = record.url;
+  if (url !== undefined) {
+    repository.url = url;
   }
 
-  if (record.visibility === "public" || record.visibility === "private") {
-    repository.visibility = record.visibility;
+  if (visibility !== undefined) {
+    repository.visibility = visibility;
   }
 
-  if (typeof record.redactedName === "boolean") {
-    repository.redactedName = record.redactedName;
+  if (redactedName !== undefined) {
+    repository.redactedName = redactedName;
   }
 
   const codebaseShape = parseCodebaseShape(record.codebaseShape);
@@ -231,13 +249,13 @@ function parseCodebaseShape(value: unknown): CodebaseShapeSignals | undefined {
 
   const record = value as Record<string, unknown>;
   const shape: CodebaseShapeSignals = {
-    sourceFileCount: requireNumber(record, "sourceFileCount"),
-    testFileCount: requireNumber(record, "testFileCount"),
-    exampleFileCount: requireNumber(record, "exampleFileCount"),
-    medianSourceFileBytes: requireNumber(record, "medianSourceFileBytes"),
-    p90SourceFileBytes: requireNumber(record, "p90SourceFileBytes"),
-    oversizedSourceFileCount: requireNumber(record, "oversizedSourceFileCount"),
-    testToSourceRatio: requireNumber(record, "testToSourceRatio")
+    sourceFileCount: requireNonNegativeInteger(record, "sourceFileCount"),
+    testFileCount: requireNonNegativeInteger(record, "testFileCount"),
+    exampleFileCount: requireNonNegativeInteger(record, "exampleFileCount"),
+    medianSourceFileBytes: requireNonNegativeNumber(record, "medianSourceFileBytes"),
+    p90SourceFileBytes: requireNonNegativeNumber(record, "p90SourceFileBytes"),
+    oversizedSourceFileCount: requireNonNegativeInteger(record, "oversizedSourceFileCount"),
+    testToSourceRatio: requireNonNegativeNumber(record, "testToSourceRatio")
   };
 
   if (typeof record.treeTruncated === "boolean") {
@@ -268,7 +286,7 @@ function parseSignalVisibility(value: unknown): ProfileInput["signalVisibility"]
     throw new Error("signalVisibility.reportVisibility is invalid");
   }
 
-  return {
+  const disclosure: ProfileInput["signalVisibility"] = {
     scope,
     privateRepositoriesIncluded: requireBoolean(record, "privateRepositoriesIncluded"),
     privateRepositoryNamesRedacted: requireBoolean(record, "privateRepositoryNamesRedacted"),
@@ -276,15 +294,120 @@ function parseSignalVisibility(value: unknown): ProfileInput["signalVisibility"]
     cardLabel: requireString(record, "cardLabel"),
     reportVisibility
   };
+
+  validateSignalVisibilityDisclosure(disclosure);
+
+  return disclosure;
+}
+
+function validateSignalVisibilityDisclosure(disclosure: NonNullable<ProfileInput["signalVisibility"]>): void {
+  if (disclosure.privateRepositoriesIncluded) {
+    if (
+      disclosure.scope !== privateLocalSignalVisibility.scope ||
+      disclosure.privateRepositoryNamesRedacted !== privateLocalSignalVisibility.privateRepositoryNamesRedacted ||
+      disclosure.independentlyVerifiable !== privateLocalSignalVisibility.independentlyVerifiable ||
+      disclosure.reportVisibility !== privateLocalSignalVisibility.reportVisibility
+    ) {
+      throw new Error("private-local signalVisibility fields are inconsistent");
+    }
+    return;
+  }
+
+  if (
+    disclosure.scope !== publicOnlySignalVisibility.scope ||
+    disclosure.privateRepositoryNamesRedacted !== publicOnlySignalVisibility.privateRepositoryNamesRedacted ||
+    disclosure.independentlyVerifiable !== publicOnlySignalVisibility.independentlyVerifiable ||
+    disclosure.reportVisibility !== publicOnlySignalVisibility.reportVisibility
+  ) {
+    throw new Error("public-only signalVisibility fields are inconsistent");
+  }
+}
+
+function validateProfileSignalVisibility(profile: ProfileInput): void {
+  const hasPrivateRepositories = profile.repositories.some((repository) => repository.visibility === "private");
+  if (hasPrivateRepositories && profile.signalVisibility?.privateRepositoriesIncluded !== true) {
+    throw new Error("private repository input requires private-local signalVisibility disclosure");
+  }
 }
 
 function requireString(record: Record<string, unknown>, key: string): string {
   const value = record[key];
-  if (typeof value !== "string") {
-    throw new Error(`repository input must include string ${key}`);
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`repository input must include non-empty string ${key}`);
   }
 
   return value;
+}
+
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`repository input ${key} must be a non-empty string when provided`);
+  }
+
+  return value;
+}
+
+function optionalBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
+  const value = record[key];
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "boolean") {
+    throw new Error(`repository input ${key} must be a boolean when provided`);
+  }
+
+  return value;
+}
+
+function parseRepositoryVisibility(value: unknown): RepositoryInput["visibility"] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "public" && value !== "private") {
+    throw new Error("repository input visibility must be public or private when provided");
+  }
+
+  return value;
+}
+
+function validatePrivateRepositoryInput(
+  record: Record<string, unknown>,
+  options: {
+    name: string;
+    url: string | undefined;
+    visibility: RepositoryInput["visibility"] | undefined;
+    redactedName: boolean | undefined;
+  }
+): void {
+  if (options.visibility !== "private" && options.redactedName === true) {
+    throw new Error("redacted repository input must set visibility to private");
+  }
+  if (options.visibility !== "private" && isRedactedPrivateRepositoryName(options.name)) {
+    throw new Error("redacted repository input must set visibility to private");
+  }
+  if (options.visibility !== "private") {
+    return;
+  }
+  if (options.redactedName !== true) {
+    throw new Error("private repository input must set redactedName to true");
+  }
+  if (options.url !== undefined) {
+    throw new Error("private repository input must omit repository url");
+  }
+  if (!isRedactedPrivateRepositoryName(options.name)) {
+    throw new Error("private repository input name must be redacted as Private repository or Private repository N");
+  }
+  if (record.owner !== undefined && typeof record.owner === "string" && record.owner.trim() === "") {
+    throw new Error("private repository input owner must not be empty");
+  }
+}
+
+function isRedactedPrivateRepositoryName(value: string): boolean {
+  return /^Private repository(?: [1-9][0-9]*)?$/.test(value);
 }
 
 function requireNullableString(record: Record<string, unknown>, key: string): string | null {
@@ -309,6 +432,48 @@ function requireNumber(record: Record<string, unknown>, key: string): number {
   const value = record[key];
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`repository input must include finite number ${key}`);
+  }
+
+  return value;
+}
+
+function requireNonNegativeNumber(record: Record<string, unknown>, key: string): number {
+  const value = requireNumber(record, key);
+  if (value < 0) {
+    throw new Error(`repository input must include non-negative number ${key}`);
+  }
+
+  return value;
+}
+
+function requireNonNegativeInteger(record: Record<string, unknown>, key: string): number {
+  const value = requireNonNegativeNumber(record, key);
+  if (!Number.isInteger(value)) {
+    throw new Error(`repository input must include integer ${key}`);
+  }
+
+  return value;
+}
+
+function optionalNonNegativeInteger(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+    throw new Error(`profile input ${key} must be a non-negative integer`);
+  }
+
+  return value;
+}
+
+function optionalPositiveInteger(record: Record<string, unknown>, key: string): number | undefined {
+  const value = optionalNonNegativeInteger(record, key);
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value <= 0) {
+    throw new Error(`profile input ${key} must be a positive integer`);
   }
 
   return value;

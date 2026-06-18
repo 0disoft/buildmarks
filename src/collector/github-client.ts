@@ -563,9 +563,10 @@ function asRepositoryResponse(value: unknown): GitHubRepositoryResponse {
   if (typeof owner !== "object" || owner === null || typeof (owner as Record<string, unknown>).login !== "string") {
     throw new GitHubCollectorError("invalid_github_response", "GitHub repository response was missing owner.login.");
   }
+  const ownerLogin = (owner as Record<string, unknown>).login as string;
 
   const repository: GitHubRepositoryResponse = {
-    owner: { login: (owner as Record<string, string>).login },
+    owner: { login: ownerLogin },
     name: requireString(record, "name"),
     html_url: optionalNullableString(record, "html_url"),
     private: requireBoolean(record, "private"),
@@ -719,7 +720,9 @@ function wasPushedWithinWindow(value: string | null, days: number, now = new Dat
     return false;
   }
 
-  return now.getTime() - date.getTime() <= days * 24 * 60 * 60 * 1000;
+  const ageMilliseconds = now.getTime() - date.getTime();
+
+  return ageMilliseconds >= 0 && ageMilliseconds <= days * 24 * 60 * 60 * 1000;
 }
 
 interface GitHubRepositoryResponse {
