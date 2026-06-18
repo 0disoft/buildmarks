@@ -8,6 +8,10 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.13 - 2026-06-18
+
+- Render profile and repository card scores as Gold, Platinum, and Diamond signal tiers while preserving underlying 0-100 scores in accessible descriptions, progress bars, and reports.
+
 ## v0.1.12 - 2026-06-16
 
 - Share common GitHub CLI option parsing across live GitHub card, report, and artifact commands.

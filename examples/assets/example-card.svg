@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
   <title id="title">Buildmarks GitHub signal card for example-builder</title>
-  <desc id="desc">24 distinct signals found across 2 summarized repositories. Overall signal 61 out of 100 is available in the report. Maintainability 72 out of 100, Project Completeness 64 out of 100, Collaboration 45 out of 100, Shipping Evidence 58 out of 100, Consistency 85 out of 100, Public Adoption 41 out of 100. Public GitHub data only; not a developer ranking.</desc>
+  <desc id="desc">24 distinct signals found across 2 summarized repositories. Overall public signal tier is Gold I, with 61 out of 100 available in the report. Maintainability Platinum V, 72 out of 100, Project Completeness Gold I, 64 out of 100, Collaboration Gold III, 45 out of 100, Shipping Evidence Gold II, 58 out of 100, Consistency Platinum II, 85 out of 100, Public Adoption Gold III, 41 out of 100. Public GitHub data only; not a developer ranking.</desc>
   <defs>
     <linearGradient id="panelStroke" x1="18" y1="18" x2="742" y2="402" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="stroke-start" />
@@ -117,45 +117,45 @@
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="190" y="54" class="brand-version">v0.1.10</text>
+  <text x="190" y="54" class="brand-version">v0.1.13</text>
   <text x="36" y="96" class="name">example-builder</text>
-  <text x="704" y="58" class="subtitle right">Project Care</text>
-  <text x="704" y="92" class="overall overall-middle">61/100</text>
-  <g aria-label="Dimension scores out of 100">
+  <text x="704" y="58" class="subtitle right">Public Signal Tier</text>
+  <text x="704" y="92" class="overall overall-middle">Gold I</text>
+  <g aria-label="Dimension signal tiers with underlying scores out of 100">
 
-    <g role="img" aria-label="Maintainability: 72 points out of 100">
+    <g role="img" aria-label="Maintainability: Platinum V, 72 points out of 100">
       <text x="36" y="128" class="label">Maintainability</text>
-      <text x="306" y="128" class="score">72/100</text>
+      <text x="306" y="128" class="score">Platinum V</text>
       <rect x="336" y="119" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="119" width="268" height="6" rx="3" class="bar bar-middle" role="progressbar" aria-label="Maintainability score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="72" />
     </g>
-    <g role="img" aria-label="Project Completeness: 64 points out of 100">
+    <g role="img" aria-label="Project Completeness: Gold I, 64 points out of 100">
       <text x="36" y="157" class="label">Project Completeness</text>
-      <text x="306" y="157" class="score">64/100</text>
+      <text x="306" y="157" class="score">Gold I</text>
       <rect x="336" y="148" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="148" width="238" height="6" rx="3" class="bar bar-middle" role="progressbar" aria-label="Project Completeness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="64" />
     </g>
-    <g role="img" aria-label="Collaboration: 45 points out of 100">
+    <g role="img" aria-label="Collaboration: Gold III, 45 points out of 100">
       <text x="36" y="186" class="label">Collaboration</text>
-      <text x="306" y="186" class="score">45/100</text>
+      <text x="306" y="186" class="score">Gold III</text>
       <rect x="336" y="177" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="177" width="167" height="6" rx="3" class="bar bar-low" role="progressbar" aria-label="Collaboration score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="45" />
     </g>
-    <g role="img" aria-label="Shipping Evidence: 58 points out of 100">
+    <g role="img" aria-label="Shipping Evidence: Gold II, 58 points out of 100">
       <text x="36" y="215" class="label">Shipping Evidence</text>
-      <text x="306" y="215" class="score">58/100</text>
+      <text x="306" y="215" class="score">Gold II</text>
       <rect x="336" y="206" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="206" width="216" height="6" rx="3" class="bar bar-middle" role="progressbar" aria-label="Shipping Evidence score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="58" />
     </g>
-    <g role="img" aria-label="Consistency: 85 points out of 100">
+    <g role="img" aria-label="Consistency: Platinum II, 85 points out of 100">
       <text x="36" y="244" class="label">Consistency</text>
-      <text x="306" y="244" class="score">85/100</text>
+      <text x="306" y="244" class="score">Platinum II</text>
       <rect x="336" y="235" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="235" width="316" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="85" />
     </g>
-    <g role="img" aria-label="Public Adoption: 41 points out of 100">
+    <g role="img" aria-label="Public Adoption: Gold III, 41 points out of 100">
       <text x="36" y="273" class="label">Public Adoption</text>
-      <text x="306" y="273" class="score">41/100</text>
+      <text x="306" y="273" class="score">Gold III</text>
       <rect x="336" y="264" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="264" width="153" height="6" rx="3" class="bar bar-low" role="progressbar" aria-label="Public Adoption score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="41" />
     </g>

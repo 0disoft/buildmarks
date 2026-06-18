@@ -117,7 +117,7 @@
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="56" class="title">Buildmarks</text>
-  <text x="190" y="54" class="brand-version">v0.1.10</text>
+  <text x="190" y="54" class="brand-version">v0.1.13</text>
   <text x="36" y="80" class="subtitle">Missing public GitHub signals</text>
   <text x="36" y="112" class="name">example-builder</text>
   <text x="36" y="136" class="type">What's Missing</text>

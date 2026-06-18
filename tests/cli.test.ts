@@ -28,7 +28,8 @@ describe("render-card CLI", () => {
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks ·");
-    expect(svg).toContain("Project Care");
+    expect(svg).toContain("Public Signal Tier");
+    expect(svg).toContain(">Gold II</text>");
     expect(svg).toContain("Highlights");
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("repos checked");
@@ -107,7 +108,9 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks ·");
-    expect(svg).toContain("Project Care");
+    expect(svg).toContain("Public Signal Tier");
+    expect(svg).toContain(">Gold I</text>");
+    expect(svg).toContain(">Diamond IV</text>");
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
@@ -236,7 +239,7 @@ describe("render-repo-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("example-builder/usable-toolkit");
     expect(svg).toContain("Buildmarks Repo");
-    expect(svg).toContain("Project Care");
+    expect(svg).toContain("Repository Signal Tier");
   });
 
   test("writes a fallback SVG when the requested repository is missing", async () => {

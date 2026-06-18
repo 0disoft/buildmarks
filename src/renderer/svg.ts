@@ -29,6 +29,23 @@ const chipY = 330;
 const footerY = 388;
 const brandVersionX = 190;
 const brandVersion = `v${buildmarksVersion}`;
+const tierBands = [
+  { minimum: 98, label: "Diamond I" },
+  { minimum: 96, label: "Diamond II" },
+  { minimum: 94, label: "Diamond III" },
+  { minimum: 92, label: "Diamond IV" },
+  { minimum: 90, label: "Diamond V" },
+  { minimum: 88, label: "Platinum I" },
+  { minimum: 85, label: "Platinum II" },
+  { minimum: 80, label: "Platinum III" },
+  { minimum: 75, label: "Platinum IV" },
+  { minimum: 70, label: "Platinum V" },
+  { minimum: 60, label: "Gold I" },
+  { minimum: 50, label: "Gold II" },
+  { minimum: 40, label: "Gold III" },
+  { minimum: 25, label: "Gold IV" },
+  { minimum: 0, label: "Gold V" }
+] as const;
 
 export function renderUserSignalCard(
   report: UserSignalReport,
@@ -68,9 +85,9 @@ export function renderUserSignalCard(
   <path d="M24 22 H736" class="top-line" />
   ${renderBrandHeader()}
   <text x="36" y="96" class="name">${escapeXml(username)}</text>
-  <text x="${rightEdgeX}" y="58" class="subtitle right">Project Care</text>
-  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${overall}/100</text>
-  <g aria-label="Dimension scores out of 100">
+  <text x="${rightEdgeX}" y="58" class="subtitle right">Public Signal Tier</text>
+  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
+  <g aria-label="Dimension signal tiers with underlying scores out of 100">
 ${rows.join("")}
   </g>
   <text x="36" y="${highlightLabelY}" class="section-label">Highlights</text>
@@ -166,9 +183,9 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <path d="M24 22 H736" class="top-line" />
   ${renderBrandHeader()}
   <text x="36" y="96" class="name">${escapeXml(repoName)}</text>
-  <text x="${rightEdgeX}" y="58" class="subtitle right">Project Care</text>
-  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${overall}/100</text>
-  <g aria-label="Repository dimension scores out of 100">
+  <text x="${rightEdgeX}" y="58" class="subtitle right">Repository Signal Tier</text>
+  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
+  <g aria-label="Repository dimension signal tiers with underlying scores out of 100">
 ${rows.join("")}
   </g>
   <text x="36" y="${highlightLabelY}" class="section-label">Highlights</text>
@@ -191,6 +208,7 @@ function renderDimensionRow(
   const label = labelOverride ?? dimensionLabels[dimension];
   const tone = scoreTone(score);
   const barY = labelY - 9;
+  const tier = scoreTier(score);
 
   if (unavailable) {
     const ariaLabel = unavailableText === "N/A"
@@ -206,11 +224,11 @@ function renderDimensionRow(
   }
 
   return `
-    <g role="img" aria-label="${escapeXml(`${label}: ${score} points out of 100`)}">
+    <g role="img" aria-label="${escapeXml(`${label}: ${tier}, ${score} points out of 100`)}">
       <text x="36" y="${labelY}" class="label">${escapeXml(label)}</text>
-      <text x="${scoreX}" y="${labelY}" class="score">${score}/100</text>
+      <text x="${scoreX}" y="${labelY}" class="score">${escapeXml(tier)}</text>
       <rect x="${barX}" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
-      <rect x="${barX}" y="${barY}" width="${width}" height="${barHeight}" rx="3" class="bar bar-${tone}" role="progressbar" aria-label="${escapeXml(label)} score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}" />
+      <rect x="${barX}" y="${barY}" width="${width}" height="${barHeight}" rx="3" class="bar bar-${tone}" role="progressbar" aria-label="${escapeXml(`${label} score`)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}" />
     </g>`;
 }
 
@@ -442,17 +460,20 @@ function buildDescription(report: UserSignalReport, overall: number): string {
   const signalCount = countProfileSignals(report);
   const scores = signalDimensions
     .filter((dimension) => !context.contextualDimensions.has(dimension))
-    .map((dimension) => `${dimensionLabels[dimension]} ${safeScore(report.dimensions[dimension])} out of 100`)
+    .map((dimension) => {
+      const score = safeScore(report.dimensions[dimension]);
+      return `${dimensionLabels[dimension]} ${scoreTier(score)}, ${score} out of 100`;
+    })
     .join(", ");
   const collaborationContext = context.contextualDimensions.has("collaboration")
     ? " Collaboration is shown as solo context on the card."
     : "";
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
-    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}.${collaborationContext} Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}.${collaborationContext} Public Adoption is not available for private-local cards. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
   }
 
-  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall signal ${overall} out of 100 is available in the report. ${scores}.${collaborationContext} Public GitHub data only; not a developer ranking.`;
+  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}.${collaborationContext} Public GitHub data only; not a developer ranking.`;
 }
 
 type ProfileCardContext = {
@@ -478,10 +499,13 @@ function buildProfileCardContext(report: UserSignalReport): ProfileCardContext {
 function buildRepositoryDescription(report: RepoSignal, overall: number): string {
   const signalCount = countRepositorySignals(report);
   const scores = signalDimensions
-    .map((dimension) => `${dimensionLabels[dimension]} ${safeScore(report.dimensions[dimension].score)} out of 100`)
+    .map((dimension) => {
+      const score = safeScore(report.dimensions[dimension].score);
+      return `${dimensionLabels[dimension]} ${scoreTier(score)}, ${score} out of 100`;
+    })
     .join(", ");
 
-  return `Repository signal for ${report.owner}/${report.name}: ${signalCount} signals found. Overall signal ${overall} out of 100 is available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
+  return `Repository signal for ${report.owner}/${report.name}: ${signalCount} signals found. Overall repository signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
 }
 
 function countProfileSignals(report: UserSignalReport): number {
@@ -588,4 +612,11 @@ function scoreTone(score: number): "strong" | "middle" | "low" {
   }
 
   return score >= 50 ? "middle" : "low";
+}
+
+function scoreTier(score: number): string {
+  const safe = safeScore(score);
+  const tier = tierBands.find((band) => safe >= band.minimum);
+
+  return tier?.label ?? "Gold V";
 }
