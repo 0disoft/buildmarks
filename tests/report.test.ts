@@ -33,6 +33,9 @@ describe("static report", () => {
     expect(report.repositories).toHaveLength(1);
     expect(report.profile.topRepos[0]?.name).toBe("usable-toolkit");
     expect(report.repositories[0]?.name).toBe("usable-toolkit");
+    expect(report.gaps.gaps.length).toBeGreaterThan(0);
+    expect(report.gaps.gaps.every((gap) => gap.repository === "usable-toolkit")).toBe(true);
+    expect(report.gaps.gaps.some((gap) => gap.repository === "small-experiment")).toBe(false);
   });
 
   test("uses the same generated timestamp for profile and gap reports", () => {
@@ -58,6 +61,8 @@ describe("static report", () => {
   });
 
   test("labels private-local static reports as owner-supplied and not independently verifiable", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
     const report = createStaticReport({
       ...(fixture as ProfileInput),
       signalVisibility: {
@@ -67,7 +72,13 @@ describe("static report", () => {
         independentlyVerifiable: false,
         cardLabel: "Public + Private Signals",
         reportVisibility: "private-local"
-      }
+      },
+      repositories: [{
+        ...sourceRepositoryWithoutUrl,
+        name: "Private repository 1",
+        visibility: "private",
+        redactedName: true
+      }]
     });
     const html = renderStaticReportHtml(report);
 
@@ -75,9 +86,10 @@ describe("static report", () => {
     expect(report.gaps.limitations).toContain(
       "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
     );
+    expect(html).toContain("Public + Private Signals");
     expect(html).toContain("Owner-supplied private signals included");
     expect(html).toContain("Not independently verifiable");
-    expect(html).toContain("owner-supplied private-local and public signals");
+    expect(html).toContain("Public + Private Signals from owner-supplied private-local and public evidence");
     expect(html).not.toContain("<h3>Public Adoption</h3>");
     expect(html).not.toContain("<p><strong>N/A</strong></p>");
     expect(html).not.toContain("Public GitHub evidence only · Not a ranking");
@@ -92,6 +104,30 @@ describe("static report", () => {
     expect(result.ok).toBe(true);
     expect(html).toContain("Buildmarks static report");
     expect(json.version).toBe(1);
+  });
+
+  test("rejects empty report file paths before resolving them to the workspace", async () => {
+    const directory = await makeTempDirectory();
+
+    await expect(renderReportFiles("", directory)).rejects.toThrow("Profile JSON path is required.");
+    await expect(renderReportFiles("fixtures/example-public-profile.json", "")).rejects.toThrow(
+      "Output report directory is required."
+    );
+    await expect(renderGitHubReportFiles("", directory, {
+      fetcher: makeGitHubFetch()
+    })).rejects.toThrow("GitHub username is required.");
+    await expect(renderGitHubReportFiles("example-builder", "", {
+      fetcher: makeGitHubFetch()
+    })).rejects.toThrow("Output report directory is required.");
+    await expect(renderGitHubArtifacts("", join(directory, "buildmarks.svg"), join(directory, "report"), {
+      fetcher: makeGitHubFetch()
+    })).rejects.toThrow("GitHub username is required.");
+    await expect(renderGitHubArtifacts("example-builder", "", join(directory, "report"), {
+      fetcher: makeGitHubFetch()
+    })).rejects.toThrow("Output SVG path is required.");
+    await expect(renderGitHubArtifacts("example-builder", join(directory, "buildmarks.svg"), "", {
+      fetcher: makeGitHubFetch()
+    })).rejects.toThrow("Output report directory is required.");
   });
 
   test("preserves repository collection failures through local JSON report rendering", async () => {
@@ -116,7 +152,7 @@ describe("static report", () => {
 
   test("writes HTML and JSON reports from public GitHub data", async () => {
     const directory = await makeTempDirectory();
-    const result = await renderGitHubReportFiles("example-builder", directory, {
+    const result = await renderGitHubReportFiles(" example-builder ", directory, {
       fetcher: makeGitHubFetch()
     });
     const html = await readFile(result.htmlPath, "utf8");
@@ -126,6 +162,7 @@ describe("static report", () => {
     };
 
     expect(result.ok).toBe(true);
+    expect(result.username).toBe("example-builder");
     expect(html).toContain("Buildmarks static report");
     expect(html).toContain("example-builder");
     expect(html).toContain("rgba(15, 139, 108, 0.18)");
@@ -149,10 +186,41 @@ describe("static report", () => {
     };
 
     expect(result.ok).toBe(true);
+    expect(html).toContain("Public + Private Signals");
     expect(html).toContain("Owner-supplied private signals included");
     expect(json.profile.signalVisibility?.privateRepositoriesIncluded).toBe(true);
     expect(json.repositories[0]?.name).toBe("Private repository 1");
     expect(JSON.stringify(json)).not.toContain("private-toolkit");
+  });
+
+  test("redacts private repository owners from static HTML and JSON reports", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
+    const privateRepository = {
+      ...sourceRepositoryWithoutUrl,
+      owner: "secret-client-org",
+      name: "Private repository 1",
+      visibility: "private" as const,
+      redactedName: true
+    };
+    const report = createStaticReport({
+      username: "owner-profile",
+      signalVisibility: {
+        scope: "public-and-owner-supplied-private",
+        privateRepositoriesIncluded: true,
+        privateRepositoryNamesRedacted: true,
+        independentlyVerifiable: false,
+        cardLabel: "Public + Private Signals",
+        reportVisibility: "private-local"
+      },
+      repositories: [privateRepository]
+    });
+    const html = renderStaticReportHtml(report);
+    const serialized = JSON.stringify(report);
+
+    expect(html).toContain("Private owner/Private repository 1");
+    expect(html).not.toContain("secret-client-org");
+    expect(serialized).not.toContain("secret-client-org");
   });
 
   test("passes the GitHub policy repository summary limit into report generation", async () => {
@@ -182,12 +250,15 @@ describe("static report", () => {
     const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
       profile: { topRepos: Array<{ name: string }> };
       repositories: Array<{ name: string }>;
+      gaps: { gaps: Array<{ repository: string }> };
     };
 
     expect(result.ok).toBe(true);
     expect(json.profile.topRepos).toHaveLength(1);
     expect(json.repositories).toHaveLength(1);
     expect(json.profile.topRepos[0]?.name).toBe("usable-toolkit");
+    expect(json.profile.topRepos[0]?.name).toBe(json.repositories[0]?.name);
+    expect(json.gaps.gaps.every((gap) => gap.repository === "usable-toolkit")).toBe(true);
   });
 
   test("writes SVG and static reports from one public GitHub collection", async () => {
@@ -202,7 +273,7 @@ describe("static report", () => {
       return baseFetch(url, init);
     };
 
-    const result = await renderGitHubArtifacts("example-builder", join(directory, "buildmarks.svg"), join(directory, "report"), {
+    const result = await renderGitHubArtifacts(" example-builder ", join(directory, "buildmarks.svg"), join(directory, "report"), {
       fetcher
     });
     const svg = await readFile(result.svgPath, "utf8");
@@ -214,6 +285,7 @@ describe("static report", () => {
 
     expect(result.ok).toBe(true);
     expect(result.fallback).toBe(false);
+    expect(result.username).toBe("example-builder");
     expect(repositoryListRequests).toBe(1);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("<a href=\"./report/buildmarks-report.html\"");

@@ -1,5 +1,6 @@
 import {
   dimensionLabels,
+  privateLocalSignalVisibility,
   signalDimensions,
   type DimensionScore,
   type Evidence,
@@ -7,7 +8,9 @@ import {
   type RepoSignal,
   type SignalDimension
 } from "../shared/types";
+import { codebaseShapeMetric } from "./codebase-shape";
 import { createEvidence } from "./evidence";
+import { validatePrivateRepositoryRecord } from "./private-disclosure";
 
 const RECENT_DAYS = 180;
 
@@ -34,6 +37,8 @@ export function scoreRepository(
   repository: RepositoryInput,
   options: ScoreRepoOptions = {}
 ): RepoSignal {
+  validatePrivateRepositoryRecord(repository);
+
   const now = options.now ?? new Date();
   const dimensions = {
     completeness: scoreBooleanDimension("completeness", [
@@ -88,11 +93,13 @@ export function scoreRepository(
 
   const overall = weightedOverall(dimensions);
   const weight = repoWeight(dimensions);
+  const includesPrivateSignals = isPrivateRepositorySignal(repository);
 
   return {
-    owner: repository.owner,
+    owner: outputOwner(repository),
     name: repository.name,
     ...(repository.url === undefined ? {} : { url: repository.url }),
+    ...(includesPrivateSignals ? { signalVisibility: privateLocalSignalVisibility } : {}),
     dimensions,
     overall,
     weight,
@@ -100,17 +107,29 @@ export function scoreRepository(
   };
 }
 
+function outputOwner(repository: RepositoryInput): string {
+  return isPrivateRepositorySignal(repository)
+    ? "Private owner"
+    : repository.owner;
+}
+
+function isPrivateRepositorySignal(repository: RepositoryInput): boolean {
+  return repository.visibility === "private" || repository.redactedName === true;
+}
+
 function part(
-  passed: boolean,
+  passed: unknown,
   points: number,
   label: string,
   source: Evidence["source"],
   repo: string
 ): ScoredPart {
+  const passedSignal = passed === true;
+
   return {
-    passed,
+    passed: passedSignal,
     points,
-    evidence: createEvidence(passed ? "positive" : "neutral", label, source, repo)
+    evidence: createEvidence(passedSignal ? "positive" : "neutral", label, source, repo)
   };
 }
 
@@ -163,7 +182,7 @@ function clampScore(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-function wasRecentlyPushed(value: string | null, now: Date): boolean {
+function wasRecentlyPushed(value: unknown, now: Date): boolean {
   const date = parseDate(value);
   if (date === null) {
     return false;
@@ -174,7 +193,7 @@ function wasRecentlyPushed(value: string | null, now: Date): boolean {
   return ageMilliseconds >= 0 && ageMilliseconds <= RECENT_DAYS * 24 * 60 * 60 * 1000;
 }
 
-function hasLivedAtLeast(value: string | null, now: Date, days: number): boolean {
+function hasLivedAtLeast(value: unknown, now: Date, days: number): boolean {
   const date = parseDate(value);
   if (date === null) {
     return false;
@@ -185,30 +204,43 @@ function hasLivedAtLeast(value: string | null, now: Date, days: number): boolean
 
 function hasTestSurface(repository: RepositoryInput): boolean {
   const shape = repository.codebaseShape;
-  if (shape === undefined || shape.sourceFileCount === 0) {
+  if (shape === undefined) {
     return false;
   }
 
-  return shape.testFileCount >= 2 || shape.testToSourceRatio >= 0.08;
+  const sourceFileCount = codebaseShapeMetric(shape.sourceFileCount);
+  if (sourceFileCount === 0) {
+    return false;
+  }
+
+  return codebaseShapeMetric(shape.testFileCount) >= 2 || codebaseShapeMetric(shape.testToSourceRatio) >= 0.08;
 }
 
 function hasCompactSourceShape(repository: RepositoryInput): boolean {
   const shape = repository.codebaseShape;
-  if (shape === undefined || shape.sourceFileCount < 4 || shape.medianSourceFileBytes <= 0) {
+  if (shape === undefined) {
     return false;
   }
 
-  const oversizedRatio = shape.oversizedSourceFileCount / shape.sourceFileCount;
+  const sourceFileCount = codebaseShapeMetric(shape.sourceFileCount);
+  const medianSourceFileBytes = codebaseShapeMetric(shape.medianSourceFileBytes);
+  const p90SourceFileBytes = codebaseShapeMetric(shape.p90SourceFileBytes);
+  const oversizedSourceFileCount = codebaseShapeMetric(shape.oversizedSourceFileCount);
+  if (sourceFileCount < 4 || medianSourceFileBytes <= 0) {
+    return false;
+  }
 
-  return shape.medianSourceFileBytes <= 8_000 && shape.p90SourceFileBytes <= 32_000 && oversizedRatio <= 0.1;
+  const oversizedRatio = oversizedSourceFileCount / sourceFileCount;
+
+  return medianSourceFileBytes <= 8_000 && p90SourceFileBytes <= 32_000 && oversizedRatio <= 0.1;
 }
 
 function hasExampleSurface(repository: RepositoryInput): boolean {
-  return (repository.codebaseShape?.exampleFileCount ?? 0) > 0;
+  return codebaseShapeMetric(repository.codebaseShape?.exampleFileCount) > 0;
 }
 
-function parseDate(value: string | null): Date | null {
-  if (value === null) {
+function parseDate(value: unknown): Date | null {
+  if (typeof value !== "string" || value.trim() === "") {
     return null;
   }
 

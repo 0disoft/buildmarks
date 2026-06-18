@@ -43,6 +43,8 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Project Stewardship: Gold I, 60 points out of 100");
     expect(svg).not.toContain("Collaboration:");
     expect(svg).not.toContain("Public Adoption:");
+    expect(svg).not.toContain(">Collaboration</text>");
+    expect(svg).not.toContain(">Public Adoption</text>");
     expect(svg).not.toContain("Public GitHub activity</text>");
     expect(svg).not.toContain("Owner-supplied GitHub activity");
     expect(svg).not.toContain("repos checked");
@@ -135,6 +137,8 @@ describe("SVG renderer", () => {
   });
 
   test("discloses owner-supplied private signals when included", () => {
+    const repository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...repositoryWithoutUrl } = repository;
     const report = scoreUserProfile(
       {
         ...(fixture as ProfileInput),
@@ -145,17 +149,24 @@ describe("SVG renderer", () => {
           independentlyVerifiable: false,
           cardLabel: "Public + Private Signals",
           reportVisibility: "private-local"
-        }
+        },
+        repositories: [{
+          ...repositoryWithoutUrl,
+          name: "Private repository 1",
+          visibility: "private",
+          redactedName: true
+        }]
       },
       { now }
     );
     const svg = renderUserSignalCard(report);
 
     expect(svg).not.toContain("Owner-supplied GitHub activity");
-    expect(svg).not.toContain("<text x=\"36\" y=\"136\" class=\"type\">Public + Private");
-    expect(svg).toContain("Buildmarks · 2026-05-28");
-    expect(svg).toContain("Public Signal Tier");
+    expect(svg).toContain("Buildmarks · Public + Private Signals · 2026-05-28");
+    expect(svg).toContain("Public + Private Tier");
+    expect(svg).not.toContain("<text x=\"704\" y=\"58\" class=\"subtitle right\">Public Signal Tier</text>");
     expect(svg).not.toContain("<text x=\"36\" y=\"273\" class=\"label\">Public Adoption</text>");
+    expect(svg).not.toContain(">Public Adoption</text>");
     expect(svg).not.toContain(">N/A</text>");
     expect(svg).not.toContain("Public Adoption: not available for this card");
     expect(svg).not.toContain("Public Adoption is not available for private-local cards");
@@ -169,6 +180,8 @@ describe("SVG renderer", () => {
     const svg = renderUserSignalCard(report);
 
     expect(svg).not.toContain("Collaboration Context");
+    expect(svg).not.toContain(">Collaboration</text>");
+    expect(svg).not.toContain(">Public Adoption</text>");
     expect(svg).not.toContain(">solo</text>");
     expect(svg).not.toContain("Collaboration is treated as solo context, not a front-card tier.");
     expect(svg).not.toContain("Collaboration:");
@@ -296,6 +309,8 @@ describe("SVG renderer", () => {
   });
 
   test("renders private-local signal gaps without public-only wording", () => {
+    const repository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...repositoryWithoutUrl } = repository;
     const report = analyzeSignalGaps(
       {
         ...(fixture as ProfileInput),
@@ -306,14 +321,22 @@ describe("SVG renderer", () => {
           independentlyVerifiable: false,
           cardLabel: "Public + Private Signals",
           reportVisibility: "private-local"
-        }
+        },
+        repositories: [{
+          ...repositoryWithoutUrl,
+          name: "Private repository 1",
+          visibility: "private",
+          redactedName: true
+        }]
       },
       { now }
     );
     const svg = renderSignalGapsCard(report);
 
     expect(svg).toContain("Missing owner-supplied signals");
-    expect(svg).toContain("Buildmarks Gaps · Private-Local Signals");
+    expect(svg).toContain("Buildmarks Gaps · Public + Private Signals");
+    expect(svg).toContain("Private repositories were included by the owner");
+    expect(svg).toContain("not independently verifiable");
     expect(svg).not.toContain("Missing public GitHub signals");
     expect(svg).not.toContain("Buildmarks Gaps · Public Signals");
   });
@@ -330,5 +353,28 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("Repository GitHub activity");
     expect(svg).toContain("role=\"progressbar\"");
     expect(svg).toContain("Overall repository signal tier is");
+  });
+
+  test("renders private repository signal cards without public-only wording", () => {
+    const repository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...repositoryWithoutUrl } = repository;
+    const report = scoreRepository({
+      ...repositoryWithoutUrl,
+      owner: "secret-client-org",
+      name: "Private repository 1",
+      visibility: "private",
+      redactedName: true
+    }, { now });
+    const svg = renderRepositorySignalCard(report);
+
+    expect(svg).toContain("Private owner/Private repository 1");
+    expect(svg).toContain("Public + Private Repo Tier");
+    expect(svg).toContain("Buildmarks Repo · Public + Private Signals");
+    expect(svg).toContain("Owner-supplied private repository signals are included");
+    expect(svg).toContain("not independently verifiable from public GitHub");
+    expect(svg).not.toContain("<text x=\"704\" y=\"58\" class=\"subtitle right\">Repository Signal Tier</text>");
+    expect(svg).not.toContain("<text x=\"36\" y=\"388\" class=\"footer\">Buildmarks Repo</text>");
+    expect(svg).not.toContain("secret-client-org");
+    expect(svg).not.toContain("Public GitHub data only");
   });
 });

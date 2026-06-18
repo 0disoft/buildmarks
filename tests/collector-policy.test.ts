@@ -53,7 +53,7 @@ describe("GitHub collector operations policy", () => {
       ...defaultGitHubCollectorPolicy,
       publicOnly: false,
       allowPrivateRepositories: true,
-      requiredTokenScopes: ["repo"]
+      requiredTokenScopes: [" Repo "]
     };
 
     const validation = validateGitHubCollectorPolicy(policy);

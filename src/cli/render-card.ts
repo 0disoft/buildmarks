@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { appendWriteFailure, tryWriteTextFile } from "./write-output";
+import { dirname } from "node:path";
+import { isMissingOptionValue, isOptionLikeArgument, unknownOptionMessage } from "./args";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
@@ -28,8 +29,8 @@ export async function renderCardFile(
   outputPath: string,
   options: RenderCardFileOptions = {}
 ): Promise<RenderCardFileResult> {
-  const resolvedInputPath = resolve(inputPath);
-  const resolvedOutputPath = resolve(outputPath);
+  const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
+  const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
 
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
@@ -99,7 +100,7 @@ function parseArgs(args: readonly string[]):
 
     if (arg === "--report-href") {
       const value = args[index + 1];
-      if (value === undefined || value.trim() === "") {
+      if (isMissingOptionValue(value)) {
         return { ok: false, message: "Missing value for --report-href." };
       }
       reportHref = value;
@@ -107,8 +108,8 @@ function parseArgs(args: readonly string[]):
       continue;
     }
 
-    if (arg.startsWith("--")) {
-      return { ok: false, message: `Unknown option: ${arg}` };
+    if (isOptionLikeArgument(arg)) {
+      return { ok: false, message: unknownOptionMessage(arg) };
     }
 
     positional.push(arg);
@@ -143,18 +144,22 @@ export function parseProfileInput(value: unknown): ProfileInput {
   if (typeof record.username !== "string" || record.username.trim() === "") {
     throw new Error("profile input must include username");
   }
+  const username = record.username.trim();
 
   if (!Array.isArray(record.repositories)) {
     throw new Error("profile input must include repositories array");
   }
 
   const profile: ProfileInput = {
-    username: record.username,
+    username,
     repositories: record.repositories.map(parseRepositoryInput)
   };
 
   if (typeof record.generatedAt === "string") {
-    profile.generatedAt = record.generatedAt;
+    if (record.generatedAt.trim() === "") {
+      throw new Error("profile input generatedAt must be a non-empty string when provided");
+    }
+    profile.generatedAt = record.generatedAt.trim();
   }
 
   const activityWindowDays = optionalPositiveInteger(record, "activityWindowDays");
@@ -306,6 +311,7 @@ function validateSignalVisibilityDisclosure(disclosure: NonNullable<ProfileInput
       disclosure.scope !== privateLocalSignalVisibility.scope ||
       disclosure.privateRepositoryNamesRedacted !== privateLocalSignalVisibility.privateRepositoryNamesRedacted ||
       disclosure.independentlyVerifiable !== privateLocalSignalVisibility.independentlyVerifiable ||
+      disclosure.cardLabel !== privateLocalSignalVisibility.cardLabel ||
       disclosure.reportVisibility !== privateLocalSignalVisibility.reportVisibility
     ) {
       throw new Error("private-local signalVisibility fields are inconsistent");
@@ -317,6 +323,7 @@ function validateSignalVisibilityDisclosure(disclosure: NonNullable<ProfileInput
     disclosure.scope !== publicOnlySignalVisibility.scope ||
     disclosure.privateRepositoryNamesRedacted !== publicOnlySignalVisibility.privateRepositoryNamesRedacted ||
     disclosure.independentlyVerifiable !== publicOnlySignalVisibility.independentlyVerifiable ||
+    disclosure.cardLabel !== publicOnlySignalVisibility.cardLabel ||
     disclosure.reportVisibility !== publicOnlySignalVisibility.reportVisibility
   ) {
     throw new Error("public-only signalVisibility fields are inconsistent");
@@ -328,6 +335,9 @@ function validateProfileSignalVisibility(profile: ProfileInput): void {
   if (hasPrivateRepositories && profile.signalVisibility?.privateRepositoriesIncluded !== true) {
     throw new Error("private repository input requires private-local signalVisibility disclosure");
   }
+  if (!hasPrivateRepositories && profile.signalVisibility?.privateRepositoriesIncluded === true) {
+    throw new Error("private-local signalVisibility requires at least one private repository input");
+  }
 }
 
 function requireString(record: Record<string, unknown>, key: string): string {
@@ -336,7 +346,7 @@ function requireString(record: Record<string, unknown>, key: string): string {
     throw new Error(`repository input must include non-empty string ${key}`);
   }
 
-  return value;
+  return value.trim();
 }
 
 function optionalString(record: Record<string, unknown>, key: string): string | undefined {
@@ -348,7 +358,7 @@ function optionalString(record: Record<string, unknown>, key: string): string | 
     throw new Error(`repository input ${key} must be a non-empty string when provided`);
   }
 
-  return value;
+  return value.trim();
 }
 
 function optionalBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
@@ -412,8 +422,14 @@ function isRedactedPrivateRepositoryName(value: string): boolean {
 
 function requireNullableString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
-  if (value === null || typeof value === "string") {
-    return value;
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === "string") {
+    if (value.trim() === "") {
+      throw new Error(`repository input ${key} must be null or a non-empty string`);
+    }
+    return value.trim();
   }
 
   throw new Error(`repository input must include string or null ${key}`);

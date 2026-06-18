@@ -114,8 +114,9 @@ describe("private repository signal contract", () => {
     const privateContract = await readFile("docs/private-repository-signal-contract.md", "utf8");
     const collectorContract = await readFile("docs/github-collector-contract.md", "utf8");
     const operations = await readFile("docs/github-collector-operations.md", "utf8");
+    const scoring = await readFile("docs/scoring.md", "utf8");
     const readme = await readFile("README.md", "utf8");
-    const combined = [privateContract, collectorContract, operations, readme].join("\n");
+    const combined = [privateContract, collectorContract, operations, scoring, readme].join("\n");
 
     expect(privateContract).toContain("Buildmarks is public-only by default");
     expect(privateContract).toContain("Private-local mode is opt-in");
@@ -130,7 +131,12 @@ describe("private repository signal contract", () => {
     expect(privateContract).toContain("hiring suitability");
     expect(privateContract).toContain("not a hosted endpoint contract");
     expect(collectorContract).toContain("The live public collector remains public-only");
+    expect(collectorContract).toContain("collectOwnerSuppliedGitHubProfile()");
     expect(operations).toContain("separate opt-in private-local mode");
+    expect(scoring).toContain("In public-only mode it is a compact view of public GitHub evidence.");
+    expect(scoring).toContain("Private-local scoring uses the same dimensions and evidence categories");
+    expect(scoring).toContain("private repositories in the default public-only mode");
+    expect(scoring).toContain("Private-local mode is an explicit exception for owner-supplied repository signals.");
     expect(readme).toContain("docs/private-repository-signal-contract.md");
     expect(readme).toContain("Private repository signals are not part of `collectPublicGitHubProfile()`");
     expect(combined).toContain("owner-supplied");

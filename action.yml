@@ -47,13 +47,32 @@ runs:
     - name: Validate Buildmarks inputs
       shell: bash
       env:
+        BUILDMARKS_USERNAME: ${{ inputs.username }}
+        BUILDMARKS_OUTPUT: ${{ inputs.output }}
         BUILDMARKS_GENERATE_REPORT: ${{ inputs.generate-report }}
+        BUILDMARKS_REPORT_OUTPUT: ${{ inputs.report-output }}
+        BUILDMARKS_TOKEN: ${{ inputs.token }}
         BUILDMARKS_PRIVATE_LOCAL: ${{ inputs.private-local }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
         BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
       run: |
         set -euo pipefail
+
+        if [ -z "${BUILDMARKS_USERNAME//[[:space:]]/}" ]; then
+          echo "::error title=Invalid username::Expected username to be a non-empty GitHub username."
+          exit 1
+        fi
+
+        if [ -z "${BUILDMARKS_OUTPUT//[[:space:]]/}" ]; then
+          echo "::error title=Invalid output::Expected output to be a non-empty SVG path."
+          exit 1
+        fi
+
+        if [ -z "${BUILDMARKS_REPORT_OUTPUT//[[:space:]]/}" ]; then
+          echo "::error title=Invalid report-output::Expected report-output to be a non-empty report directory."
+          exit 1
+        fi
 
         case "$BUILDMARKS_GENERATE_REPORT" in
           true|false)
@@ -72,6 +91,11 @@ runs:
             exit 1
             ;;
         esac
+
+        if [ "$BUILDMARKS_PRIVATE_LOCAL" = "true" ] && [ -z "${BUILDMARKS_TOKEN//[[:space:]]/}" ]; then
+          echo "::error title=Missing private-local token::private-local mode requires an explicit token input."
+          exit 1
+        fi
 
         if [[ ! "$BUILDMARKS_MAX_REPOSITORIES_SCANNED" =~ ^[1-9][0-9]*$ ]]; then
           echo "::error title=Invalid max-repositories-scanned::Expected a positive integer."
@@ -135,14 +159,14 @@ runs:
         )
 
         if [ "$BUILDMARKS_PRIVATE_LOCAL" = "true" ]; then
-          if [ -z "$BUILDMARKS_TOKEN" ]; then
+          if [ -z "${BUILDMARKS_TOKEN//[[:space:]]/}" ]; then
             echo "::error title=Missing private-local token::private-local mode requires an explicit token input."
             exit 1
           fi
           args+=("--private-local")
         fi
 
-        if [ -n "$BUILDMARKS_TOKEN" ]; then
+        if [ -n "${BUILDMARKS_TOKEN//[[:space:]]/}" ]; then
           args+=("--token" "$BUILDMARKS_TOKEN")
         fi
 
@@ -174,14 +198,14 @@ runs:
         )
 
         if [ "$BUILDMARKS_PRIVATE_LOCAL" = "true" ]; then
-          if [ -z "$BUILDMARKS_TOKEN" ]; then
+          if [ -z "${BUILDMARKS_TOKEN//[[:space:]]/}" ]; then
             echo "::error title=Missing private-local token::private-local mode requires an explicit token input."
             exit 1
           fi
           args+=("--private-local")
         fi
 
-        if [ -n "$BUILDMARKS_TOKEN" ]; then
+        if [ -n "${BUILDMARKS_TOKEN//[[:space:]]/}" ]; then
           args+=("--token" "$BUILDMARKS_TOKEN")
         fi
 

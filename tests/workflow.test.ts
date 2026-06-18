@@ -70,8 +70,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.15");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.15"');
+    expect(metadata.version).toBe("0.1.16");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.16"');
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -185,7 +185,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.15`");
+    expect(npmPackaging).toContain("Current package version: `0.1.16`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");
@@ -239,6 +239,10 @@ describe("profile README workflow example", () => {
     expect(action).toContain('default: "12"');
     expect(readme).toContain("| `max-repositories-scored` | `12` |");
     expect(example).toContain("| `max-repositories-scored` | `12` |");
+    expect(readme).toContain("capped at 24");
+    expect(example).toContain("capped at 24");
+    expect(readme).toContain("capped at 3650");
+    expect(example).toContain("capped at 3650");
     expect(readme).toContain('Must be exactly `"true"` or `"false"`');
     expect(example).toContain('Must be exactly `"true"` or `"false"`');
     expect(readme).toContain("private-local mode requires an explicit owner-provided read token");
@@ -268,6 +272,7 @@ describe("profile README workflow example", () => {
     expect(combined).toContain("hosted endpoint");
     expect(operations).toContain("cache-contract.md");
     expect(operations).toContain("activity-aggregate-methodology.md");
+    expect(operations).toContain("GitHub rate-limit or abuse-limit responses remain fatal");
   });
 
   test("keeps example assets and real smoke-test documentation discoverable", async () => {
@@ -301,6 +306,12 @@ describe("profile README workflow example", () => {
     const action = await readFile("action.yml", "utf8");
 
     expect(action).toContain("Validate Buildmarks inputs");
+    expect(action).toContain("Invalid username");
+    expect(action).toContain("Expected username to be a non-empty GitHub username.");
+    expect(action).toContain("Invalid output");
+    expect(action).toContain("Expected output to be a non-empty SVG path.");
+    expect(action).toContain("Invalid report-output");
+    expect(action).toContain("Expected report-output to be a non-empty report directory.");
     expect(action).toContain("Expected generate-report to be exactly 'true' or 'false'.");
     expect(action).toContain("Invalid max-repositories-scanned");
     expect(action).toContain("Invalid max-repositories-scored");
@@ -312,6 +323,8 @@ describe("profile README workflow example", () => {
     expect(action).toContain("less than or equal to 3650");
     expect(action).toContain("Invalid private-local");
     expect(action).toContain("private-local mode requires an explicit token input");
+    expect(action).toContain("BUILDMARKS_TOKEN: ${{ inputs.token }}");
+    expect(action).toContain("${BUILDMARKS_TOKEN//[[:space:]]/}");
     expect(action).toContain("set -euo pipefail");
     expect(action.indexOf("Validate Buildmarks inputs")).toBeLessThan(action.indexOf("Set up Bun"));
   });

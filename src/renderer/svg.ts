@@ -58,6 +58,11 @@ export function renderUserSignalCard(
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
+  const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
+  const tierLabel = includesPrivateSignals ? "Public + Private Tier" : "Public Signal Tier";
+  const footerLabel = includesPrivateSignals
+    ? `Buildmarks · Public + Private Signals · ${generatedDate}`
+    : `Buildmarks · ${generatedDate}`;
   const context = buildProfileCardContext(report);
   const reportLink = renderReportLink(options.reportHref);
   const visibleDimensions = signalDimensions.filter((dimension) => !context.contextualDimensions.has(dimension));
@@ -82,7 +87,7 @@ export function renderUserSignalCard(
   <path d="M24 22 H736" class="top-line" />
   ${renderBrandHeader()}
   <text x="36" y="96" class="name">${escapeXml(username)}</text>
-  <text x="${rightEdgeX}" y="58" class="subtitle right">Public Signal Tier</text>
+  <text x="${rightEdgeX}" y="58" class="subtitle right">${escapeXml(tierLabel)}</text>
   <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
   <g aria-label="Dimension signal tiers with underlying scores out of 100">
 ${rows.join("")}
@@ -91,7 +96,7 @@ ${rows.join("")}
   <g aria-label="Buildmarks highlights">
 ${chips.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks · ${escapeXml(generatedDate)}</text>
+  <text x="36" y="${footerY}" class="footer">${escapeXml(footerLabel)}</text>
 ${reportLink}
 </svg>`;
 }
@@ -129,12 +134,14 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
     ? [renderEmptyGapRow(includesPrivateSignals)]
     : visibleGaps.map((gap, index) => renderGapRow(gap.repository, gap.dimension, gap.missing, 156 + index * 54));
   const scopeLabel = includesPrivateSignals ? "Missing owner-supplied signals" : "Missing public GitHub signals";
-  const footerScope = includesPrivateSignals ? "Private-Local Signals" : "Public Signals";
+  const footerScope = includesPrivateSignals ? "Public + Private Signals" : "Public Signals";
   const desc = visibleGaps.length === 0
     ? includesPrivateSignals
       ? `No obvious owner-supplied signal gaps detected for ${usernameRaw}. Private-local signals are not independently verifiable.`
       : `No obvious public signal gaps detected for ${usernameRaw}. Public GitHub data only.`
-    : `Signal gaps for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} missing ${gap.missing.join(", ")}`).join("; ")}.`;
+    : includesPrivateSignals
+      ? `Signal gaps for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} missing ${gap.missing.join(", ")}`).join("; ")}. Private repositories were included by the owner, and private-local signals are not independently verifiable.`
+      : `Signal gaps for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} missing ${gap.missing.join(", ")}`).join("; ")}. Public GitHub data only.`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
@@ -163,6 +170,9 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   const repoName = fitText(repoNameRaw, 38);
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
+  const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
+  const tierLabel = includesPrivateSignals ? "Public + Private Repo Tier" : "Repository Signal Tier";
+  const footerLabel = includesPrivateSignals ? "Buildmarks Repo · Public + Private Signals" : "Buildmarks Repo";
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
   );
@@ -180,7 +190,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <path d="M24 22 H736" class="top-line" />
   ${renderBrandHeader()}
   <text x="36" y="96" class="name">${escapeXml(repoName)}</text>
-  <text x="${rightEdgeX}" y="58" class="subtitle right">Repository Signal Tier</text>
+  <text x="${rightEdgeX}" y="58" class="subtitle right">${escapeXml(tierLabel)}</text>
   <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
   <g aria-label="Repository dimension signal tiers with underlying scores out of 100">
 ${rows.join("")}
@@ -189,7 +199,7 @@ ${rows.join("")}
   <g aria-label="Repository highlights">
 ${chips.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Repo</text>
+  <text x="36" y="${footerY}" class="footer">${escapeXml(footerLabel)}</text>
 </svg>`;
 }
 
@@ -448,7 +458,7 @@ function buildDescription(report: UserSignalReport, overall: number): string {
     .join(", ");
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
-    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public and owner-supplied private signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
   }
 
   return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
@@ -472,8 +482,11 @@ function buildRepositoryDescription(report: RepoSignal, overall: number): string
       return `${dimensionLabels[dimension]} ${scoreTier(score)}, ${score} out of 100`;
     })
     .join(", ");
+  const scope = report.signalVisibility?.privateRepositoriesIncluded === true
+    ? "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub"
+    : "Public GitHub data only";
 
-  return `Repository signal for ${report.owner}/${report.name}: ${signalCount} signals found. Overall repository signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
+  return `Repository signal for ${report.owner}/${report.name}: ${signalCount} signals found. Overall repository signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. ${scope}; not a developer ranking.`;
 }
 
 function countProfileSignals(report: UserSignalReport): number {

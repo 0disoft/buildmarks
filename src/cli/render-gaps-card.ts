@@ -1,8 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import { analyzeSignalGaps, renderFallbackCard, renderSignalGapsCard } from "../index";
+import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { parseProfileInput } from "./render-card";
-import { appendWriteFailure, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 
 export interface RenderGapsCardFileResult {
   ok: boolean;
@@ -16,8 +17,8 @@ export async function renderGapsCardFile(
   inputPath: string,
   outputPath: string
 ): Promise<RenderGapsCardFileResult> {
-  const resolvedInputPath = resolve(inputPath);
-  const resolvedOutputPath = resolve(outputPath);
+  const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
+  const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
 
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
@@ -51,21 +52,15 @@ export async function renderGapsCardFile(
 }
 
 async function main(args: readonly string[]): Promise<void> {
-  const [inputPath, outputPath, ...extra] = args;
-
-  if (inputPath === undefined || outputPath === undefined) {
-    console.error("Usage: bun src/cli/render-gaps-card.ts <profile.json> <output.svg>");
-    process.exitCode = 2;
-    return;
-  }
-  if (extra.length > 0) {
-    console.error(`Unexpected positional argument: ${extra[0]}`);
+  const parsed = parseArgs(args);
+  if (parsed.ok === false) {
+    console.error(parsed.message);
     console.error("Usage: bun src/cli/render-gaps-card.ts <profile.json> <output.svg>");
     process.exitCode = 2;
     return;
   }
 
-  const result = await renderGapsCardFile(inputPath, outputPath);
+  const result = await renderGapsCardFile(parsed.inputPath, parsed.outputPath);
 
   if (!result.ok) {
     console.error(`Buildmarks wrote fallback SVG: ${result.error ?? "unknown gaps render failure"}`);
@@ -74,6 +69,30 @@ async function main(args: readonly string[]): Promise<void> {
   }
 
   console.log(`Buildmarks gaps SVG written: ${result.outputPath}`);
+}
+
+function parseArgs(args: readonly string[]):
+  | { ok: true; inputPath: string; outputPath: string }
+  | { ok: false; message: string } {
+  const [inputPath, outputPath, ...extra] = args;
+
+  if (inputPath === undefined || inputPath.trim() === "") {
+    return { ok: false, message: "Profile JSON path is required." };
+  }
+  if (outputPath === undefined || outputPath.trim() === "") {
+    return { ok: false, message: "Output SVG path is required." };
+  }
+  if (isOptionLikeArgument(inputPath)) {
+    return { ok: false, message: unknownOptionMessage(inputPath) };
+  }
+  if (isOptionLikeArgument(outputPath)) {
+    return { ok: false, message: unknownOptionMessage(outputPath) };
+  }
+  if (extra.length > 0) {
+    return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
+  }
+
+  return { ok: true, inputPath, outputPath };
 }
 
 if (import.meta.main) {

@@ -63,6 +63,46 @@ describe("live public GitHub collector", () => {
     });
   });
 
+  test("derives file-presence signals from the repository tree when community profile data is missing", async () => {
+    const baseFetch = makeGitHubFetch({
+      tree: [
+        { path: "README.md" },
+        { path: "LICENSE" },
+        { path: "CONTRIBUTING.md" },
+        { path: "CODE_OF_CONDUCT.md" },
+        { path: "SECURITY.md" },
+        { path: "CHANGELOG.md" },
+        { path: ".github/workflows/ci.yml" },
+        { path: "src/score.test.ts", type: "blob", size: 1200 },
+        { path: "docs/index.md" },
+        { path: "package.json" }
+      ]
+    });
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        if (new URL(url).pathname.endsWith("/community/profile")) {
+          return jsonResponse({ message: "Not found" }, { status: 404 });
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories[0]?.files).toMatchObject({
+      hasReadme: true,
+      hasLicense: true,
+      hasUsageGuide: true,
+      hasCi: true,
+      hasTests: true,
+      hasChangelog: true,
+      hasContributing: true,
+      hasCodeOfConduct: true,
+      hasSecurityPolicy: true,
+      hasDemoOrDocs: true,
+      hasPackageArtifact: true
+    });
+  });
+
   test("detects common CI configuration files beyond GitHub Actions", async () => {
     const ciPaths = [
       ".circleci/config.yml",
@@ -84,6 +124,85 @@ describe("live public GitHub collector", () => {
     }
   });
 
+  test("detects demo and sample directories as demo or docs signals", async () => {
+    const demoPaths = [
+      "demo/index.html",
+      "demos/basic.ts",
+      "docs/index.md",
+      "documentation/getting-started.md",
+      "example/basic.ts",
+      "examples/basic.ts",
+      "sample/app.ts",
+      "samples/app.ts"
+    ];
+
+    for (const path of demoPaths) {
+      const profile = await collectPublicGitHubProfile("example-builder", {
+        fetcher: makeGitHubFetch({
+          tree: [{ path, type: "blob", size: 900 }]
+        })
+      });
+
+      expect(profile.repositories[0]?.files.hasDemoOrDocs).toBe(true);
+    }
+  });
+
+  test("detects package manifests outside the repository root", async () => {
+    const packageManifestPaths = [
+      "packages/web/package.json",
+      "crates/engine/Cargo.toml",
+      "apps/api/pyproject.toml",
+      "cmd/server/go.mod"
+    ];
+
+    for (const path of packageManifestPaths) {
+      const profile = await collectPublicGitHubProfile("example-builder", {
+        fetcher: makeGitHubFetch({
+          tree: [{ path, type: "blob", size: 900 }]
+        })
+      });
+
+      expect(profile.repositories[0]?.files.hasPackageArtifact).toBe(true);
+    }
+  });
+
+  test("does not derive file-presence signals from directories named like files", async () => {
+    const baseFetch = makeGitHubFetch({
+      tree: [
+        { path: "README.md/note.txt", type: "blob", size: 120 },
+        { path: "LICENSE/text.txt", type: "blob", size: 120 },
+        { path: "CHANGELOG.md/entry.txt", type: "blob", size: 120 },
+        { path: "CONTRIBUTING.md/guide.txt", type: "blob", size: 120 },
+        { path: "CODE_OF_CONDUCT.md/rules.txt", type: "blob", size: 120 },
+        { path: "SECURITY.md/policy.txt", type: "blob", size: 120 },
+        { path: ".travis.yml/config.yml", type: "blob", size: 120 },
+        { path: "packages/web/package.json", type: "tree" },
+        { path: "docs/index.md", type: "blob", size: 120 }
+      ]
+    });
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        if (new URL(url).pathname.endsWith("/community/profile")) {
+          return jsonResponse({ message: "Not found" }, { status: 404 });
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories[0]?.files).toMatchObject({
+      hasReadme: false,
+      hasLicense: false,
+      hasCi: false,
+      hasChangelog: false,
+      hasContributing: false,
+      hasCodeOfConduct: false,
+      hasSecurityPolicy: false,
+      hasDemoOrDocs: true,
+      hasPackageArtifact: false
+    });
+  });
+
   test("summarizes repository tree shape without reading file contents or lines", async () => {
     const profile = await collectPublicGitHubProfile("example-builder", {
       fetcher: makeGitHubFetch({
@@ -92,7 +211,11 @@ describe("live public GitHub collector", () => {
           { path: "src/render.ts", type: "blob", size: 6200 },
           { path: "src/large.ts", type: "blob", size: 40_000 },
           { path: "tests/render.test.ts", type: "blob", size: 4200 },
+          { path: "examples", type: "tree" },
           { path: "examples/basic.ts", type: "blob", size: 900 },
+          { path: "node_modules/examples/dependency.ts", type: "blob", size: 900 },
+          { path: "vendor/fixtures/package-example.ts", type: "blob", size: 900 },
+          { path: "dist/examples/generated.ts", type: "blob", size: 900 },
           { path: "dist/generated.js", type: "blob", size: 1000 },
           { path: "package-lock.json", type: "blob", size: 120_000 }
         ]
@@ -126,6 +249,25 @@ describe("live public GitHub collector", () => {
       medianSourceFileBytes: 1700,
       p90SourceFileBytes: 2260,
       testToSourceRatio: 0.5
+    });
+  });
+
+  test("counts source files under root test directories as test files", async () => {
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        tree: [
+          { path: "src/index.ts", type: "blob", size: 2400 },
+          { path: "tests/helpers.ts", type: "blob", size: 800 },
+          { path: "__tests__/fixture.ts", type: "blob", size: 600 },
+          { path: "spec/support.ts", type: "blob", size: 700 }
+        ]
+      })
+    });
+
+    expect(profile.repositories[0]?.files.codebaseShape).toMatchObject({
+      sourceFileCount: 4,
+      testFileCount: 3,
+      testToSourceRatio: 0.75
     });
   });
 
@@ -213,6 +355,39 @@ describe("live public GitHub collector", () => {
     expect(profile.repositories[0]?.files.hasTests).toBe(false);
   });
 
+  test("ignores dependency and build-output test paths when deriving file signals", async () => {
+    const baseFetch = makeGitHubFetch({
+      tree: [
+        { path: "node_modules/test/dependency.test.ts", type: "blob", size: 900 },
+        { path: "vendor/tests/package.test.ts", type: "blob", size: 900 },
+        { path: "dist/test/generated.test.ts", type: "blob", size: 900 },
+        { path: "node_modules/demo/dependency.html", type: "blob", size: 900 },
+        { path: "vendor/samples/package.ts", type: "blob", size: 900 },
+        { path: "dist/docs/generated.md", type: "blob", size: 900 },
+        { path: "node_modules/package.json", type: "blob", size: 900 },
+        { path: "dist/package.json", type: "blob", size: 900 }
+      ]
+    });
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        if (new URL(url).pathname.endsWith("/community/profile")) {
+          return jsonResponse({ message: "Not found" }, { status: 404 });
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories[0]?.files.hasTests).toBe(false);
+    expect(profile.repositories[0]?.files.hasDemoOrDocs).toBe(false);
+    expect(profile.repositories[0]?.files.hasPackageArtifact).toBe(false);
+    expect(profile.repositories[0]?.files.codebaseShape).toMatchObject({
+      sourceFileCount: 0,
+      testFileCount: 0,
+      exampleFileCount: 0
+    });
+  });
+
   test("collects repositories with bounded concurrency while preserving order", async () => {
     let activeCommunityRequests = 0;
     let maxActiveCommunityRequests = 0;
@@ -266,6 +441,111 @@ describe("live public GitHub collector", () => {
 
     expect(profile.repositories.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
     expect(profile.repositoryCollectionFailureCount).toBe(1);
+  });
+
+  test("does not treat invalid release or tag responses as absent release signals", async () => {
+    const baseFetch = makeGitHubFetch({
+      repositories: [
+        makeRepositoryResponse("usable-toolkit"),
+        makeRepositoryResponse("broken-release-toolkit")
+      ]
+    });
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        const parsed = new URL(url);
+        if (parsed.pathname === "/repos/example-builder/broken-release-toolkit/releases") {
+          return jsonResponse({ message: "unexpected shape" });
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
+    expect(profile.repositoryCollectionFailureCount).toBe(1);
+  });
+
+  test("does not treat invalid community profile responses as absent file signals", async () => {
+    const baseFetch = makeGitHubFetch({
+      repositories: [
+        makeRepositoryResponse("usable-toolkit"),
+        makeRepositoryResponse("broken-community-toolkit")
+      ]
+    });
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        const parsed = new URL(url);
+        if (parsed.pathname === "/repos/example-builder/broken-community-toolkit/community/profile") {
+          return jsonResponse("unexpected shape");
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
+    expect(profile.repositoryCollectionFailureCount).toBe(1);
+  });
+
+  test("does not treat invalid community profile field values as present file signals", async () => {
+    const baseFetch = makeGitHubFetch({
+      repositories: [
+        makeRepositoryResponse("usable-toolkit"),
+        makeRepositoryResponse("broken-community-fields-toolkit")
+      ]
+    });
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        const parsed = new URL(url);
+        if (parsed.pathname === "/repos/example-builder/broken-community-fields-toolkit/community/profile") {
+          return jsonResponse({
+            documentation: false,
+            files: {
+              readme: false,
+              license: 0,
+              contributing: "yes"
+            }
+          });
+        }
+
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
+    expect(profile.repositoryCollectionFailureCount).toBe(1);
+  });
+
+  test("does not hide repository detail rate limits as ordinary omissions", async () => {
+    const baseFetch = makeGitHubFetch({
+      repositories: [
+        makeRepositoryResponse("usable-toolkit"),
+        makeRepositoryResponse("limited-toolkit")
+      ]
+    });
+
+    await expect(
+      collectPublicGitHubProfile("example-builder", {
+        fetcher: async (url, init) => {
+          const parsed = new URL(url);
+          if (parsed.pathname === "/repos/example-builder/limited-toolkit/git/trees/main") {
+            return jsonResponse(
+              { message: "API rate limit exceeded" },
+              {
+                status: 403,
+                headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1770000000" }
+              }
+            );
+          }
+
+          return baseFetch(url, init);
+        }
+      })
+    ).rejects.toMatchObject({
+      code: "github_rate_limited",
+      status: 403,
+      rateLimitReset: "1770000000"
+    });
   });
 
   test("retries transient GitHub responses before failing collection", async () => {
@@ -327,6 +607,63 @@ describe("live public GitHub collector", () => {
     });
   });
 
+  test("rejects blank GitHub usernames before any GitHub request is made", async () => {
+    let requestCount = 0;
+    const fetcher: GitHubCollectorFetch = async () => {
+      requestCount += 1;
+      return jsonResponse({});
+    };
+
+    await expect(collectPublicGitHubProfile("  ", { fetcher })).rejects.toMatchObject({
+      code: "invalid_policy",
+      message: "GitHub username is required."
+    });
+    await expect(collectOwnerSuppliedGitHubProfile("", {
+      fetcher,
+      token: "private-local-token"
+    })).rejects.toMatchObject({
+      code: "invalid_policy",
+      message: "GitHub username is required."
+    });
+    expect(requestCount).toBe(0);
+  });
+
+  test("trims GitHub usernames before collection and profile output", async () => {
+    const calls: string[] = [];
+    const profile = await collectPublicGitHubProfile(" example-builder ", {
+      fetcher: makeGitHubFetch({
+        onRequest: (url) => calls.push(url)
+      })
+    });
+
+    expect(profile.username).toBe("example-builder");
+    expect(calls.some((url) => url.includes("/users/example-builder/repos"))).toBe(true);
+    expect(calls.every((url) => !url.includes("%20"))).toBe(true);
+  });
+
+  test("trims GitHub repository identifiers before detail requests and profile output", async () => {
+    const calls: string[] = [];
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        repositories: [
+          makeRepositoryResponse(" usable-toolkit ", {
+            ownerLogin: " example-builder ",
+            defaultBranch: " main ",
+            htmlUrl: "  ",
+            homepage: "  "
+          })
+        ],
+        onRequest: (url) => calls.push(url)
+      })
+    });
+
+    expect(calls.some((url) => url.includes("/repos/example-builder/usable-toolkit/"))).toBe(true);
+    expect(calls.every((url) => !url.includes("%20"))).toBe(true);
+    expect(profile.repositories[0]?.owner).toBe("example-builder");
+    expect(profile.repositories[0]?.name).toBe("usable-toolkit");
+    expect(profile.repositories[0]?.url).toBeUndefined();
+  });
+
   test("does not classify unrelated GitHub forbidden responses as rate limits", async () => {
     const fetcher: GitHubCollectorFetch = async () =>
       jsonResponse(
@@ -342,6 +679,25 @@ describe("live public GitHub collector", () => {
     });
   });
 
+  test("rejects blank GitHub repository identifiers before detail collection", async () => {
+    const baseRepository = makeRepositoryResponse("usable-toolkit");
+    const cases = [
+      { ...baseRepository, name: "" },
+      { ...baseRepository, owner: { login: " " } },
+      { ...baseRepository, default_branch: "" }
+    ];
+
+    for (const repository of cases) {
+      await expect(
+        collectPublicGitHubProfile("example-builder", {
+          fetcher: makeGitHubFetch({ repositories: [repository] })
+        })
+      ).rejects.toMatchObject({
+        code: "invalid_github_response"
+      });
+    }
+  });
+
   test("uses an explicitly provided token without reading ambient credentials", async () => {
     const authorizations: Array<string | undefined> = [];
     const fetcher = makeGitHubFetch({
@@ -353,7 +709,7 @@ describe("live public GitHub collector", () => {
 
     await collectPublicGitHubProfile("example-builder", {
       fetcher,
-      token: "public-data-token"
+      token: " public-data-token "
     });
 
     expect(authorizations.every((value) => value === "Bearer public-data-token")).toBe(true);
@@ -389,7 +745,7 @@ describe("live public GitHub collector", () => {
     expect(profile.signalVisibility?.privateRepositoryNamesRedacted).toBe(true);
     expect(profile.repositories).toHaveLength(2);
     expect(profile.repositories[1]).toMatchObject({
-      name: "Private repository 2",
+      name: "Private repository 1",
       visibility: "private",
       redactedName: true,
       stars: 0,
@@ -418,6 +774,22 @@ describe("live public GitHub collector", () => {
     expect(profile.repositories.every((repository) => repository.url === undefined)).toBe(true);
     expect(JSON.stringify(profile)).not.toContain("secret-one");
     expect(JSON.stringify(profile)).not.toContain("secret-two");
+  });
+
+  test("does not claim private repositories are included when private-local collection finds only public repositories", async () => {
+    const profile = await collectOwnerSuppliedGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        repositories: [
+          makeRepositoryResponse("public-one"),
+          makeRepositoryResponse("public-two")
+        ]
+      }),
+      token: "private-local-token"
+    });
+
+    expect(profile.signalVisibility?.privateRepositoriesIncluded).toBe(false);
+    expect(profile.signalVisibility?.cardLabel).toBe("Public GitHub signals");
+    expect(profile.repositories.every((repository) => repository.visibility !== "private")).toBe(true);
   });
 
   test("rejects private-local collection when the token owner does not match the requested username", async () => {
@@ -524,11 +896,21 @@ function makeGitHubFetch(options: MakeGitHubFetchOptions = {}): GitHubCollectorF
   };
 }
 
-function makeRepositoryResponse(name: string, options: { pushedAt?: string; private?: boolean } = {}) {
+function makeRepositoryResponse(
+  name: string,
+  options: {
+    defaultBranch?: string;
+    homepage?: string;
+    htmlUrl?: string;
+    ownerLogin?: string;
+    pushedAt?: string;
+    private?: boolean;
+  } = {}
+) {
   return {
-    owner: { login: "example-builder" },
+    owner: { login: options.ownerLogin ?? "example-builder" },
     name,
-    html_url: `https://github.com/example-builder/${name}`,
+    html_url: options.htmlUrl ?? `https://github.com/example-builder/${name}`,
     private: options.private ?? false,
     fork: false,
     archived: false,
@@ -536,8 +918,8 @@ function makeRepositoryResponse(name: string, options: { pushedAt?: string; priv
     forks_count: 7,
     created_at: "2025-01-01T00:00:00Z",
     pushed_at: options.pushedAt ?? recentPushedAt,
-    homepage: "",
-    default_branch: "main"
+    homepage: options.homepage ?? "",
+    default_branch: options.defaultBranch ?? "main"
   };
 }
 

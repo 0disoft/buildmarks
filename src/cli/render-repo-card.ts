@@ -1,13 +1,14 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import {
   renderFallbackCard,
   renderRepositorySignalCard,
   scoreRepository,
   type RepositoryInput
 } from "../index";
+import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { parseProfileInput } from "./render-card";
-import { appendWriteFailure, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 
 export interface RenderRepoCardFileResult {
   ok: boolean;
@@ -23,8 +24,8 @@ export async function renderRepoCardFile(
   repositoryRef: string,
   outputPath: string
 ): Promise<RenderRepoCardFileResult> {
-  const resolvedInputPath = resolve(inputPath);
-  const resolvedOutputPath = resolve(outputPath);
+  const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
+  const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
 
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
@@ -65,21 +66,15 @@ export async function renderRepoCardFile(
 }
 
 async function main(args: readonly string[]): Promise<void> {
-  const [inputPath, repositoryRef, outputPath, ...extra] = args;
-
-  if (inputPath === undefined || repositoryRef === undefined || outputPath === undefined) {
-    console.error("Usage: bun src/cli/render-repo-card.ts <profile.json> <repo|owner/repo> <output.svg>");
-    process.exitCode = 2;
-    return;
-  }
-  if (extra.length > 0) {
-    console.error(`Unexpected positional argument: ${extra[0]}`);
+  const parsed = parseArgs(args);
+  if (parsed.ok === false) {
+    console.error(parsed.message);
     console.error("Usage: bun src/cli/render-repo-card.ts <profile.json> <repo|owner/repo> <output.svg>");
     process.exitCode = 2;
     return;
   }
 
-  const result = await renderRepoCardFile(inputPath, repositoryRef, outputPath);
+  const result = await renderRepoCardFile(parsed.inputPath, parsed.repositoryRef, parsed.outputPath);
 
   if (!result.ok) {
     console.error(`Buildmarks wrote fallback SVG: ${result.error ?? "unknown repository render failure"}`);
@@ -88,6 +83,36 @@ async function main(args: readonly string[]): Promise<void> {
   }
 
   console.log(`Buildmarks repository SVG written: ${result.outputPath}`);
+}
+
+function parseArgs(args: readonly string[]):
+  | { ok: true; inputPath: string; repositoryRef: string; outputPath: string }
+  | { ok: false; message: string } {
+  const [inputPath, repositoryRef, outputPath, ...extra] = args;
+
+  if (inputPath === undefined || inputPath.trim() === "") {
+    return { ok: false, message: "Profile JSON path is required." };
+  }
+  if (repositoryRef === undefined || repositoryRef.trim() === "") {
+    return { ok: false, message: "Repository reference is required." };
+  }
+  if (outputPath === undefined || outputPath.trim() === "") {
+    return { ok: false, message: "Output SVG path is required." };
+  }
+  if (isOptionLikeArgument(inputPath)) {
+    return { ok: false, message: unknownOptionMessage(inputPath) };
+  }
+  if (isOptionLikeArgument(repositoryRef)) {
+    return { ok: false, message: unknownOptionMessage(repositoryRef) };
+  }
+  if (isOptionLikeArgument(outputPath)) {
+    return { ok: false, message: unknownOptionMessage(outputPath) };
+  }
+  if (extra.length > 0) {
+    return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
+  }
+
+  return { ok: true, inputPath, repositoryRef, outputPath };
 }
 
 function findRepository(repositories: readonly RepositoryInput[], repositoryRef: string): RepositoryInput | null {

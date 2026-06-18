@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -30,14 +30,15 @@ export async function renderGitHubCardFile(
   outputPath: string,
   options: RenderGitHubCardFileOptions = {}
 ): Promise<RenderGitHubCardFileResult> {
-  const resolvedOutputPath = resolve(outputPath);
+  const normalizedUsername = resolveRequiredGitHubUsername(username);
+  const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
 
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
   try {
     const collected = options.privateLocal === true
-      ? await collectOwnerSuppliedGitHubProfile(username, options)
-      : await collectPublicGitHubProfile(username, options);
+      ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
+      : await collectPublicGitHubProfile(normalizedUsername, options);
     const profile = normalizePublicGitHubProfile(collected);
     const scoringOptions = options.policy === undefined
       ? {}
@@ -49,7 +50,7 @@ export async function renderGitHubCardFile(
 
     return {
       ok: true,
-      username,
+      username: profile.username,
       outputPath: resolvedOutputPath,
       fallback: false
     };
@@ -60,7 +61,7 @@ export async function renderGitHubCardFile(
 
     return {
       ok: false,
-      username,
+      username: normalizedUsername,
       outputPath: resolvedOutputPath,
       fallback: true,
       error: appendWriteFailure(message, "Fallback SVG", writeError)
@@ -126,6 +127,15 @@ function parseArgs(args: readonly string[]):
   }
 
   return { ok: true, username, outputPath, ...options };
+}
+
+function resolveRequiredGitHubUsername(username: string): string {
+  const normalizedUsername = username.trim();
+  if (normalizedUsername === "") {
+    throw new Error("GitHub username is required.");
+  }
+
+  return normalizedUsername;
 }
 
 if (import.meta.main) {

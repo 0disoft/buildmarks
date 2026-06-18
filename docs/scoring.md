@@ -2,7 +2,8 @@
 
 Buildmarks uses transparent rule-based scoring before any live GitHub API or hosted service layer exists.
 
-The score is not a developer ranking. It is a compact view of public GitHub evidence.
+The score is not a developer ranking. In public-only mode it is a compact view of public GitHub evidence.
+In private-local mode, owner-supplied private repository signals may be included only when the card and report clearly disclose that those signals are not independently verifiable from public GitHub.
 
 ## v0 Dimensions
 
@@ -32,7 +33,7 @@ The weighting intentionally keeps popularity and public collaboration traces out
 
 ## Evidence
 
-Signals come from public repository evidence such as:
+In public-only mode, signals come from public repository evidence such as:
 
 - README and usage guidance
 - LICENSE
@@ -47,6 +48,8 @@ Signals come from public repository evidence such as:
 - security policy
 
 Popularity and public participation signals are not primary dimensions because they can be absent for healthy solo projects, private-local inputs, early projects, or repositories where issue and pull request activity is handled elsewhere.
+
+Private-local scoring uses the same dimensions and evidence categories, but repository names must be redacted and the report must label the trust boundary as owner-supplied private-local evidence.
 
 Every score must expose evidence. If a future implementation cannot explain a score, it should not render that score.
 
@@ -63,7 +66,7 @@ The public collector reads the Git tree metadata that GitHub already returns for
 - 90th percentile source file size in bytes
 - count of source files above the large-file threshold
 
-Generated, vendor, dependency, build-output, lockfile, minified, and sourcemap paths are excluded from these shape calculations. These checks are intentionally coarse. They can suggest whether a repository is split into manageable source files and has visible test or example surface, but they do not prove code quality.
+Generated, vendor, dependency, build-output, lockfile, minified, and sourcemap paths are excluded from these shape calculations and from tree-derived test or example surface signals. These checks are intentionally coarse. They can suggest whether a repository is split into manageable source files and has visible test or example surface, but they do not prove code quality.
 
 ## Exclusions
 
@@ -73,9 +76,11 @@ Buildmarks does not use these as primary quality signals:
 - contribution streaks
 - follower count
 - language percentage charts
-- private repositories
+- private repositories in the default public-only mode
 - private employer work
 - inferred seniority or job suitability
+
+Private-local mode is an explicit exception for owner-supplied repository signals. It must not infer private employer work, expose private repository names, or present those signals as publicly verifiable.
 
 ## Current Source of Truth
 

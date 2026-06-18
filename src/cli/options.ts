@@ -4,6 +4,7 @@ import {
   validateGitHubCollectorPolicy,
   type GitHubCollectorPolicy
 } from "../collector/policy";
+import { isMissingOptionValue, isOptionLikeArgument, unknownOptionMessage } from "./args";
 
 export const githubCliDefaultLimits = defaultGitHubCollectorPolicy.limits;
 
@@ -40,10 +41,10 @@ export function parseCommonGitHubCliOptions(
 
     if (arg === "--token") {
       const value = args[index + 1];
-      if (value === undefined || value.trim() === "") {
+      if (isMissingOptionValue(value)) {
         return { ok: false, message: "Missing value for --token." };
       }
-      token = value;
+      token = value!.trim();
       index += 1;
       continue;
     }
@@ -85,7 +86,7 @@ export function parseCommonGitHubCliOptions(
 
     if (arg === "--report-href" && options.allowReportHref === true) {
       const value = args[index + 1];
-      if (value === undefined || value.trim() === "") {
+      if (isMissingOptionValue(value)) {
         return { ok: false, message: "Missing value for --report-href." };
       }
       reportHref = value;
@@ -93,8 +94,8 @@ export function parseCommonGitHubCliOptions(
       continue;
     }
 
-    if (arg.startsWith("--")) {
-      return { ok: false, message: `Unknown option: ${arg}` };
+    if (isOptionLikeArgument(arg)) {
+      return { ok: false, message: unknownOptionMessage(arg) };
     }
 
     positional.push(arg);
@@ -128,11 +129,11 @@ export function parseCommonGitHubCliOptions(
 }
 
 export function parsePositiveDecimalIntegerOption(name: string, rawValue: string | undefined): number | string {
-  if (rawValue === undefined || rawValue.trim() === "") {
+  if (isMissingOptionValue(rawValue)) {
     return `Missing value for ${name}.`;
   }
 
-  const trimmed = rawValue.trim();
+  const trimmed = rawValue!.trim();
   if (!/^[1-9][0-9]*$/.test(trimmed)) {
     return `${name} must be a positive base-10 integer.`;
   }

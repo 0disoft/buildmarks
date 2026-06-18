@@ -24,7 +24,10 @@ export function createStaticReport(
   options: CreateStaticReportOptions = {}
 ): BuildmarksStaticReport {
   const scoredProfile = scoreUserProfile(profile, options);
-  const gaps = analyzeSignalGaps(profile, options.now === undefined ? {} : { now: options.now });
+  const gaps = analyzeSignalGaps(profile, {
+    ...(options.maxRepositories === undefined ? {} : { maxRepositories: options.maxRepositories }),
+    ...(options.now === undefined ? {} : { now: options.now })
+  });
 
   return {
     version: 1,
@@ -36,10 +39,10 @@ export function createStaticReport(
 
 export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
   const scopeSummary = report.profile.signalVisibility?.privateRepositoriesIncluded === true
-    ? "Owner-supplied private signals included · Not independently verifiable · Not a ranking"
+    ? "Public + Private Signals · Owner-supplied private signals included · Not independently verifiable · Not a ranking"
     : "Public GitHub evidence only · Not a ranking";
   const gapScope = report.gaps.signalVisibility?.privateRepositoriesIncluded === true
-    ? "Improvement hints based on owner-supplied private-local and public signals."
+    ? "Improvement hints based on Public + Private Signals from owner-supplied private-local and public evidence."
     : "Improvement hints based on missing public signals.";
   const dimensions = signalDimensions
     .filter((dimension) => report.profile.unavailableDimensions?.includes(dimension) !== true)

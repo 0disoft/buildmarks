@@ -47,7 +47,7 @@ The scan limit must be greater than or equal to the score limit.
 
 The activity window uses the public `pushed_at` timestamp and filters repositories before per-repository collection. Callers may set `--activity-window-days 180` for a six-month card. This is a recency and cost-control setting, not proof that older projects are inactive or low quality.
 
-If one repository detail collection fails after the repository list is loaded, the collector omits that repository, continues with the rest of the profile, and reports the omitted repository count as a limitation. Repository-list failures remain fatal because the collector cannot know which repositories should be considered.
+If one non-rate-limit repository detail collection fails after the repository list is loaded, the collector omits that repository, continues with the rest of the profile, and reports the omitted repository count as a limitation. Repository-list failures and GitHub rate-limit or abuse-limit responses remain fatal because the collector cannot know whether the partial profile is representative.
 
 ## Live Client v0 Scope
 
@@ -83,7 +83,7 @@ Rejected token behavior:
 - `security_events`
 - organization admin or private organization scopes
 
-Private repository support, if added, must be a separate opt-in private-local mode rather than a change to the public collector. That boundary is documented in [Private Repository Signal Contract](private-repository-signal-contract.md).
+Private repository support is a separate opt-in private-local mode rather than a change to the public collector. That boundary is documented in [Private Repository Signal Contract](private-repository-signal-contract.md).
 
 ## API Cost Policy
 

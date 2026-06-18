@@ -1,8 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { createStaticReport, renderStaticReportHtml } from "../index";
+import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { parseProfileInput } from "./render-card";
-import { appendWriteFailure, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 
 export interface RenderReportFileResult {
   ok: boolean;
@@ -17,8 +18,8 @@ export async function renderReportFiles(
   inputPath: string,
   outputDirectory: string
 ): Promise<RenderReportFileResult> {
-  const resolvedInputPath = resolve(inputPath);
-  const resolvedOutputDirectory = resolve(outputDirectory);
+  const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
+  const resolvedOutputDirectory = resolveRequiredPath(outputDirectory, "Output report directory");
   const htmlPath = join(resolvedOutputDirectory, "buildmarks-report.html");
   const jsonPath = join(resolvedOutputDirectory, "buildmarks-report.json");
 
@@ -77,21 +78,15 @@ export async function renderReportFiles(
 }
 
 async function main(args: readonly string[]): Promise<void> {
-  const [inputPath, outputDirectory, ...extra] = args;
-
-  if (inputPath === undefined || outputDirectory === undefined) {
-    console.error("Usage: bun src/cli/render-report.ts <profile.json> <output-directory>");
-    process.exitCode = 2;
-    return;
-  }
-  if (extra.length > 0) {
-    console.error(`Unexpected positional argument: ${extra[0]}`);
+  const parsed = parseArgs(args);
+  if (parsed.ok === false) {
+    console.error(parsed.message);
     console.error("Usage: bun src/cli/render-report.ts <profile.json> <output-directory>");
     process.exitCode = 2;
     return;
   }
 
-  const result = await renderReportFiles(inputPath, outputDirectory);
+  const result = await renderReportFiles(parsed.inputPath, parsed.outputDirectory);
 
   if (!result.ok) {
     console.error(`Buildmarks wrote fallback report: ${result.error ?? "unknown report render failure"}`);
@@ -101,6 +96,30 @@ async function main(args: readonly string[]): Promise<void> {
 
   console.log(`Buildmarks report written: ${result.htmlPath}`);
   console.log(`Buildmarks JSON written: ${result.jsonPath}`);
+}
+
+function parseArgs(args: readonly string[]):
+  | { ok: true; inputPath: string; outputDirectory: string }
+  | { ok: false; message: string } {
+  const [inputPath, outputDirectory, ...extra] = args;
+
+  if (inputPath === undefined || inputPath.trim() === "") {
+    return { ok: false, message: "Profile JSON path is required." };
+  }
+  if (outputDirectory === undefined || outputDirectory.trim() === "") {
+    return { ok: false, message: "Output report directory is required." };
+  }
+  if (isOptionLikeArgument(inputPath)) {
+    return { ok: false, message: unknownOptionMessage(inputPath) };
+  }
+  if (isOptionLikeArgument(outputDirectory)) {
+    return { ok: false, message: unknownOptionMessage(outputDirectory) };
+  }
+  if (extra.length > 0) {
+    return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
+  }
+
+  return { ok: true, inputPath, outputDirectory };
 }
 
 if (import.meta.main) {

@@ -193,6 +193,7 @@ export interface RepoSignal {
   owner: string;
   name: string;
   url?: string;
+  signalVisibility?: SignalVisibilityDisclosure;
   dimensions: Record<SignalDimension, DimensionScore>;
   overall: number;
   weight: number;

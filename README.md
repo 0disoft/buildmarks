@@ -123,7 +123,7 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.15`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.16`.
 
 Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
 
@@ -152,7 +152,7 @@ The public collector contract is documented in [docs/github-collector-contract.m
 
 The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults for the live public GitHub collector.
 
-Owner-supplied private repository signals are documented separately in [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md). The default collector remains public-only; private repositories would require explicit private-local mode, owner-provided read-only token access, redaction defaults, and a `Public + Private Signals` disclosure.
+Owner-supplied private repository signals are documented separately in [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md). The default collector remains public-only; private repositories require the explicit `collectOwnerSuppliedGitHubProfile()` private-local path, owner-provided read-only token access, redaction defaults, and a `Public + Private Signals` disclosure.
 
 Deferred public activity aggregates are documented in [docs/activity-aggregate-methodology.md](docs/activity-aggregate-methodology.md). The storage-neutral cache boundary is documented in [docs/cache-contract.md](docs/cache-contract.md).
 
@@ -176,7 +176,7 @@ The token is optional and must be passed explicitly. Buildmarks does not read to
 
 The live collector is still a local library surface, not a hosted endpoint. It intentionally has no cache storage, Redis/KV binding, Cloudflare Worker, billing, or web server in this repository.
 
-Private repository signals are not part of `collectPublicGitHubProfile()`. A future private-local mode must follow [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md) and clearly mark cards as owner-supplied private evidence.
+Private repository signals are not part of `collectPublicGitHubProfile()`. Use `collectOwnerSuppliedGitHubProfile()` or the Action `private-local: "true"` input only when the owner explicitly supplies a read token; private-local output follows [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md) and clearly marks cards as owner-supplied private evidence.
 
 ## Generate from a GitHub Username
 
@@ -230,16 +230,16 @@ Set `generate-report: "false"` when you only want the SVG card.
 
 Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact private repository names, omit private repository URLs, mark the card as `Public + Private Signals`, and use the same file, release, maintenance, usability, and stewardship dimensions as public-only cards.
 
-Action inputs are intentionally strict: `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
+Action inputs are intentionally strict: `username`, `output`, and `report-output` must be non-empty, `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
 
 The default repository activity window is 365 days based on each repository's public `pushed_at` timestamp. Set `activity-window-days: "180"` when you want a six-month card that favors recent work and reduces GitHub API cost.
 
 | Input | Default | Notes |
 | --- | --- | --- |
-| `username` | required | GitHub username to analyze. |
-| `output` | `assets/buildmarks.svg` | SVG artifact path in the caller repository. |
+| `username` | required | Non-empty GitHub username to analyze. |
+| `output` | `assets/buildmarks.svg` | Non-empty SVG artifact path in the caller repository. |
 | `generate-report` | `"true"` | Must be exactly `"true"` or `"false"`. |
-| `report-output` | `assets/buildmarks-report` | HTML and JSON report directory. |
+| `report-output` | `assets/buildmarks-report` | Non-empty HTML and JSON report directory. |
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |

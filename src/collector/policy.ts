@@ -91,8 +91,14 @@ export function validateGitHubCollectorPolicy(
   }
 
   for (const scope of policy.requiredTokenScopes) {
-    if (privateRepositoryScopes.has(scope)) {
-      errors.push(`GitHub collector policy must not require private scope \`${scope}\`.`);
+    if (typeof scope !== "string" || scope.trim() === "") {
+      errors.push("GitHub collector policy token scopes must be non-empty strings.");
+      continue;
+    }
+
+    const normalizedScope = scope.trim().toLowerCase();
+    if (privateRepositoryScopes.has(normalizedScope)) {
+      errors.push(`GitHub collector policy must not require private scope \`${normalizedScope}\`.`);
     }
   }
 

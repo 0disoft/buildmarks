@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -34,8 +34,9 @@ export async function renderGitHubArtifacts(
   reportOutputDirectory: string,
   options: RenderGitHubArtifactsOptions = {}
 ): Promise<RenderGitHubArtifactsResult> {
-  const resolvedSvgPath = resolve(svgOutputPath);
-  const resolvedReportDirectory = resolve(reportOutputDirectory);
+  const normalizedUsername = resolveRequiredGitHubUsername(username);
+  const resolvedSvgPath = resolveRequiredPath(svgOutputPath, "Output SVG path");
+  const resolvedReportDirectory = resolveRequiredPath(reportOutputDirectory, "Output report directory");
   const htmlPath = join(resolvedReportDirectory, "buildmarks-report.html");
   const jsonPath = join(resolvedReportDirectory, "buildmarks-report.json");
 
@@ -44,8 +45,8 @@ export async function renderGitHubArtifacts(
 
   try {
     const collected = options.privateLocal === true
-      ? await collectOwnerSuppliedGitHubProfile(username, options)
-      : await collectPublicGitHubProfile(username, options);
+      ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
+      : await collectPublicGitHubProfile(normalizedUsername, options);
     const profile = normalizePublicGitHubProfile(collected);
     const scoringOptions = options.policy === undefined
       ? {}
@@ -59,7 +60,7 @@ export async function renderGitHubArtifacts(
 
     return {
       ok: true,
-      username,
+      username: staticReport.profile.username,
       svgPath: resolvedSvgPath,
       reportDirectory: resolvedReportDirectory,
       htmlPath,
@@ -70,7 +71,7 @@ export async function renderGitHubArtifacts(
     const message = error instanceof Error ? error.message : "unknown GitHub artifact render failure";
     const fallbackReport = {
       ok: false,
-      username,
+      username: normalizedUsername,
       error: message,
       message: "Buildmarks GitHub report is temporarily unavailable"
     };
@@ -95,7 +96,7 @@ export async function renderGitHubArtifacts(
 
     return {
       ok: false,
-      username,
+      username: normalizedUsername,
       svgPath: resolvedSvgPath,
       reportDirectory: resolvedReportDirectory,
       htmlPath,
@@ -104,6 +105,15 @@ export async function renderGitHubArtifacts(
       error: appendWriteFailure(message, "Fallback artifact", fallbackWriteFailures.join("; ") || undefined)
     };
   }
+}
+
+function resolveRequiredGitHubUsername(username: string): string {
+  const normalizedUsername = username.trim();
+  if (normalizedUsername === "") {
+    throw new Error("GitHub username is required.");
+  }
+
+  return normalizedUsername;
 }
 
 async function main(args: readonly string[]): Promise<void> {

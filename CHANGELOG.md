@@ -6,7 +6,25 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
-- Nothing yet.
+## v0.1.16 - 2026-06-18
+
+- Redact private repository owner names from scored repository outputs and static reports.
+- Reject unsafe direct private repository scoring inputs before repository cards can expose names or URLs.
+- Show visible `Public + Private Signals` disclosure on private-local profile cards instead of leaving it only in accessible descriptions.
+- Derive README, license, contribution, code-of-conduct, and test-file signals from the Git tree when GitHub community profile data is missing.
+- Avoid counting directory entries as example or fixture files in codebase-shape scoring.
+- Reject blank GitHub repository identifiers in collected API responses before making detail requests.
+- Update collector documentation so implemented private-local support is no longer described as future work.
+- Avoid claiming private repositories are included when private-local collection returns only public repositories.
+- Apply private-local disclosure validation to direct signal-gap analysis.
+- Number redacted private repositories sequentially among emitted private repositories instead of using their scan position.
+- Reject missing GitHub CLI option values when the next token is another option flag.
+- Reject empty local input, SVG output, report output, and GitHub username values before they can resolve to the workspace or write fallback artifacts.
+- Reject option-like positional values in local auxiliary CLIs instead of treating mistyped flags as file paths.
+- Count root-level `tests/`, `test/`, `spec/`, and `__tests__/` source files as test files in codebase-shape scoring.
+- Treat non-boolean direct scoring and gap inputs as absent signals instead of accepting truthy malformed values.
+- Validate non-empty `username`, `output`, `report-output`, and private-local token Action inputs before setup or artifact generation.
+- Trim local profile identity strings and reject blank local date strings before scoring or repository-card lookup.
 
 ## v0.1.15 - 2026-06-18
 

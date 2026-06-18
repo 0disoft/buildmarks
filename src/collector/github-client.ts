@@ -21,8 +21,8 @@ const activityAggregatesDeferred = true;
 const githubRequestTimeoutMilliseconds = 10_000;
 const githubRequestRetryCount = 1;
 
-const ciPaths = [
-  ".github/workflows",
+const ciDirectoryPaths = [".github/workflows"];
+const ciFilePaths = [
   ".circleci/config.yml",
   ".travis.yml",
   "Jenkinsfile",
@@ -31,9 +31,13 @@ const ciPaths = [
   ".drone.yml"
 ];
 const testPaths = ["tests", "test", "__tests__", "spec"];
+const readmePaths = ["README.md", "README", "readme.md"];
+const licensePaths = ["LICENSE", "LICENSE.md", "LICENCE", "LICENCE.md", "COPYING"];
 const changelogPaths = ["CHANGELOG.md", "CHANGELOG", "changelog.md"];
+const contributingPaths = ["CONTRIBUTING.md", "CONTRIBUTING", ".github/CONTRIBUTING.md"];
+const codeOfConductPaths = ["CODE_OF_CONDUCT.md", "CODE_OF_CONDUCT", ".github/CODE_OF_CONDUCT.md"];
 const securityPolicyPaths = ["SECURITY.md", ".github/SECURITY.md"];
-const demoOrDocsPaths = ["docs", "documentation", "examples"];
+const demoOrDocsPaths = ["demo", "demos", "docs", "documentation", "example", "examples", "sample", "samples"];
 const packageArtifactPaths = [
   "package.json",
   "pyproject.toml",
@@ -47,6 +51,7 @@ const packageArtifactPaths = [
   "build.gradle",
   "build.gradle.kts"
 ];
+const packageArtifactFileNames = new Set(packageArtifactPaths.map((path) => path.toLowerCase()));
 const usageGuidePattern = /\b(install|installation|usage|example|quick start|get started|getting started)\b|설치|사용법|예제|시작하기/i;
 const sourceFileExtensions = new Set([
   ".astro",
@@ -142,6 +147,7 @@ export async function collectOwnerSuppliedGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
 ): Promise<CollectedGitHubProfile> {
+  const normalizedUsername = normalizeRequiredGitHubUsername(username);
   const policy = options.policy ?? privateLocalGitHubCollectorPolicy;
   const validation = validateGitHubCollectorPolicy(policy, { mode: "private-local" });
   if (!validation.ok) {
@@ -161,9 +167,9 @@ export async function collectOwnerSuppliedGitHubProfile(
   }
 
   const client = new GitHubRestClient(fetcher, options.token);
-  await client.assertAuthenticatedOwner(username);
+  await client.assertAuthenticatedOwner(normalizedUsername);
   const repositories = await client.listAuthenticatedOwnerRepositories(
-    username,
+    normalizedUsername,
     policy.limits.maxRepositoriesScannedPerProfile
   );
   const activeRepositories = repositories.filter((repository) =>
@@ -172,17 +178,19 @@ export async function collectOwnerSuppliedGitHubProfile(
   const collected = await collectRepositories(
     activeRepositories,
     policy.limits.maxConcurrentRepositoryCollections,
-    (repository, index) => client.collectRepository(repository, { privateOrdinal: index + 1 })
+    (repository) => client.collectRepository(repository)
   );
+  const repositoriesWithPrivateLabels = relabelPrivateRepositories(collected.repositories);
+  const includesPrivateRepositories = repositoriesWithPrivateLabels.some((repository) => repository.visibility === "private");
 
   return {
-    username,
+    username: normalizedUsername,
     collectedAt: new Date().toISOString(),
     activityWindowDays: policy.limits.repositoryActivityWindowDays,
     activityAggregatesDeferred,
     ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
-    signalVisibility: privateLocalSignalVisibility,
-    repositories: collected.repositories
+    signalVisibility: includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility,
+    repositories: repositoriesWithPrivateLabels
   };
 }
 
@@ -190,6 +198,7 @@ export async function collectPublicGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
 ): Promise<CollectedGitHubProfile> {
+  const normalizedUsername = normalizeRequiredGitHubUsername(username);
   const policy = options.policy ?? defaultGitHubCollectorPolicy;
   const validation = validateGitHubCollectorPolicy(policy);
   if (!validation.ok) {
@@ -202,7 +211,7 @@ export async function collectPublicGitHubProfile(
   }
 
   const client = new GitHubRestClient(fetcher, options.token);
-  const repositories = await client.listUserRepositories(username, policy.limits.maxRepositoriesScannedPerProfile);
+  const repositories = await client.listUserRepositories(normalizedUsername, policy.limits.maxRepositoriesScannedPerProfile);
   const activeRepositories = repositories.filter((repository) =>
     wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
   );
@@ -213,7 +222,7 @@ export async function collectPublicGitHubProfile(
   );
 
   return {
-    username,
+    username: normalizedUsername,
     collectedAt: new Date().toISOString(),
     activityWindowDays: policy.limits.repositoryActivityWindowDays,
     activityAggregatesDeferred,
@@ -221,6 +230,15 @@ export async function collectPublicGitHubProfile(
     signalVisibility: publicOnlySignalVisibility,
     repositories: collected.repositories
   };
+}
+
+function normalizeRequiredGitHubUsername(username: string): string {
+  const normalizedUsername = username.trim();
+  if (normalizedUsername === "") {
+    throw new GitHubCollectorError("invalid_policy", "GitHub username is required.");
+  }
+
+  return normalizedUsername;
 }
 
 class GitHubRestClient {
@@ -296,8 +314,7 @@ class GitHubRestClient {
   }
 
   async collectRepository(
-    repository: GitHubRepositoryResponse,
-    options: { privateOrdinal?: number } = {}
+    repository: GitHubRepositoryResponse
   ): Promise<CollectedGitHubRepository> {
     const owner = repository.owner.login;
     const name = repository.name;
@@ -316,11 +333,9 @@ class GitHubRestClient {
       this.fetchRepositoryTree(owner, name, repository.default_branch)
     ]);
     const fileSignals = this.collectFileSignals(treeEntries.entries, repository, treeEntries.truncated);
-    const privateLabel = options.privateOrdinal === undefined ? undefined : `Private repository ${options.privateOrdinal}`;
-
     const collected: CollectedGitHubRepository = {
       owner,
-      name: isPrivate ? (privateLabel ?? "Private repository") : name,
+      name: isPrivate ? "Private repository" : name,
       isFork: repository.fork,
       isArchived: repository.archived,
       stars: isPrivate ? 0 : repository.stargazers_count,
@@ -354,14 +369,14 @@ class GitHubRestClient {
     const treeSignals = collectTreePathSignals(treeEntries);
 
     return {
-      hasReadme: false,
-      hasLicense: false,
+      hasReadme: treeSignals.hasReadme,
+      hasLicense: treeSignals.hasLicense,
       hasUsageGuide: false,
       hasCi: treeSignals.hasCi,
       hasTests: treeSignals.hasTests,
       hasChangelog: treeSignals.hasChangelog,
-      hasContributing: false,
-      hasCodeOfConduct: false,
+      hasContributing: treeSignals.hasContributing,
+      hasCodeOfConduct: treeSignals.hasCodeOfConduct,
       hasSecurityPolicy: treeSignals.hasSecurityPolicy,
       hasDemoOrDocs: treeSignals.hasDemoOrDocs || hasNonEmptyString(repository.homepage),
       hasPackageArtifact: treeSignals.hasPackageArtifact,
@@ -405,15 +420,15 @@ class GitHubRestClient {
 
   async hasReleasesOrTags(owner: string, repo: string): Promise<boolean> {
     const [releases, tags] = await Promise.all([
-      this.fetchJson<unknown[]>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases?per_page=1`, {
+      this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases?per_page=1`, {
         allowMissing: true
       }),
-      this.fetchJson<unknown[]>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tags?per_page=1`, {
+      this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tags?per_page=1`, {
         allowMissing: true
       })
     ]);
 
-    return arrayHasItems(releases) || arrayHasItems(tags);
+    return responseArrayHasItems(releases, "releases") || responseArrayHasItems(tags, "tags");
   }
 
   async fetchJson<T>(path: string, options: { allowMissing?: boolean } = {}): Promise<T | null> {
@@ -445,8 +460,9 @@ class GitHubRestClient {
       "X-GitHub-Api-Version": githubApiVersion
     };
 
-    if (this.token !== undefined && this.token.trim() !== "") {
-      headers.Authorization = `Bearer ${this.token}`;
+    const token = this.token?.trim();
+    if (token !== undefined && token !== "") {
+      headers.Authorization = `Bearer ${token}`;
     }
 
     let lastError: unknown;
@@ -485,6 +501,7 @@ function mergeCommunitySignals(
   community: GitHubCommunityProfileResponse | null,
   readmeText: string | null
 ): CollectedRepositoryFileSignals {
+  validateCommunityProfileResponse(community);
   const communityFiles = community?.files ?? {};
 
   return {
@@ -503,6 +520,49 @@ function mergeCommunitySignals(
       fileSignals.hasDemoOrDocs ||
       (community?.documentation !== null && community?.documentation !== undefined)
   };
+}
+
+function validateCommunityProfileResponse(community: GitHubCommunityProfileResponse | null): void {
+  if (community === null) {
+    return;
+  }
+  if (typeof community !== "object" || Array.isArray(community)) {
+    throw new GitHubCollectorError("invalid_github_response", "GitHub community profile response was not an object.");
+  }
+  if (
+    community.files !== undefined &&
+    (typeof community.files !== "object" || community.files === null || Array.isArray(community.files))
+  ) {
+    throw new GitHubCollectorError("invalid_github_response", "GitHub community profile files response was not an object.");
+  }
+  if (community.documentation !== undefined && !isNullableObject(community.documentation)) {
+    throw new GitHubCollectorError(
+      "invalid_github_response",
+      "GitHub community profile documentation response was not an object or null."
+    );
+  }
+  if (community.files !== undefined) {
+    const fileFields = [
+      "code_of_conduct",
+      "code_of_conduct_file",
+      "contributing",
+      "license",
+      "readme"
+    ] as const;
+
+    fileFields.forEach((field) => {
+      if (community.files?.[field] !== undefined && !isNullableObject(community.files[field])) {
+        throw new GitHubCollectorError(
+          "invalid_github_response",
+          `GitHub community profile ${field} response was not an object or null.`
+        );
+      }
+    });
+  }
+}
+
+function isNullableObject(value: unknown): boolean {
+  return value === null || (typeof value === "object" && !Array.isArray(value));
 }
 
 function emptyActivitySignals(): CollectedRepositoryActivitySignals {
@@ -535,7 +595,10 @@ async function collectRepositories(
 
         try {
           results[index] = await collect(repository, index);
-        } catch {
+        } catch (error) {
+          if (shouldAbortRepositoryBatch(error)) {
+            throw error;
+          }
           failureCount += 1;
         }
       }
@@ -546,6 +609,30 @@ async function collectRepositories(
     repositories: results.filter((repository): repository is CollectedGitHubRepository => repository !== undefined),
     failureCount
   };
+}
+
+function shouldAbortRepositoryBatch(error: unknown): boolean {
+  return error instanceof GitHubCollectorError && error.code === "github_rate_limited";
+}
+
+function relabelPrivateRepositories(
+  repositories: readonly CollectedGitHubRepository[]
+): CollectedGitHubRepository[] {
+  let privateOrdinal = 1;
+
+  return repositories.map((repository) => {
+    if (repository.visibility !== "private") {
+      return repository;
+    }
+
+    const name = `Private repository ${privateOrdinal}`;
+    privateOrdinal += 1;
+
+    return {
+      ...repository,
+      name
+    };
+  });
 }
 
 interface CollectedRepositoryBatch {
@@ -560,10 +647,15 @@ function asRepositoryResponse(value: unknown): GitHubRepositoryResponse {
 
   const record = value as Record<string, unknown>;
   const owner = record.owner;
-  if (typeof owner !== "object" || owner === null || typeof (owner as Record<string, unknown>).login !== "string") {
+  if (
+    typeof owner !== "object" ||
+    owner === null ||
+    typeof (owner as Record<string, unknown>).login !== "string" ||
+    ((owner as Record<string, unknown>).login as string).trim() === ""
+  ) {
     throw new GitHubCollectorError("invalid_github_response", "GitHub repository response was missing owner.login.");
   }
-  const ownerLogin = (owner as Record<string, unknown>).login as string;
+  const ownerLogin = ((owner as Record<string, unknown>).login as string).trim();
 
   const repository: GitHubRepositoryResponse = {
     owner: { login: ownerLogin },
@@ -672,16 +764,21 @@ function sleep(milliseconds: number): Promise<void> {
 
 function requireString(record: Record<string, unknown>, key: string): string {
   const value = record[key];
-  if (typeof value !== "string") {
+  if (typeof value !== "string" || value.trim() === "") {
     throw new GitHubCollectorError("invalid_github_response", `GitHub repository response was missing ${key}.`);
   }
 
-  return value;
+  return value.trim();
 }
 
 function optionalNullableString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
-  return typeof value === "string" ? value : null;
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
 }
 
 function requireBoolean(record: Record<string, unknown>, key: string): boolean {
@@ -706,8 +803,15 @@ function hasNonEmptyString(value: string | null): boolean {
   return value !== null && value.trim() !== "";
 }
 
-function arrayHasItems(value: unknown[] | null): boolean {
-  return Array.isArray(value) && value.length > 0;
+function responseArrayHasItems(value: unknown, label: string): boolean {
+  if (value === null) {
+    return false;
+  }
+  if (!Array.isArray(value)) {
+    throw new GitHubCollectorError("invalid_github_response", `GitHub ${label} response was not an array.`);
+  }
+
+  return value.length > 0;
 }
 
 function wasPushedWithinWindow(value: string | null, days: number, now = new Date()): boolean {
@@ -772,9 +876,13 @@ function normalizeTreePath(path: string): string {
 }
 
 interface TreePathSignals {
+  hasReadme: boolean;
+  hasLicense: boolean;
   hasCi: boolean;
   hasTests: boolean;
   hasChangelog: boolean;
+  hasContributing: boolean;
+  hasCodeOfConduct: boolean;
   hasSecurityPolicy: boolean;
   hasDemoOrDocs: boolean;
   hasPackageArtifact: boolean;
@@ -782,31 +890,54 @@ interface TreePathSignals {
 
 function collectTreePathSignals(treeEntries: readonly GitHubTreeEntry[]): TreePathSignals {
   const signals: TreePathSignals = {
+    hasReadme: false,
+    hasLicense: false,
     hasCi: false,
     hasTests: false,
     hasChangelog: false,
+    hasContributing: false,
+    hasCodeOfConduct: false,
     hasSecurityPolicy: false,
     hasDemoOrDocs: false,
     hasPackageArtifact: false
   };
   const matchers = [
-    { key: "hasCi", candidates: ciPaths },
-    { key: "hasTests", candidates: testPaths },
-    { key: "hasChangelog", candidates: changelogPaths },
-    { key: "hasSecurityPolicy", candidates: securityPolicyPaths },
-    { key: "hasDemoOrDocs", candidates: demoOrDocsPaths },
-    { key: "hasPackageArtifact", candidates: packageArtifactPaths }
+    { key: "hasReadme", candidates: readmePaths, mode: "file" },
+    { key: "hasLicense", candidates: licensePaths, mode: "file" },
+    { key: "hasChangelog", candidates: changelogPaths, mode: "file" },
+    { key: "hasContributing", candidates: contributingPaths, mode: "file" },
+    { key: "hasCodeOfConduct", candidates: codeOfConductPaths, mode: "file" },
+    { key: "hasSecurityPolicy", candidates: securityPolicyPaths, mode: "file" },
+    { key: "hasDemoOrDocs", candidates: demoOrDocsPaths, mode: "tree" }
   ] as const;
 
   for (const entry of treeEntries) {
     const normalizedPath = normalizeTreePath(entry.path);
+    if (hasIgnoredShapePathSegment(normalizedPath)) {
+      continue;
+    }
+
+    if (!signals.hasTests) {
+      signals.hasTests =
+        isTestPath(entry.path) ||
+        testPaths.some((candidate) => treePathMatchesCandidate(normalizedPath, normalizeTreePath(candidate)));
+    }
+    if (!signals.hasCi) {
+      signals.hasCi = isCiPath(entry, normalizedPath);
+    }
+    if (!signals.hasPackageArtifact) {
+      signals.hasPackageArtifact = isPackageArtifactPath(entry);
+    }
+
     for (const matcher of matchers) {
       if (signals[matcher.key]) {
         continue;
       }
 
       signals[matcher.key] = matcher.candidates.some((candidate) =>
-        pathMatchesCandidate(normalizedPath, normalizeTreePath(candidate))
+        matcher.mode === "file"
+          ? filePathMatchesCandidate(entry, normalizedPath, normalizeTreePath(candidate))
+          : treePathMatchesCandidate(normalizedPath, normalizeTreePath(candidate))
       );
     }
 
@@ -818,8 +949,37 @@ function collectTreePathSignals(treeEntries: readonly GitHubTreeEntry[]): TreePa
   return signals;
 }
 
-function pathMatchesCandidate(normalizedPath: string, normalizedCandidate: string): boolean {
+function treePathMatchesCandidate(normalizedPath: string, normalizedCandidate: string): boolean {
   return normalizedPath === normalizedCandidate || normalizedPath.startsWith(`${normalizedCandidate}/`);
+}
+
+function filePathMatchesCandidate(
+  entry: GitHubTreeEntry,
+  normalizedPath: string,
+  normalizedCandidate: string
+): boolean {
+  return isFileEntry(entry) && normalizedPath === normalizedCandidate;
+}
+
+function isCiPath(entry: GitHubTreeEntry, normalizedPath: string): boolean {
+  return (
+    ciDirectoryPaths.some((candidate) => treePathMatchesCandidate(normalizedPath, normalizeTreePath(candidate))) ||
+    ciFilePaths.some((candidate) => filePathMatchesCandidate(entry, normalizedPath, normalizeTreePath(candidate)))
+  );
+}
+
+function isFileEntry(entry: GitHubTreeEntry): boolean {
+  return entry.type === undefined || entry.type === "blob";
+}
+
+function isPackageArtifactPath(entry: GitHubTreeEntry): boolean {
+  if (!isFileEntry(entry)) {
+    return false;
+  }
+
+  const fileName = normalizeTreePath(entry.path).split("/").at(-1) ?? "";
+
+  return packageArtifactFileNames.has(fileName);
 }
 
 function summarizeCodebaseShape(
@@ -833,7 +993,7 @@ function summarizeCodebaseShape(
   let oversizedSourceFileCount = 0;
 
   for (const entry of treeEntries) {
-    if (isExamplePath(entry.path)) {
+    if (isExampleFileEntry(entry)) {
       exampleFileCount += 1;
     }
 
@@ -871,10 +1031,10 @@ function isCountableSourceFile(entry: GitHubTreeEntry): boolean {
   const segments = normalizedPath.split("/");
   const fileName = segments.at(-1) ?? "";
 
-  if (entry.type !== undefined && entry.type !== "blob") {
+  if (!isFileEntry(entry)) {
     return false;
   }
-  if (segments.some((segment) => ignoredShapePathSegments.has(segment))) {
+  if (hasIgnoredShapePathSegment(normalizedPath)) {
     return false;
   }
   if (lockfileNames.has(fileName) || fileName.endsWith(".min.js") || fileName.endsWith(".map")) {
@@ -884,11 +1044,32 @@ function isCountableSourceFile(entry: GitHubTreeEntry): boolean {
   return sourceFileExtensions.has(extensionOf(fileName));
 }
 
+function isExampleFileEntry(entry: GitHubTreeEntry): boolean {
+  if (!isFileEntry(entry)) {
+    return false;
+  }
+  if (hasIgnoredShapePathSegment(entry.path)) {
+    return false;
+  }
+
+  return isExamplePath(entry.path);
+}
+
+function hasIgnoredShapePathSegment(path: string): boolean {
+  return normalizeTreePath(path)
+    .split("/")
+    .some((segment) => ignoredShapePathSegments.has(segment));
+}
+
 function isTestPath(path: string): boolean {
   const normalizedPath = normalizeTreePath(path);
   const fileName = normalizedPath.split("/").at(-1) ?? "";
 
   return (
+    normalizedPath.startsWith("__tests__/") ||
+    normalizedPath.startsWith("test/") ||
+    normalizedPath.startsWith("tests/") ||
+    normalizedPath.startsWith("spec/") ||
     normalizedPath.includes("/__tests__/") ||
     normalizedPath.includes("/test/") ||
     normalizedPath.includes("/tests/") ||

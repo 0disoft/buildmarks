@@ -4,6 +4,7 @@ import {
   analyzeSignalGaps,
   classifySignalType,
   privateLocalSignalVisibility,
+  publicOnlySignalVisibility,
   repositoryOverallWeights,
   scoreRepository,
   scoreUserProfile,
@@ -236,6 +237,83 @@ describe("profile scoring", () => {
     });
   });
 
+  test("does not reward invalid codebase shape numbers from direct scoring input", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const report = scoreRepository(
+      {
+        ...sourceRepository,
+        hasTests: false,
+        codebaseShape: {
+          sourceFileCount: Number.POSITIVE_INFINITY,
+          testFileCount: Number.POSITIVE_INFINITY,
+          exampleFileCount: Number.POSITIVE_INFINITY,
+          medianSourceFileBytes: 1,
+          p90SourceFileBytes: 1,
+          oversizedSourceFileCount: Number.NEGATIVE_INFINITY,
+          testToSourceRatio: Number.POSITIVE_INFINITY
+        }
+      },
+      { now }
+    );
+
+    expect(report.evidence.some((item) => item.label === "Test file surface found")).toBe(false);
+    expect(report.evidence.some((item) => item.label === "Compact source file shape")).toBe(false);
+    expect(report.evidence.some((item) => item.label === "Example or fixture surface found")).toBe(false);
+    expect(Number.isFinite(report.dimensions.maintainability.score)).toBe(true);
+    expect(report.dimensions.maintainability.score).toBeGreaterThanOrEqual(0);
+    expect(report.dimensions.maintainability.score).toBeLessThanOrEqual(100);
+  });
+
+  test("does not reward non-boolean or non-string-date direct scoring inputs", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { codebaseShape: _codebaseShape, ...sourceRepositoryWithoutShape } = sourceRepository;
+    const report = scoreRepository(
+      {
+        ...sourceRepositoryWithoutShape,
+        createdAt: 0 as unknown as string,
+        pushedAt: true as unknown as string,
+        hasReadme: "true" as unknown as boolean,
+        hasLicense: "true" as unknown as boolean,
+        hasUsageGuide: "true" as unknown as boolean,
+        hasCi: "true" as unknown as boolean,
+        hasTests: 1 as unknown as boolean,
+        hasChangelog: "true" as unknown as boolean,
+        hasContributing: "true" as unknown as boolean,
+        hasCodeOfConduct: "true" as unknown as boolean,
+        hasSecurityPolicy: "true" as unknown as boolean,
+        hasReleases: "true" as unknown as boolean,
+        hasDemoOrDocs: "true" as unknown as boolean,
+        hasPackageArtifact: "true" as unknown as boolean
+      },
+      { now }
+    );
+
+    signalDimensions.forEach((dimension) => {
+      expect(report.dimensions[dimension].score).toBe(0);
+      expect(report.dimensions[dimension].evidence).toEqual([]);
+    });
+    expect(report.evidence).toEqual([]);
+  });
+
+  test("does not include repositories with invalid eligibility booleans in profile scoring", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const report = scoreUserProfile(
+      {
+        username: "invalid-eligibility",
+        repositories: [{
+          ...sourceRepository,
+          isFork: "false" as unknown as boolean,
+          isArchived: false
+        }]
+      },
+      { now }
+    );
+
+    expect(report.topRepos).toEqual([]);
+    expect(report.overall).toBe(0);
+    expect(report.limitations).toContain("No eligible repositories were available to score.");
+  });
+
   test("does not let popularity and deferred public activity create a front-card dimension", () => {
     const sourceRepository = (fixture as ProfileInput).repositories[0]!;
     const dominantRepository = {
@@ -266,6 +344,8 @@ describe("profile scoring", () => {
   });
 
   test("uses the same always-measurable dimensions for private-local profiles", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
     const report = scoreUserProfile(
       {
         ...(fixture as ProfileInput),
@@ -276,7 +356,13 @@ describe("profile scoring", () => {
           independentlyVerifiable: false,
           cardLabel: "Public + Private Signals",
           reportVisibility: "private-local"
-        }
+        },
+        repositories: [{
+          ...sourceRepositoryWithoutUrl,
+          name: "Private repository 1",
+          visibility: "private",
+          redactedName: true
+        }]
       },
       { now }
     );
@@ -297,6 +383,7 @@ describe("profile scoring", () => {
     const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
     const privateRepository = {
       ...sourceRepositoryWithoutUrl,
+      owner: "secret-client-org",
       name: "Private repository 1",
       visibility: "private" as const,
       redactedName: true
@@ -319,6 +406,63 @@ describe("profile scoring", () => {
       signalVisibility: privateLocalSignalVisibility,
       repositories: [privateRepository]
     }, { now }).dimensions.stewardship).toBeGreaterThan(0);
+    expect(() => scoreUserProfile({
+      username: "private-claim-without-private-input",
+      signalVisibility: privateLocalSignalVisibility,
+      repositories: [sourceRepositoryWithoutUrl]
+    }, { now })).toThrow("at least one private repository");
+    expect(() => scoreUserProfile({
+      username: "private-with-incomplete-disclosure",
+      signalVisibility: {
+        ...privateLocalSignalVisibility,
+        privateRepositoryNamesRedacted: false
+      },
+      repositories: [privateRepository]
+    }, { now })).toThrow("Private-local signalVisibility fields are inconsistent");
+    expect(() => scoreUserProfile({
+      username: "public-with-inconsistent-disclosure",
+      signalVisibility: {
+        ...publicOnlySignalVisibility,
+        independentlyVerifiable: false
+      },
+      repositories: [sourceRepositoryWithoutUrl]
+    }, { now })).toThrow("Public-only signalVisibility fields are inconsistent");
+  });
+
+  test("redacts private repository owners from scored output", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
+    const privateRepository = {
+      ...sourceRepositoryWithoutUrl,
+      owner: "secret-client-org",
+      name: "Private repository 1",
+      visibility: "private" as const,
+      redactedName: true
+    };
+    const repositoryScore = scoreRepository(privateRepository, { now });
+    const profileScore = scoreUserProfile({
+      username: "owner-profile",
+      signalVisibility: privateLocalSignalVisibility,
+      repositories: [privateRepository]
+    }, { now });
+
+    expect(repositoryScore.owner).toBe("Private owner");
+    expect(repositoryScore.signalVisibility?.privateRepositoriesIncluded).toBe(true);
+    expect(profileScore.topRepos[0]?.owner).toBe("Private owner");
+    expect(JSON.stringify(profileScore)).not.toContain("secret-client-org");
+    expect(() => scoreRepository({
+      ...privateRepository,
+      name: "secret-toolkit"
+    }, { now })).toThrow("must use redacted repository names");
+    expect(() => scoreRepository({
+      ...privateRepository,
+      url: "https://github.com/secret-client-org/secret-toolkit"
+    }, { now })).toThrow("must omit repository URLs");
+    expect(() => scoreRepository({
+      ...sourceRepositoryWithoutUrl,
+      name: "Private repository 1",
+      redactedName: true
+    }, { now })).toThrow("visibility to private");
   });
 
   test("carries repository activity window into report limitations", () => {
@@ -408,6 +552,89 @@ describe("profile scoring", () => {
     expect(report.gaps.length).toBeGreaterThan(0);
     expect(report.gaps.some((gap) => gap.repository === "small-experiment")).toBe(true);
     expect(report.limitations).toContain("These are improvement hints, not a developer ranking.");
+  });
+
+  test("does not let invalid codebase shape numbers hide public signal gaps", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const report = analyzeSignalGaps(
+      {
+        username: "invalid-shape-gaps",
+        repositories: [
+          {
+            ...sourceRepository,
+            codebaseShape: {
+              ...sourceRepository.codebaseShape!,
+              exampleFileCount: Number.POSITIVE_INFINITY
+            }
+          }
+        ]
+      },
+      { now }
+    );
+    const usabilityGap = report.gaps.find((gap) => gap.dimension === "usability");
+
+    expect(usabilityGap?.missing).toContain("example or fixture files");
+  });
+
+  test("does not let non-boolean direct gap inputs hide missing signals", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { codebaseShape: _codebaseShape, ...sourceRepositoryWithoutShape } = sourceRepository;
+    const report = analyzeSignalGaps(
+      {
+        username: "invalid-gap-signals",
+        repositories: [{
+          ...sourceRepositoryWithoutShape,
+          hasReadme: "true" as unknown as boolean,
+          hasLicense: "true" as unknown as boolean,
+          hasUsageGuide: "true" as unknown as boolean,
+          hasCi: "true" as unknown as boolean,
+          hasTests: "true" as unknown as boolean,
+          hasChangelog: "true" as unknown as boolean,
+          hasContributing: "true" as unknown as boolean,
+          hasCodeOfConduct: "true" as unknown as boolean,
+          hasSecurityPolicy: "true" as unknown as boolean,
+          hasReleases: "true" as unknown as boolean,
+          hasDemoOrDocs: "true" as unknown as boolean,
+          hasPackageArtifact: "true" as unknown as boolean
+        }]
+      },
+      { now }
+    );
+    const missing = report.gaps.flatMap((gap) => gap.missing);
+
+    expect(missing).toContain("README");
+    expect(missing).toContain("tests");
+    expect(missing).toContain("release or tag");
+    expect(missing).toContain("contribution guide");
+  });
+
+  test("rejects private repository gaps without matching private-local disclosure", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
+    const privateRepository = {
+      ...sourceRepositoryWithoutUrl,
+      name: "Private repository 1",
+      visibility: "private" as const,
+      redactedName: true
+    };
+
+    expect(() => analyzeSignalGaps({
+      username: "private-gaps-without-disclosure",
+      repositories: [privateRepository]
+    }, { now })).toThrow("private-local signal visibility");
+    expect(() => analyzeSignalGaps({
+      username: "private-gaps-claim-without-private-input",
+      signalVisibility: privateLocalSignalVisibility,
+      repositories: [sourceRepositoryWithoutUrl]
+    }, { now })).toThrow("at least one private repository");
+    expect(() => analyzeSignalGaps({
+      username: "private-gaps-with-incomplete-disclosure",
+      signalVisibility: {
+        ...privateLocalSignalVisibility,
+        reportVisibility: "public-safe"
+      },
+      repositories: [privateRepository]
+    }, { now })).toThrow("Private-local signalVisibility fields are inconsistent");
   });
 });
 

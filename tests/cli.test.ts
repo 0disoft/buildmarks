@@ -1,5 +1,5 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
@@ -93,6 +93,36 @@ describe("render-card CLI", () => {
     expect(result.error).toContain("Fallback SVG write failed");
   });
 
+  test("rejects empty file paths before resolving them to the workspace", async () => {
+    const directory = await makeTempDirectory();
+
+    await expect(renderCardFile("", join(directory, "card.svg"))).rejects.toThrow("Profile JSON path is required.");
+    await expect(renderGapsCardFile("fixtures/example-public-profile.json", "")).rejects.toThrow(
+      "Output SVG path is required."
+    );
+    await expect(renderGitHubCardFile("", join(directory, "github-card.svg"), {
+      fetcher: makeGitHubFetch()
+    })).rejects.toThrow("GitHub username is required.");
+    await expect(renderGitHubCardFile("example-builder", "", { fetcher: makeGitHubFetch() })).rejects.toThrow(
+      "Output SVG path is required."
+    );
+  });
+
+  test("trims file path arguments before resolving them", async () => {
+    const directory = await makeTempDirectory();
+    const inputPath = join(directory, "profile.json");
+    const outputPath = join(directory, "cards", "trimmed-card.svg");
+    await writeFile(inputPath, JSON.stringify(fixture), "utf8");
+
+    const result = await renderCardFile(` ${inputPath} `, ` ${outputPath} `);
+    const svg = await readFile(outputPath, "utf8");
+
+    expect(result.ok).toBe(true);
+    expect(result.inputPath).toBe(resolve(inputPath));
+    expect(result.outputPath).toBe(resolve(outputPath));
+    expect(svg).toContain("Buildmarks");
+  });
+
   test("rejects unexpected positional arguments before rendering", async () => {
     const directory = await makeTempDirectory();
     const outputPath = join(directory, "cards", "extra-arg-card.svg");
@@ -105,6 +135,115 @@ describe("render-card CLI", () => {
 
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("Unexpected positional argument: unexpected");
+  });
+
+  test("rejects option-like positional values in local auxiliary CLIs before rendering", async () => {
+    const directory = await makeTempDirectory();
+    const gapsResult = runBunScript([
+      "src/cli/render-gaps-card.ts",
+      "--bad-input",
+      join(directory, "gaps.svg")
+    ]);
+    const repoResult = runBunScript([
+      "src/cli/render-repo-card.ts",
+      "fixtures/example-public-profile.json",
+      "--bad-repo",
+      join(directory, "repo.svg")
+    ]);
+    const reportResult = runBunScript([
+      "src/cli/render-report.ts",
+      "--bad-input",
+      join(directory, "report")
+    ]);
+
+    expect(gapsResult.exitCode).toBe(2);
+    expect(gapsResult.stderr).toContain("Unknown option: --bad-input");
+    expect(repoResult.exitCode).toBe(2);
+    expect(repoResult.stderr).toContain("Unknown option: --bad-repo");
+    expect(reportResult.exitCode).toBe(2);
+    expect(reportResult.stderr).toContain("Unknown option: --bad-input");
+  });
+
+  test("rejects option-like positional values even when quoted with leading whitespace", async () => {
+    const directory = await makeTempDirectory();
+    const cardResult = runBunScript([
+      "src/cli/render-card.ts",
+      " --bad-input",
+      join(directory, "card.svg")
+    ]);
+    const gapsResult = runBunScript([
+      "src/cli/render-gaps-card.ts",
+      " --bad-input",
+      join(directory, "gaps.svg")
+    ]);
+    const repoResult = runBunScript([
+      "src/cli/render-repo-card.ts",
+      "fixtures/example-public-profile.json",
+      " --bad-repo",
+      join(directory, "repo.svg")
+    ]);
+    const reportResult = runBunScript([
+      "src/cli/render-report.ts",
+      " --bad-input",
+      join(directory, "report")
+    ]);
+
+    expect(cardResult.exitCode).toBe(2);
+    expect(cardResult.stderr).toContain("Unknown option: --bad-input");
+    expect(gapsResult.exitCode).toBe(2);
+    expect(gapsResult.stderr).toContain("Unknown option: --bad-input");
+    expect(repoResult.exitCode).toBe(2);
+    expect(repoResult.stderr).toContain("Unknown option: --bad-repo");
+    expect(reportResult.exitCode).toBe(2);
+    expect(reportResult.stderr).toContain("Unknown option: --bad-input");
+  });
+
+  test("rejects option-like report href values before rendering", () => {
+    const result = runBunScript([
+      "src/cli/render-card.ts",
+      "fixtures/example-public-profile.json",
+      "out/example-card.svg",
+      "--report-href",
+      "--unexpected"
+    ]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("Missing value for --report-href.");
+  });
+
+  test("rejects option-like option values even when quoted with leading whitespace", () => {
+    const reportHrefResult = runBunScript([
+      "src/cli/render-card.ts",
+      "fixtures/example-public-profile.json",
+      "out/example-card.svg",
+      "--report-href",
+      " --unexpected"
+    ]);
+    const parsedToken = parseCommonGitHubCliOptions([
+      "example-builder",
+      "out.svg",
+      "--token",
+      " --private-local"
+    ]);
+    const parsedLimit = parseCommonGitHubCliOptions([
+      "example-builder",
+      "out.svg",
+      "--max-repositories-scanned",
+      " --max-repositories-scored"
+    ]);
+
+    expect(reportHrefResult.exitCode).toBe(2);
+    expect(reportHrefResult.stderr).toContain("Missing value for --report-href.");
+    expect(parsedToken).toEqual({ ok: false, message: "Missing value for --token." });
+    expect(parsedLimit).toEqual({ ok: false, message: "Missing value for --max-repositories-scanned." });
+  });
+
+  test("rejects unknown GitHub options even when quoted with leading whitespace", () => {
+    expect(parseCommonGitHubCliOptions([
+      "example-builder",
+      "out.svg",
+      " --private-local"
+    ])).toEqual({ ok: false, message: "Unknown option: --private-local" });
   });
 
   test("rejects invalid numeric profile input instead of silently normalizing it", () => {
@@ -129,6 +268,43 @@ describe("render-card CLI", () => {
         }
       }]
     })).toThrow("medianSourceFileBytes");
+    expect(() => parseProfileInput({ ...profile, generatedAt: " " })).toThrow("generatedAt");
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...repository, createdAt: "" }]
+    })).toThrow("createdAt");
+  });
+
+  test("trims local profile identity strings before scoring and lookup", async () => {
+    const profile = fixture as ProfileInput;
+    const repository = profile.repositories[0]!;
+    const parsed = parseProfileInput({
+      ...profile,
+      username: " example-builder ",
+      generatedAt: " 2026-05-28T00:00:00.000Z ",
+      repositories: [{
+        ...repository,
+        owner: " example-builder ",
+        name: " usable-toolkit ",
+        url: " https://github.com/example-builder/usable-toolkit ",
+        createdAt: " 2025-01-01T00:00:00Z ",
+        pushedAt: " 2026-05-27T00:00:00Z "
+      }]
+    });
+    const directory = await makeTempDirectory();
+    const inputPath = join(directory, "profile.json");
+    const outputPath = join(directory, "repo.svg");
+    await writeFile(inputPath, JSON.stringify(parsed), "utf8");
+
+    const result = await renderRepoCardFile(inputPath, "example-builder/usable-toolkit", outputPath);
+
+    expect(parsed.username).toBe("example-builder");
+    expect(parsed.generatedAt).toBe("2026-05-28T00:00:00.000Z");
+    expect(parsed.repositories[0]?.owner).toBe("example-builder");
+    expect(parsed.repositories[0]?.name).toBe("usable-toolkit");
+    expect(parsed.repositories[0]?.url).toBe("https://github.com/example-builder/usable-toolkit");
+    expect(result.ok).toBe(true);
+    expect(result.fallback).toBe(false);
   });
 
   test("rejects unredacted private repository records in local profile input", () => {
@@ -155,6 +331,14 @@ describe("render-card CLI", () => {
       visibility: "private",
       redactedName: true
     });
+    expect(() => parseProfileInput({
+      ...profile,
+      signalVisibility: {
+        ...privateLocalSignalVisibility,
+        cardLabel: "Public GitHub signals"
+      },
+      repositories: [privateRepository]
+    })).toThrow("private-local signalVisibility");
     expect(() => parseProfileInput({
       ...profile,
       repositories: [{ ...privateRepository, name: "secret-toolkit" }]
@@ -198,6 +382,21 @@ describe("render-card CLI", () => {
         reportVisibility: "public-safe"
       }
     })).toThrow("public-only signalVisibility");
+    expect(() => parseProfileInput({
+      ...profile,
+      signalVisibility: {
+        scope: "public-only",
+        privateRepositoriesIncluded: false,
+        privateRepositoryNamesRedacted: false,
+        independentlyVerifiable: true,
+        cardLabel: "Public + Private Signals",
+        reportVisibility: "public-safe"
+      }
+    })).toThrow("public-only signalVisibility");
+    expect(() => parseProfileInput({
+      ...profile,
+      signalVisibility: privateLocalSignalVisibility
+    })).toThrow("at least one private repository");
   });
 });
 
@@ -206,13 +405,14 @@ describe("render-github-card CLI", () => {
     const directory = await makeTempDirectory();
     const outputPath = join(directory, "cards", "github-card.svg");
 
-    const result = await renderGitHubCardFile("example-builder", outputPath, {
+    const result = await renderGitHubCardFile(" example-builder ", outputPath, {
       fetcher: makeGitHubFetch()
     });
     const svg = await readFile(outputPath, "utf8");
 
     expect(result.ok).toBe(true);
     expect(result.fallback).toBe(false);
+    expect(result.username).toBe("example-builder");
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks ·");
@@ -293,7 +493,7 @@ describe("CLI option parsing", () => {
       "example-builder",
       "out.svg",
       "--token",
-      "token",
+      " token ",
       "--private-local",
       "--max-repositories-scanned",
       "17",
@@ -315,6 +515,24 @@ describe("CLI option parsing", () => {
       }
     });
     expect(disallowedReportHref).toEqual({ ok: false, message: "Unknown option: --report-href" });
+  });
+
+  test("rejects option-like values as missing GitHub CLI option values", () => {
+    expect(parseCommonGitHubCliOptions([
+      "example-builder",
+      "--token",
+      "--private-local"
+    ])).toEqual({ ok: false, message: "Missing value for --token." });
+    expect(parseCommonGitHubCliOptions([
+      "example-builder",
+      "--report-href",
+      "--private-local"
+    ], { allowReportHref: true })).toEqual({ ok: false, message: "Missing value for --report-href." });
+    expect(parseCommonGitHubCliOptions([
+      "example-builder",
+      "--max-repositories-scanned",
+      "--private-local"
+    ])).toEqual({ ok: false, message: "Missing value for --max-repositories-scanned." });
   });
 
   test("rejects GitHub CLI limits that violate collector policy before collection starts", () => {

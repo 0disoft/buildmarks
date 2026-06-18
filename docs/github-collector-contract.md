@@ -1,6 +1,6 @@
 # GitHub Collector Contract
 
-Buildmarks will eventually collect public GitHub data, but the public core must keep a strict boundary before live API code exists.
+Buildmarks collects public GitHub data through a narrow local REST adapter, and the public core keeps a strict boundary around what that adapter may observe.
 
 The collector output is a normalized public-data contract. It is not a mirror of the GitHub REST or GraphQL response shape.
 
@@ -35,7 +35,7 @@ The collector must not collect or infer:
 
 The live public collector remains public-only. Private repositories are not part of `collectPublicGitHubProfile()`.
 
-Owner-supplied private repository signals may be designed as a separate opt-in private-local mode. That mode must be explicit, local/self-hosted, token-provided by the owner, redacted by default, and labeled separately from public-only cards.
+Owner-supplied private repository signals are supported only through the separate opt-in `collectOwnerSuppliedGitHubProfile()` private-local path. That mode must be explicit, local/self-hosted, token-provided by the owner, redacted by default, and labeled separately from public-only cards.
 
 The private-local boundary is defined in [Private Repository Signal Contract](private-repository-signal-contract.md).
 

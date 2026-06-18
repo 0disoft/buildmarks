@@ -10,6 +10,7 @@ import {
   type UserSignalReport
 } from "../shared/types";
 import { classifySignalType } from "./signal-type";
+import { validatePrivateRepositoryDisclosure } from "./private-disclosure";
 import { scoreRepository, type ScoreRepoOptions } from "./score-repo";
 
 const MAX_REPOSITORIES = 12;
@@ -28,7 +29,7 @@ export function scoreUserProfile(
   const generatedAt = input.generatedAt ?? (options.now ?? new Date()).toISOString();
   const includesPrivateSignals = input.signalVisibility?.privateRepositoriesIncluded === true;
   const maxRepositories = resolveMaxRepositories(options.maxRepositories);
-  const eligibleRepositories = input.repositories.filter((repository) => !repository.isFork && !repository.isArchived);
+  const eligibleRepositories = input.repositories.filter(isEligibleRepository);
   const hasTruncatedFileTree = eligibleRepositories.some((repository) => repository.codebaseShape?.treeTruncated === true);
   const topRepos = eligibleRepositories
     .map((repository) => scoreRepository(repository, options))
@@ -210,37 +211,6 @@ function resolveMaxRepositories(value: number | undefined): number {
   return value;
 }
 
-function validatePrivateRepositoryDisclosure(input: ProfileInput): void {
-  const privateRepositories = input.repositories.filter((repository) => {
-    if (repository.visibility === "private") {
-      return true;
-    }
-    if (repository.redactedName === true || isRedactedPrivateRepositoryName(repository.name)) {
-      throw new Error("Redacted private repository inputs must set visibility to private.");
-    }
-    return false;
-  });
-  if (privateRepositories.length === 0) {
-    return;
-  }
-
-  if (input.signalVisibility?.privateRepositoriesIncluded !== true) {
-    throw new Error("Private repository inputs require private-local signal visibility disclosure.");
-  }
-
-  privateRepositories.forEach((repository) => {
-    if (repository.redactedName !== true) {
-      throw new Error("Private repository inputs must redact repository names.");
-    }
-    if (repository.url !== undefined) {
-      throw new Error("Private repository inputs must omit repository URLs.");
-    }
-    if (!isRedactedPrivateRepositoryName(repository.name)) {
-      throw new Error("Private repository inputs must use redacted repository names.");
-    }
-  });
-}
-
-function isRedactedPrivateRepositoryName(value: string): boolean {
-  return /^Private repository(?: [1-9][0-9]*)?$/.test(value);
+function isEligibleRepository(repository: { isFork: unknown; isArchived: unknown }): boolean {
+  return repository.isFork === false && repository.isArchived === false;
 }

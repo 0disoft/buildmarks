@@ -1,4 +1,14 @@
 import { writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+export function resolveRequiredPath(path: string, label: string): string {
+  const normalizedPath = path.trim();
+  if (normalizedPath === "") {
+    throw new Error(`${label} is required.`);
+  }
+
+  return resolve(normalizedPath);
+}
 
 export async function tryWriteTextFile(path: string, content: string): Promise<string | undefined> {
   try {

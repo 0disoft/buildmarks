@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -29,7 +29,8 @@ export async function renderGitHubReportFiles(
   outputDirectory: string,
   options: RenderGitHubReportFilesOptions = {}
 ): Promise<RenderGitHubReportFilesResult> {
-  const resolvedOutputDirectory = resolve(outputDirectory);
+  const normalizedUsername = resolveRequiredGitHubUsername(username);
+  const resolvedOutputDirectory = resolveRequiredPath(outputDirectory, "Output report directory");
   const htmlPath = join(resolvedOutputDirectory, "buildmarks-report.html");
   const jsonPath = join(resolvedOutputDirectory, "buildmarks-report.json");
 
@@ -37,8 +38,8 @@ export async function renderGitHubReportFiles(
 
   try {
     const collected = options.privateLocal === true
-      ? await collectOwnerSuppliedGitHubProfile(username, options)
-      : await collectPublicGitHubProfile(username, options);
+      ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
+      : await collectPublicGitHubProfile(normalizedUsername, options);
     const profile = normalizePublicGitHubProfile(collected);
     const scoringOptions = options.policy === undefined
       ? {}
@@ -51,7 +52,7 @@ export async function renderGitHubReportFiles(
 
     return {
       ok: true,
-      username,
+      username: report.profile.username,
       outputDirectory: resolvedOutputDirectory,
       htmlPath,
       jsonPath
@@ -60,7 +61,7 @@ export async function renderGitHubReportFiles(
     const message = error instanceof Error ? error.message : "unknown GitHub report render failure";
     const fallbackReport = {
       ok: false,
-      username,
+      username: normalizedUsername,
       error: message,
       message: "Buildmarks GitHub report is temporarily unavailable"
     };
@@ -84,7 +85,7 @@ export async function renderGitHubReportFiles(
 
     return {
       ok: false,
-      username,
+      username: normalizedUsername,
       outputDirectory: resolvedOutputDirectory,
       htmlPath,
       jsonPath,
@@ -150,6 +151,15 @@ function parseArgs(args: readonly string[]):
   }
 
   return { ok: true, username, outputDirectory, ...options };
+}
+
+function resolveRequiredGitHubUsername(username: string): string {
+  const normalizedUsername = username.trim();
+  if (normalizedUsername === "") {
+    throw new Error("GitHub username is required.");
+  }
+
+  return normalizedUsername;
 }
 
 
