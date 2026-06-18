@@ -13,8 +13,7 @@ import {
 import type { ProfileInput } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
-const visibleVersion = `>v${buildmarksVersion}</text>`;
-const spacedBrandVersion = `<text x="190" y="54" class="brand-version">v${buildmarksVersion}</text>`;
+const visibleVersion = `v${buildmarksVersion}`;
 
 describe("SVG renderer", () => {
   test("renders a readable profile card without executable SVG content", () => {
@@ -30,10 +29,9 @@ describe("SVG renderer", () => {
     expect(svg).toContain("<svg");
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain(visibleVersion);
-    expect(svg).toContain(spacedBrandVersion);
     expect(svg).toContain("example &lt;builder&gt;");
-    expect(svg).toContain("Buildmarks · 2026-05-28");
-    expect(svg).toContain("Public Signal Tier");
+    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public Signals · 2026-05-28`);
+    expect(svg).not.toContain("Public Signal Tier");
     expect(svg).toContain(visibleVersion);
     expect(svg).toContain("overall overall-");
     expect(svg).toContain(">Gold I</text>");
@@ -67,49 +65,13 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("<script");
   });
 
-  test("renders a safe report link when provided", () => {
+  test("does not render an embedded report link on profile cards", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard(report, {
-      reportHref: "./assets/buildmarks-report/buildmarks-report.html"
-    });
-
-    expect(svg).toContain("<a href=\"./assets/buildmarks-report/buildmarks-report.html\"");
-    expect(svg).toContain("View report");
-    expect(svg).toContain("Open the Buildmarks report");
-  });
-
-  test("drops executable report links", () => {
-    const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard(report, {
-      reportHref: "javascript:alert(1)"
-    });
+    const svg = renderUserSignalCard(report);
 
     expect(svg).not.toContain("<a href=");
-    expect(svg).not.toContain("javascript:");
     expect(svg).not.toContain("View report");
-  });
-
-  test("drops non-http report link schemes", () => {
-    const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const schemes = ["mailto:team@example.test", "vbscript:msgbox(1)", "data:text/html,<script>alert(1)</script>"];
-
-    schemes.forEach((reportHref) => {
-      const svg = renderUserSignalCard(report, { reportHref });
-
-      expect(svg).not.toContain("<a href=");
-      expect(svg).not.toContain("View report");
-    });
-  });
-
-  test("drops protocol-relative report links", () => {
-    const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard(report, {
-      reportHref: "//evil.example/report.html"
-    });
-
-    expect(svg).not.toContain("<a href=");
-    expect(svg).not.toContain("evil.example");
-    expect(svg).not.toContain("View report");
+    expect(svg).not.toContain("Open the Buildmarks report");
   });
 
   test("falls back to the auto theme for invalid runtime theme values", () => {
@@ -162,8 +124,8 @@ describe("SVG renderer", () => {
     const svg = renderUserSignalCard(report);
 
     expect(svg).not.toContain("Owner-supplied GitHub activity");
-    expect(svg).toContain("Buildmarks · Public + Private Signals · 2026-05-28");
-    expect(svg).toContain("Public + Private Tier");
+    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public + Private Signals · 2026-05-28`);
+    expect(svg).not.toContain("Public + Private Tier");
     expect(svg).not.toContain("<text x=\"704\" y=\"58\" class=\"subtitle right\">Public Signal Tier</text>");
     expect(svg).not.toContain("<text x=\"36\" y=\"273\" class=\"label\">Public Adoption</text>");
     expect(svg).not.toContain(">Public Adoption</text>");
@@ -203,7 +165,7 @@ describe("SVG renderer", () => {
       }
     });
 
-    expect(svg).toContain("Public Signal Tier");
+    expect(svg).not.toContain("Public Signal Tier");
     expect(svg).toContain(">Gold V</text>");
     expect(svg).toContain("Project Completeness: Gold V, 24 points out of 100");
     expect(svg).toContain("Usability Surface: Gold IV, 25 points out of 100");
@@ -280,7 +242,7 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("example-builder-with-a-very-long");
     expect(svg).toContain("…");
-    expect(svg).toContain("Buildmarks · ");
+    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public Signals · `);
     expect(svg).not.toContain("undefined");
   });
 
@@ -291,7 +253,7 @@ describe("SVG renderer", () => {
       generatedAt: "INVALID_DATE_STRING"
     });
 
-    expect(svg).toContain("Buildmarks · ");
+    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public Signals · `);
     expect(svg).not.toContain("INVALID_DA");
   });
 
@@ -303,7 +265,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Missing public GitHub signals");
     expect(svg).toContain("missing:");
     expect(svg).toContain("gaps found");
-    expect(svg).toContain("Buildmarks Gaps · Public Signals");
+    expect(svg).toContain(`Buildmarks Gaps v${buildmarksVersion} · Public Signals`);
     expect(svg).toContain(visibleVersion);
     expect(svg).toContain("not a ranking");
   });
@@ -334,7 +296,7 @@ describe("SVG renderer", () => {
     const svg = renderSignalGapsCard(report);
 
     expect(svg).toContain("Missing owner-supplied signals");
-    expect(svg).toContain("Buildmarks Gaps · Public + Private Signals");
+    expect(svg).toContain(`Buildmarks Gaps v${buildmarksVersion} · Public + Private Signals`);
     expect(svg).toContain("Private repositories were included by the owner");
     expect(svg).toContain("not independently verifiable");
     expect(svg).not.toContain("Missing public GitHub signals");
@@ -347,8 +309,8 @@ describe("SVG renderer", () => {
     const svg = renderRepositorySignalCard(report);
 
     expect(svg).toContain("example-builder/usable-toolkit");
-    expect(svg).toContain("Repository Signal Tier");
-    expect(svg).toContain("Buildmarks Repo");
+    expect(svg).not.toContain("Repository Signal Tier");
+    expect(svg).toContain(`Buildmarks Repo v${buildmarksVersion} · Public Signals`);
     expect(svg).toContain(visibleVersion);
     expect(svg).not.toContain("Repository GitHub activity");
     expect(svg).toContain("role=\"progressbar\"");
@@ -368,8 +330,8 @@ describe("SVG renderer", () => {
     const svg = renderRepositorySignalCard(report);
 
     expect(svg).toContain("Private owner/Private repository 1");
-    expect(svg).toContain("Public + Private Repo Tier");
-    expect(svg).toContain("Buildmarks Repo · Public + Private Signals");
+    expect(svg).not.toContain("Public + Private Repo Tier");
+    expect(svg).toContain(`Buildmarks Repo v${buildmarksVersion} · Public + Private Signals`);
     expect(svg).toContain("Owner-supplied private repository signals are included");
     expect(svg).toContain("not independently verifiable from public GitHub");
     expect(svg).not.toContain("<text x=\"704\" y=\"58\" class=\"subtitle right\">Repository Signal Tier</text>");

@@ -14,7 +14,6 @@ export interface CommonGitHubCliOptions {
   maxRepositoriesScored: number;
   activityWindowDays: number;
   privateLocal: boolean;
-  reportHref?: string;
 }
 
 export interface ParsedCommonGitHubCliOptions extends CommonGitHubCliOptions {
@@ -22,8 +21,7 @@ export interface ParsedCommonGitHubCliOptions extends CommonGitHubCliOptions {
 }
 
 export function parseCommonGitHubCliOptions(
-  args: readonly string[],
-  options: { allowReportHref?: boolean } = {}
+  args: readonly string[]
 ): { ok: true; value: ParsedCommonGitHubCliOptions } | { ok: false; message: string } {
   const positional: string[] = [];
   let token: string | undefined;
@@ -31,7 +29,6 @@ export function parseCommonGitHubCliOptions(
   let maxRepositoriesScored = githubCliDefaultLimits.maxRepositoriesScoredPerProfile;
   let activityWindowDays = githubCliDefaultLimits.repositoryActivityWindowDays;
   let privateLocal = false;
-  let reportHref: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -84,16 +81,6 @@ export function parseCommonGitHubCliOptions(
       continue;
     }
 
-    if (arg === "--report-href" && options.allowReportHref === true) {
-      const value = args[index + 1];
-      if (isMissingOptionValue(value)) {
-        return { ok: false, message: "Missing value for --report-href." };
-      }
-      reportHref = value;
-      index += 1;
-      continue;
-    }
-
     if (isOptionLikeArgument(arg)) {
       return { ok: false, message: unknownOptionMessage(arg) };
     }
@@ -122,8 +109,7 @@ export function parseCommonGitHubCliOptions(
       maxRepositoriesScored,
       activityWindowDays,
       privateLocal,
-      ...(token === undefined ? {} : { token }),
-      ...(reportHref === undefined ? {} : { reportHref })
+      ...(token === undefined ? {} : { token })
     }
   };
 }

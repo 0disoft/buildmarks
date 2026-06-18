@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 import {
@@ -52,9 +52,7 @@ export async function renderGitHubArtifacts(
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
     const staticReport = createStaticReport(profile, scoringOptions);
-    const reportHref = toSvgRelativeHref(resolvedSvgPath, htmlPath);
-
-    await writeFile(resolvedSvgPath, renderUserSignalCard(staticReport.profile, { reportHref }), "utf8");
+    await writeFile(resolvedSvgPath, renderUserSignalCard(staticReport.profile), "utf8");
     await writeFile(htmlPath, renderStaticReportHtml(staticReport), "utf8");
     await writeFile(jsonPath, `${JSON.stringify(staticReport, null, 2)}\n`, "utf8");
 
@@ -178,20 +176,6 @@ function parseArgs(args: readonly string[]):
   }
 
   return { ok: true, username, svgOutputPath, reportOutputDirectory, ...options };
-}
-
-function toSvgRelativeHref(svgPath: string, reportHtmlPath: string): string {
-  const relativePath = relative(dirname(svgPath), reportHtmlPath).replaceAll("\\", "/");
-  const href = relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
-
-  return encodeRelativePathHref(href);
-}
-
-function encodeRelativePathHref(href: string): string {
-  return href
-    .split("/")
-    .map((segment) => segment === "." || segment === ".." ? segment : encodeURIComponent(segment))
-    .join("/");
 }
 
 if (import.meta.main) {

@@ -123,7 +123,7 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.16`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.17`.
 
 Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
 
@@ -208,7 +208,7 @@ Buildmarks does not need a hosted backend for the first useful workflow. A profi
 
 See [examples/profile-readme.md](examples/profile-readme.md) and [examples/profile-readme-workflow.yml](examples/profile-readme-workflow.yml).
 
-The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile. The generated SVG includes a `View report` link to the checked-in HTML report.
+The workflow example uses the composite action in [action.yml](action.yml), writes `assets/buildmarks.svg` and `assets/buildmarks-report/`, and commits only when the generated artifacts change. When report generation is enabled, the action collects public GitHub data once and renders both outputs from the same normalized profile. The SVG stays self-contained because GitHub profile README image clicks are controlled by the surrounding Markdown, not by links embedded inside the SVG.
 
 The composite action only generates artifacts. The caller workflow owns checkout, `contents: write` permission, commit, and push behavior. The example keeps that boundary explicit so profile repositories can adapt branch protection, commit messages, or review policy without Buildmarks hiding those decisions.
 
@@ -323,7 +323,7 @@ Add `--private-local` with an explicit owner-provided token when generating a pr
 To generate a GitHub SVG with an evidence link manually:
 
 ```bash
-bun src/cli/render-github-card.ts octocat out/octocat-card.svg --report-href ./report/buildmarks-report.html
+bun src/cli/render-github-card.ts octocat out/octocat-card.svg
 ```
 
 ## Development

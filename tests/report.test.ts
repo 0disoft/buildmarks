@@ -288,14 +288,14 @@ describe("static report", () => {
     expect(result.username).toBe("example-builder");
     expect(repositoryListRequests).toBe(1);
     expect(svg).toContain("Buildmarks");
-    expect(svg).toContain("<a href=\"./report/buildmarks-report.html\"");
-    expect(svg).toContain("View report");
+    expect(svg).not.toContain("<a href=");
+    expect(svg).not.toContain("View report");
     expect(html).toContain("Buildmarks static report");
     expect(json.version).toBe(1);
     expect(json.profile.username).toBe("example-builder");
   });
 
-  test("percent-encodes generated report links with reserved path characters", async () => {
+  test("does not embed generated report links with reserved path characters", async () => {
     const directory = await makeTempDirectory();
     const result = await renderGitHubArtifacts(
       "example-builder",
@@ -308,8 +308,9 @@ describe("static report", () => {
     const svg = await readFile(result.svgPath, "utf8");
 
     expect(result.ok).toBe(true);
-    expect(svg).toContain("<a href=\"../report%20%231/buildmarks-report.html\"");
-    expect(svg).not.toContain("<a href=\"../report #1/buildmarks-report.html\"");
+    expect(svg).not.toContain("<a href=");
+    expect(svg).not.toContain("report%20%231");
+    expect(svg).not.toContain("report #1");
   });
 
   test("writes fallback report files when public GitHub collection fails", async () => {

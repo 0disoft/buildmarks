@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { isMissingOptionValue, isOptionLikeArgument, unknownOptionMessage } from "./args";
+import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
 import {
   privateLocalSignalVisibility,
@@ -68,14 +68,12 @@ async function main(args: readonly string[]): Promise<void> {
 
   if (parsed.ok === false) {
     console.error(parsed.message);
-    console.error("Usage: bun src/cli/render-card.ts <profile.json> <output.svg> [--report-href <href>]");
+    console.error("Usage: bun src/cli/render-card.ts <profile.json> <output.svg>");
     process.exitCode = 2;
     return;
   }
 
-  const result = await renderCardFile(parsed.inputPath, parsed.outputPath, {
-    ...(parsed.reportHref === undefined ? {} : { reportHref: parsed.reportHref })
-  });
+  const result = await renderCardFile(parsed.inputPath, parsed.outputPath);
 
   if (!result.ok) {
     console.error(`Buildmarks wrote fallback SVG: ${result.error ?? "unknown render failure"}`);
@@ -87,24 +85,13 @@ async function main(args: readonly string[]): Promise<void> {
 }
 
 function parseArgs(args: readonly string[]):
-  | { ok: true; inputPath: string; outputPath: string; reportHref?: string }
+  | { ok: true; inputPath: string; outputPath: string }
   | { ok: false; message: string } {
   const positional: string[] = [];
-  let reportHref: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === undefined) {
-      continue;
-    }
-
-    if (arg === "--report-href") {
-      const value = args[index + 1];
-      if (isMissingOptionValue(value)) {
-        return { ok: false, message: "Missing value for --report-href." };
-      }
-      reportHref = value;
-      index += 1;
       continue;
     }
 
@@ -126,9 +113,7 @@ function parseArgs(args: readonly string[]):
     return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
   }
 
-  return reportHref === undefined
-    ? { ok: true, inputPath, outputPath }
-    : { ok: true, inputPath, outputPath, reportHref };
+  return { ok: true, inputPath, outputPath };
 }
 
 if (import.meta.main) {

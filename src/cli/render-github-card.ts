@@ -74,7 +74,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--private-local] [--report-href <href>] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
+      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
     );
     process.exitCode = 2;
     return;
@@ -83,7 +83,6 @@ async function main(args: readonly string[]): Promise<void> {
   const result = await renderGitHubCardFile(parsed.username, parsed.outputPath, {
     privateLocal: parsed.privateLocal,
     ...(parsed.token === undefined ? {} : { token: parsed.token }),
-    ...(parsed.reportHref === undefined ? {} : { reportHref: parsed.reportHref }),
     policy: buildGitHubCollectorPolicyFromCli(parsed)
   });
 
@@ -105,11 +104,10 @@ function parseArgs(args: readonly string[]):
       maxRepositoriesScanned: number;
       maxRepositoriesScored: number;
       activityWindowDays: number;
-      reportHref?: string;
       privateLocal: boolean;
     }
   | { ok: false; message: string } {
-  const common = parseCommonGitHubCliOptions(args, { allowReportHref: true });
+  const common = parseCommonGitHubCliOptions(args);
   if (common.ok === false) {
     return common;
   }

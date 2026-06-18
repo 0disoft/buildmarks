@@ -6,6 +6,13 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.17 - 2026-06-18
+
+- Simplify card headers so profile and repository cards show only the subject on the left and the tier on the right.
+- Move the visible Buildmarks version into the footer next to the card scope and generated date.
+- Remove embedded SVG `View report` links because GitHub profile README image clicks are controlled by surrounding Markdown.
+- Remove `--report-href` from card rendering CLIs so generated cards no longer expose a non-working report-link expectation.
+
 ## v0.1.16 - 2026-06-18
 
 - Redact private repository owner names from scored repository outputs and static reports.

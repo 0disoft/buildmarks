@@ -70,8 +70,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.16");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.16"');
+    expect(metadata.version).toBe("0.1.17");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.17"');
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -185,7 +185,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.16`");
+    expect(npmPackaging).toContain("Current package version: `0.1.17`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");
@@ -299,7 +299,8 @@ describe("profile README workflow example", () => {
     expect(profileCard).toContain("Buildmarks");
     expect(gapsCard).toContain("What's Missing");
     expect(repoCard).toContain("Buildmarks repository signal card");
-    expect(repoCard).toContain("Repository Signal Tier");
+    expect(repoCard).not.toContain("Repository Signal Tier");
+    expect(repoCard).toContain("Buildmarks Repo v");
   });
 
   test("validates action inputs before generating artifacts", async () => {

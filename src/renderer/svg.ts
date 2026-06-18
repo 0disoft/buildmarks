@@ -9,7 +9,6 @@ import {
 import { buildmarksVersion } from "../shared/version";
 
 export interface RenderCardOptions {
-  reportHref?: string;
   theme?: "auto" | "dark" | "light";
 }
 
@@ -27,7 +26,6 @@ const rightEdgeX = 704;
 const highlightLabelY = 318;
 const chipY = 330;
 const footerY = 388;
-const brandVersionX = 190;
 const brandVersion = `v${buildmarksVersion}`;
 const tierBands = [
   { minimum: 98, label: "Diamond I" },
@@ -59,12 +57,10 @@ export function renderUserSignalCard(
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
-  const tierLabel = includesPrivateSignals ? "Public + Private Tier" : "Public Signal Tier";
   const footerLabel = includesPrivateSignals
-    ? `Buildmarks · Public + Private Signals · ${generatedDate}`
-    : `Buildmarks · ${generatedDate}`;
+    ? `Buildmarks ${brandVersion} · Public + Private Signals · ${generatedDate}`
+    : `Buildmarks ${brandVersion} · Public Signals · ${generatedDate}`;
   const context = buildProfileCardContext(report);
-  const reportLink = renderReportLink(options.reportHref);
   const visibleDimensions = signalDimensions.filter((dimension) => !context.contextualDimensions.has(dimension));
   const rows = visibleDimensions.map((dimension, index) =>
     renderDimensionRow(
@@ -85,10 +81,8 @@ export function renderUserSignalCard(
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  ${renderBrandHeader()}
-  <text x="36" y="96" class="name">${escapeXml(username)}</text>
-  <text x="${rightEdgeX}" y="58" class="subtitle right">${escapeXml(tierLabel)}</text>
-  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
+  <text x="36" y="62" class="name">${escapeXml(username)}</text>
+  <text x="${rightEdgeX}" y="62" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
   <g aria-label="Dimension signal tiers with underlying scores out of 100">
 ${rows.join("")}
   </g>
@@ -97,7 +91,6 @@ ${rows.join("")}
 ${chips.join("")}
   </g>
   <text x="36" y="${footerY}" class="footer">${escapeXml(footerLabel)}</text>
-${reportLink}
 </svg>`;
 }
 
@@ -113,12 +106,11 @@ export function renderFallbackCard(message = "Buildmarks report is temporarily u
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  ${renderBrandHeader(58)}
-  <text x="36" y="82" class="subtitle">Buildmarks signals</text>
+  <text x="36" y="62" class="subtitle">Buildmarks signals</text>
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
   <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
   <text x="62" y="228" class="fallback-body">${escapeXml(safeMessage)}</text>
-  <text x="36" y="${footerY}" class="footer">Buildmarks</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks ${escapeXml(brandVersion)}</text>
 </svg>`;
 }
 
@@ -152,15 +144,14 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  ${renderBrandHeader()}
-  <text x="36" y="80" class="subtitle">${escapeXml(scopeLabel)}</text>
-  <text x="36" y="112" class="name">${escapeXml(username)}</text>
+  <text x="36" y="62" class="subtitle">${escapeXml(scopeLabel)}</text>
+  <text x="36" y="96" class="name">${escapeXml(username)}</text>
   <text x="36" y="136" class="type">What's Missing</text>
   <text x="604" y="112" class="gap-count">${gapCount} gaps found</text>
   <g aria-label="${escapeXml(includesPrivateSignals ? "Signal gaps detected from owner-supplied private-local repository evidence" : "Signal gaps detected from public repository evidence")}">
 ${rows.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Gaps · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks Gaps ${escapeXml(brandVersion)} · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
 </svg>`;
 }
 
@@ -171,8 +162,9 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
-  const tierLabel = includesPrivateSignals ? "Public + Private Repo Tier" : "Repository Signal Tier";
-  const footerLabel = includesPrivateSignals ? "Buildmarks Repo · Public + Private Signals" : "Buildmarks Repo";
+  const footerLabel = includesPrivateSignals
+    ? `Buildmarks Repo ${brandVersion} · Public + Private Signals`
+    : `Buildmarks Repo ${brandVersion} · Public Signals`;
   const rows = signalDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
   );
@@ -188,10 +180,8 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  ${renderBrandHeader()}
-  <text x="36" y="96" class="name">${escapeXml(repoName)}</text>
-  <text x="${rightEdgeX}" y="58" class="subtitle right">${escapeXml(tierLabel)}</text>
-  <text x="${rightEdgeX}" y="92" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
+  <text x="36" y="62" class="name">${escapeXml(repoName)}</text>
+  <text x="${rightEdgeX}" y="62" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
   <g aria-label="Repository dimension signal tiers with underlying scores out of 100">
 ${rows.join("")}
   </g>
@@ -280,18 +270,6 @@ function evidenceToHighlight(label: string): string {
   }
 
   return fitText(label.replace(/\bfound\b/gi, "").trim(), 16);
-}
-
-function renderReportLink(href: string | undefined): string {
-  const safeHref = sanitizeHref(href);
-  if (safeHref === null) {
-    return "";
-  }
-
-  return `
-  <a href="${escapeXml(safeHref)}" target="_top" aria-label="Open the Buildmarks report">
-    <text x="724" y="${footerY}" class="link-text">View report</text>
-  </a>`;
 }
 
 function renderGapRow(repository: string, dimension: SignalDimension, missing: string[], y: number): string {
@@ -406,8 +384,6 @@ function renderStyles(): string {
     .bg { fill: var(--bg); }
     .panel { fill: var(--panel); stroke: url(#panelStroke); stroke-width: 1; }
     .top-line { stroke: url(#panelStroke); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
-    .title { fill: var(--text); font: 700 24px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .brand-version { fill: var(--muted); font: 700 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .subtitle, .footer, .section-label, .metric-note, .legend { fill: var(--muted); font: 500 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .right { text-anchor: end; }
     .name { fill: var(--text); font: 700 20px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -426,7 +402,6 @@ function renderStyles(): string {
     .bar-low { fill: url(#barLow); }
     .chip-bg { fill: var(--chip-bg); stroke: var(--panel-border); stroke-width: 1; }
     .chip { fill: var(--chip-text); font: 600 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .link-text { fill: var(--chip-text); font: 700 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: end; text-decoration: underline; }
     .fallback-box { fill: var(--chip-bg); stroke: var(--panel-border); stroke-width: 1; }
     .fallback-title { fill: var(--text); font: 700 22px ui-sans-serif, system-ui, sans-serif; }
     .fallback-body { fill: var(--muted); font: 500 15px ui-sans-serif, system-ui, sans-serif; }
@@ -439,11 +414,6 @@ function renderStyles(): string {
     .bar-low-start { stop-color: var(--low); }
     .bar-low-end { stop-color: var(--low-2); }
   `;
-}
-
-function renderBrandHeader(y = 56): string {
-  return `<text x="36" y="${y}" class="title">Buildmarks</text>
-  <text x="${brandVersionX}" y="${y - 2}" class="brand-version">${escapeXml(brandVersion)}</text>`;
 }
 
 function buildDescription(report: UserSignalReport, overall: number): string {
@@ -531,27 +501,6 @@ function escapeXml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
-}
-
-function sanitizeHref(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (trimmed === "" || trimmed.startsWith("//") || /[\u0000-\u001f\u007f]/.test(trimmed)) {
-    return null;
-  }
-
-  const schemeMatch = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.exec(trimmed);
-  if (schemeMatch !== null) {
-    const scheme = schemeMatch[0].slice(0, -1).toLowerCase();
-    if (scheme !== "http" && scheme !== "https") {
-      return null;
-    }
-  }
-
-  return trimmed;
 }
 
 function stripInvalidXmlCharacters(value: string): string {

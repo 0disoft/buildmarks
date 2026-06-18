@@ -55,7 +55,7 @@ bun src/cli/render-github-report.ts YOUR_USERNAME assets/buildmarks-report --tok
 Add the report link to the SVG when generating the card manually:
 
 ```bash
-bun src/cli/render-github-card.ts YOUR_USERNAME assets/buildmarks.svg --report-href ./buildmarks-report/buildmarks-report.html --token "optional-public-data-token"
+bun src/cli/render-github-card.ts YOUR_USERNAME assets/buildmarks.svg --token "optional-public-data-token"
 ```
 
 For quick unauthenticated demos, keep the scan small:

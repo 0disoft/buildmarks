@@ -28,8 +28,8 @@ describe("render-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Buildmarks ·");
-    expect(svg).toContain("Public Signal Tier");
+    expect(svg).toContain("Buildmarks v");
+    expect(svg).not.toContain("Public Signal Tier");
     expect(svg).toContain(">Gold II</text>");
     expect(svg).toContain("Highlights");
     expect(svg).not.toContain("50-74 band");
@@ -37,20 +37,6 @@ describe("render-card CLI", () => {
     expect(svg).not.toContain(">24 marks</text>");
     expect(svg).not.toContain("class=\"chip\">+ ");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
-  });
-
-  test("renders a local profile card with an inspectable report link", async () => {
-    const directory = await makeTempDirectory();
-    const outputPath = join(directory, "cards", "example-card.svg");
-
-    const result = await renderCardFile("fixtures/example-public-profile.json", outputPath, {
-      reportHref: "./report/buildmarks-report.html"
-    });
-    const svg = await readFile(outputPath, "utf8");
-
-    expect(result.ok).toBe(true);
-    expect(svg).toContain("<a href=\"./report/buildmarks-report.html\"");
-    expect(svg).toContain("View report");
   });
 
   test("writes a fallback SVG when the input JSON is invalid", async () => {
@@ -198,7 +184,7 @@ describe("render-card CLI", () => {
     expect(reportResult.stderr).toContain("Unknown option: --bad-input");
   });
 
-  test("rejects option-like report href values before rendering", () => {
+  test("rejects removed report href options before rendering", () => {
     const result = runBunScript([
       "src/cli/render-card.ts",
       "fixtures/example-public-profile.json",
@@ -208,15 +194,14 @@ describe("render-card CLI", () => {
     ]);
 
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("Missing value for --report-href.");
+    expect(result.stderr).toContain("Unknown option: --report-href");
   });
 
   test("rejects option-like option values even when quoted with leading whitespace", () => {
-    const reportHrefResult = runBunScript([
+    const unknownOptionResult = runBunScript([
       "src/cli/render-card.ts",
       "fixtures/example-public-profile.json",
       "out/example-card.svg",
-      "--report-href",
       " --unexpected"
     ]);
     const parsedToken = parseCommonGitHubCliOptions([
@@ -232,8 +217,8 @@ describe("render-card CLI", () => {
       " --max-repositories-scored"
     ]);
 
-    expect(reportHrefResult.exitCode).toBe(2);
-    expect(reportHrefResult.stderr).toContain("Missing value for --report-href.");
+    expect(unknownOptionResult.exitCode).toBe(2);
+    expect(unknownOptionResult.stderr).toContain("Unknown option: --unexpected");
     expect(parsedToken).toEqual({ ok: false, message: "Missing value for --token." });
     expect(parsedLimit).toEqual({ ok: false, message: "Missing value for --max-repositories-scanned." });
   });
@@ -415,27 +400,12 @@ describe("render-github-card CLI", () => {
     expect(result.username).toBe("example-builder");
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Buildmarks ·");
-    expect(svg).toContain("Public Signal Tier");
+    expect(svg).toContain("Buildmarks v");
+    expect(svg).not.toContain("Public Signal Tier");
     expect(svg).toContain(">Gold I</text>");
     expect(svg).toContain(">Diamond IV</text>");
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
-  });
-
-  test("renders a GitHub profile card with an inspectable report link", async () => {
-    const directory = await makeTempDirectory();
-    const outputPath = join(directory, "cards", "github-card.svg");
-
-    const result = await renderGitHubCardFile("example-builder", outputPath, {
-      fetcher: makeGitHubFetch(),
-      reportHref: "./buildmarks-report/buildmarks-report.html"
-    });
-    const svg = await readFile(outputPath, "utf8");
-
-    expect(result.ok).toBe(true);
-    expect(svg).toContain("<a href=\"./buildmarks-report/buildmarks-report.html\"");
-    expect(svg).toContain("View report");
   });
 
   test("passes the GitHub policy repository summary limit into card generation", async () => {
@@ -496,10 +466,8 @@ describe("CLI option parsing", () => {
       " token ",
       "--private-local",
       "--max-repositories-scanned",
-      "17",
-      "--report-href",
-      "./report.html"
-    ], { allowReportHref: true });
+      "17"
+    ]);
     const disallowedReportHref = parseCommonGitHubCliOptions(["example-builder", "--report-href", "./report.html"]);
 
     expect(parsed).toEqual({
@@ -510,8 +478,7 @@ describe("CLI option parsing", () => {
         privateLocal: true,
         maxRepositoriesScanned: 17,
         maxRepositoriesScored: defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile,
-        activityWindowDays: defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays,
-        reportHref: "./report.html"
+        activityWindowDays: defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays
       }
     });
     expect(disallowedReportHref).toEqual({ ok: false, message: "Unknown option: --report-href" });
@@ -523,11 +490,6 @@ describe("CLI option parsing", () => {
       "--token",
       "--private-local"
     ])).toEqual({ ok: false, message: "Missing value for --token." });
-    expect(parseCommonGitHubCliOptions([
-      "example-builder",
-      "--report-href",
-      "--private-local"
-    ], { allowReportHref: true })).toEqual({ ok: false, message: "Missing value for --report-href." });
     expect(parseCommonGitHubCliOptions([
       "example-builder",
       "--max-repositories-scanned",
@@ -577,7 +539,7 @@ describe("render-gaps-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("What's Missing");
-    expect(svg).toContain("Buildmarks Gaps · Public Signals");
+    expect(svg).toContain("Buildmarks Gaps v");
     expect(svg).toContain("Missing public GitHub signals");
   });
 });
@@ -594,7 +556,7 @@ describe("render-repo-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("example-builder/usable-toolkit");
     expect(svg).toContain("Buildmarks Repo");
-    expect(svg).toContain("Repository Signal Tier");
+    expect(svg).not.toContain("Repository Signal Tier");
   });
 
   test("writes a fallback SVG when the requested repository is missing", async () => {
