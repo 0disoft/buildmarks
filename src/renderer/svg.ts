@@ -59,16 +59,13 @@ export function renderUserSignalCard(
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
   const context = buildProfileCardContext(report);
-  const unavailableDimensions = new Set(report.unavailableDimensions ?? []);
   const reportLink = renderReportLink(options.reportHref);
-  const rows = signalDimensions.map((dimension, index) =>
+  const visibleDimensions = signalDimensions.filter((dimension) => !context.contextualDimensions.has(dimension));
+  const rows = visibleDimensions.map((dimension, index) =>
     renderDimensionRow(
       dimension,
       safeScore(report.dimensions[dimension]),
-      rowStartY + index * rowGap,
-      context.contextualDimensions.has(dimension),
-      context.rowLabels[dimension],
-      context.rowValues[dimension]
+      rowStartY + index * rowGap
     )
   );
   const chips = highlights.map((label, index) => renderEvidenceChip(label, index));
@@ -199,29 +196,13 @@ ${chips.join("")}
 function renderDimensionRow(
   dimension: SignalDimension,
   score: number,
-  labelY: number,
-  unavailable = false,
-  labelOverride?: string,
-  unavailableText = "N/A"
+  labelY: number
 ): string {
   const width = Math.max(0, Math.min(barMaxWidth, Math.round(score / 100 * barMaxWidth)));
-  const label = labelOverride ?? dimensionLabels[dimension];
+  const label = dimensionLabels[dimension];
   const tone = scoreTone(score);
   const barY = labelY - 9;
   const tier = scoreTier(score);
-
-  if (unavailable) {
-    const ariaLabel = unavailableText === "N/A"
-      ? `${label}: not available for this card`
-      : `${label}: ${unavailableText}`;
-
-    return `
-    <g role="img" aria-label="${escapeXml(ariaLabel)}">
-      <text x="36" y="${labelY}" class="label">${escapeXml(label)}</text>
-      <text x="${scoreX}" y="${labelY}" class="score">${escapeXml(unavailableText)}</text>
-      <rect x="${barX}" y="${barY}" width="${barMaxWidth}" height="${barHeight}" rx="3" class="track" aria-hidden="true" />
-    </g>`;
-  }
 
   return `
     <g role="img" aria-label="${escapeXml(`${label}: ${tier}, ${score} points out of 100`)}">
@@ -466,7 +447,7 @@ function buildDescription(report: UserSignalReport, overall: number): string {
     })
     .join(", ");
   const collaborationContext = context.contextualDimensions.has("collaboration")
-    ? " Collaboration is shown as solo context on the card."
+    ? " Collaboration is treated as solo context, not a front-card tier."
     : "";
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
@@ -478,22 +459,16 @@ function buildDescription(report: UserSignalReport, overall: number): string {
 
 type ProfileCardContext = {
   contextualDimensions: Set<SignalDimension>;
-  rowLabels: Partial<Record<SignalDimension, string>>;
-  rowValues: Partial<Record<SignalDimension, string>>;
 };
 
 function buildProfileCardContext(report: UserSignalReport): ProfileCardContext {
   const contextualDimensions = new Set(report.unavailableDimensions ?? []);
-  const rowLabels: Partial<Record<SignalDimension, string>> = {};
-  const rowValues: Partial<Record<SignalDimension, string>> = {};
 
   if (report.signalType === "Independent Builder" && safeScore(report.dimensions.collaboration) < 40) {
     contextualDimensions.add("collaboration");
-    rowLabels.collaboration = "Collaboration Context";
-    rowValues.collaboration = "solo";
   }
 
-  return { contextualDimensions, rowLabels, rowValues };
+  return { contextualDimensions };
 }
 
 function buildRepositoryDescription(report: RepoSignal, overall: number): string {

@@ -8,6 +8,10 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Nothing yet.
 
+## v0.1.14 - 2026-06-18
+
+- Omit unavailable and context-only dimensions from profile card tier rows so private-local cards no longer show `Public Adoption` as `N/A` on the visual card face.
+
 ## v0.1.13 - 2026-06-18
 
 - Render profile and repository card scores as Gold, Platinum, and Diamond signal tiers while preserving underlying 0-100 scores in accessible descriptions, progress bars, and reports.

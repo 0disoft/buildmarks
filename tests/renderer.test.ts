@@ -142,9 +142,10 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("<text x=\"36\" y=\"136\" class=\"type\">Public + Private");
     expect(svg).toContain("Buildmarks · 2026-05-28");
     expect(svg).toContain("Public Signal Tier");
-    expect(svg).toContain("Public Adoption");
-    expect(svg).toContain(">N/A</text>");
-    expect(svg).toContain("Public Adoption: not available for this card");
+    expect(svg).not.toContain("<text x=\"36\" y=\"273\" class=\"label\">Public Adoption</text>");
+    expect(svg).not.toContain(">N/A</text>");
+    expect(svg).not.toContain("Public Adoption: not available for this card");
+    expect(svg).toContain("Public Adoption is not available for private-local cards");
     expect(svg).toContain("not independently verifiable from public GitHub");
     expect(svg).not.toContain("Public data only · Updated");
   });
@@ -160,9 +161,9 @@ describe("SVG renderer", () => {
       }
     });
 
-    expect(svg).toContain("Collaboration Context");
-    expect(svg).toContain(">solo</text>");
-    expect(svg).toContain("Collaboration Context: solo");
+    expect(svg).not.toContain("Collaboration Context");
+    expect(svg).not.toContain(">solo</text>");
+    expect(svg).toContain("Collaboration is treated as solo context, not a front-card tier.");
     expect(svg).not.toContain("Collaboration: Gold V, 7 points out of 100");
   });
 
