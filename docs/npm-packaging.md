@@ -5,11 +5,23 @@ Buildmarks is published to npm as a library package, but the supported v0 profil
 ## Current Status
 
 - npm package name: `buildmarks`
-- Current package version: `0.1.18`
+- Current package version: `0.1.19`
 - Do not add a package `bin` entry yet.
 - Export the library from `dist/index.js` with TypeScript declarations at `dist/index.d.ts`.
 - Keep the package contents dry-run checkable with `npm pack --dry-run`.
 - Keep `0disoft/buildmarks@v0` as the recommended profile README artifact workflow.
+- Publish from `.github/workflows/release.yml` with npm Trusted Publisher OIDC when the pushed `vX.Y.Z` tag matches `package.json`.
+
+## Trusted Publisher Settings
+
+Configure the npm package Trusted Publisher connection with:
+
+- Publisher: GitHub Actions
+- Organization or user: `0disoft`
+- Repository: `buildmarks`
+- Workflow filename: `release.yml`
+- Environment name: `npm`
+- Allowed actions: `npm publish`
 
 ## Why There Is No CLI Bin Yet
 

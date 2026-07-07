@@ -74,7 +74,7 @@ Then reference the checked-in SVG from your profile README:
 
 The token is optional for local public-only experiments, but authenticated requests are much less likely to hit GitHub's low unauthenticated REST API limit. Buildmarks does not read tokens from environment variables automatically; pass a token explicitly when you want one used.
 
-Private-local mode is opt-in. Use `private-local: "true"` only in owner-controlled workflows that pass an explicit token with read access to selected private repositories. Private repository names and URLs are redacted by default.
+Private-local mode is opt-in. Use `private-local: "true"` only in owner-controlled workflows that pass an explicit token with read access to selected private repositories. Private repository names and URLs are redacted by default. Do not commit private-local SVG, HTML, or JSON artifacts to a public profile repository unless publishing that owner-supplied metadata is intentional.
 
 ## GitHub Actions
 

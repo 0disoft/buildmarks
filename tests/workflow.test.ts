@@ -37,7 +37,7 @@ describe("profile README workflow example", () => {
     expect(workflow).toContain("pull_request:");
     expect(workflow).toContain("permissions:");
     expect(workflow).toContain("contents: read");
-    expect(workflow).toContain("actions/checkout@v6");
+    expect(workflow).toContain("actions/checkout@v7");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("run: bun install --frozen-lockfile");
     expect(workflow).toContain("run: bun test");
@@ -72,8 +72,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.18");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.18"');
+    expect(metadata.version).toBe("0.1.19");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.19"');
     expect(metadata.types).toBe("./dist/index.d.ts");
     expect(metadata.exports).toEqual({
       ".": {
@@ -130,6 +130,9 @@ describe("profile README workflow example", () => {
     const readme = await readFile("README.md", "utf8");
 
     expect(changelog).toContain("## Unreleased");
+    expect(changelog).toContain("## v0.1.19 - 2026-07-07");
+    expect(changelog).toContain("owner-supplied private repository metadata");
+    expect(changelog).toContain("filtered owner matches");
     expect(changelog).toContain("## v0.1.18 - 2026-07-07");
     expect(changelog).toContain("dist/index.js");
     expect(changelog).toContain("private README text");
@@ -193,21 +196,47 @@ describe("profile README workflow example", () => {
   test("documents npm publishing while preserving the no-bin CLI boundary", async () => {
     const readme = await readFile("README.md", "utf8");
     const npmPackaging = await readFile("docs/npm-packaging.md", "utf8");
+    const releaseWorkflow = await readFile(".github/workflows/release.yml", "utf8");
     const combined = [readme, npmPackaging].join("\n");
 
     expect(readme).toContain("[docs/npm-packaging.md](docs/npm-packaging.md)");
     expect(readme).toContain("Buildmarks is published to npm as `buildmarks`");
     expect(readme).toContain("the package has no `bin` entry yet");
+    expect(readme).toContain(".github/workflows/release.yml");
+    expect(readme).toContain("Trusted Publisher OIDC");
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.18`");
+    expect(npmPackaging).toContain("Current package version: `0.1.19`");
+    expect(npmPackaging).toContain("Workflow filename: `release.yml`");
+    expect(npmPackaging).toContain("Environment name: `npm`");
+    expect(npmPackaging).toContain("Allowed actions: `npm publish`");
     expect(npmPackaging).toContain("Export the library from `dist/index.js`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Generated `dist/` is package build output created during `prepack`");
     expect(npmPackaging).toContain("Generated `out/` demo artifacts are intentionally not part of the package");
     expect(npmPackaging).toContain("not official adoption paths");
+    expect(releaseWorkflow).toContain("name: Release");
+    expect(releaseWorkflow).toContain('      - "v*"');
+    expect(releaseWorkflow).toContain("id-token: write");
+    expect(releaseWorkflow).toContain("contents: read");
+    expect(releaseWorkflow).toContain("environment: npm");
+    expect(releaseWorkflow).toContain("actions/checkout@v7");
+    expect(releaseWorkflow).toContain("actions/setup-node@v6");
+    expect(releaseWorkflow).toContain('node-version: "24"');
+    expect(releaseWorkflow).toContain("registry-url: https://registry.npmjs.org");
+    expect(releaseWorkflow).toContain("package-manager-cache: false");
+    expect(releaseWorkflow).toContain("oven-sh/setup-bun@v2");
+    expect(releaseWorkflow).toContain("bun install --frozen-lockfile");
+    expect(releaseWorkflow).toContain("GITHUB_REF_NAME");
+    expect(releaseWorkflow).toContain("bun test");
+    expect(releaseWorkflow).toContain("bun run typecheck");
+    expect(releaseWorkflow).toContain("bun run build");
+    expect(releaseWorkflow).toContain("bun run build:types");
+    expect(releaseWorkflow).toContain("npm pack --dry-run");
+    expect(releaseWorkflow).toContain("npm publish --access public --provenance");
+    expect(releaseWorkflow).not.toContain("NPM_TOKEN");
   });
 
   test("serializes scheduled updates and commits newly generated artifacts", async () => {
@@ -268,6 +297,8 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("redacted private repository names");
     expect(example).toContain("redacted private repository names");
     expect(readme).toContain("README usage-guide detection is conservative for private repositories");
+    expect(readme).toContain("Do not commit private-local SVG, HTML, or JSON artifacts");
+    expect(example).toContain("Do not commit private-local SVG, HTML, or JSON artifacts");
   });
 
   test("documents deferred activity aggregates and storage-neutral cache boundaries", async () => {
@@ -343,6 +374,7 @@ describe("profile README workflow example", () => {
     expect(action).toContain("less than or equal to 3650");
     expect(action).toContain("Invalid private-local");
     expect(action).toContain("private-local mode requires an explicit token input");
+    expect(action).toContain("Private-local artifacts can reveal owner-supplied private repository metadata");
     expect(action).toContain("BUILDMARKS_TOKEN: ${{ inputs.token }}");
     expect(action).toContain("${BUILDMARKS_TOKEN//[[:space:]]/}");
     expect(action).toContain("set -euo pipefail");

@@ -7,6 +7,7 @@ import {
   type UserSignalGapsReport,
   type UserSignalReport
 } from "../shared/types";
+import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
 import { analyzeSignalGaps } from "../scoring/gaps";
 import { scoreUserProfile, type ScoreUserProfileOptions } from "../scoring/score-user";
 
@@ -62,6 +63,9 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
     .map((repository) => renderRepository(repository))
     .join("");
   const limitations = report.profile.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const privateLocalWarning = report.profile.signalVisibility?.reportVisibility === "private-local"
+    ? `<p class="warning">${escapeHtml(privateLocalPublicCommitWarning)}</p>`
+    : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -118,6 +122,11 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
       color: var(--accent);
       line-height: 1;
     }
+    .warning {
+      border-left: 4px solid var(--accent);
+      padding-left: 12px;
+      font-weight: 650;
+    }
     .grid {
       display: grid;
       gap: 12px;
@@ -152,6 +161,7 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
       <h1>${escapeHtml(report.profile.username)}</h1>
       <p class="score">${report.profile.overall}/100</p>
       <p>${escapeHtml(report.profile.signalType)} · ${escapeHtml(scopeSummary)}</p>
+      ${privateLocalWarning}
       <p class="muted">Generated ${escapeHtml(report.profile.generatedAt)}</p>
     </header>
 

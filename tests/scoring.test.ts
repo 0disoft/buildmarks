@@ -379,6 +379,9 @@ describe("profile scoring", () => {
     expect(report.limitations).toContain(
       "Private-local output does not expose private file contents; built-in GitHub collection treats private README usage guidance conservatively."
     );
+    expect(report.limitations).toContain(
+      "Private-local artifacts can reveal owner-supplied private repository metadata. Do not commit generated SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional."
+    );
   });
 
   test("rejects private repository scoring without private-local disclosure", () => {

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -117,6 +118,9 @@ async function main(args: readonly string[]): Promise<void> {
     return;
   }
 
+  if (parsed.privateLocal) {
+    console.error(`Buildmarks private-local warning: ${privateLocalPublicCommitWarning}`);
+  }
   console.log(`Buildmarks GitHub report written: ${result.htmlPath}`);
   console.log(`Buildmarks GitHub JSON written: ${result.jsonPath}`);
 }

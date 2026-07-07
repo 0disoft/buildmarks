@@ -28,6 +28,7 @@ Private-local mode is opt-in and must stay local or self-hosted by the repositor
 - Must state that private evidence is owner-supplied and not independently verifiable from public GitHub.
 - Must redact private repository names by default.
 - Must keep evidence reports private-local by default.
+- Must warn that generated SVG, HTML, and JSON artifacts can reveal owner-supplied private repository metadata if committed to a public profile repository.
 - Must disclose that the built-in private-local collector does not expose private file contents and therefore treats README usage-guide detection conservatively for private repositories.
 
 ## Allowed Private-Local Evidence
@@ -88,6 +89,8 @@ Default redactions:
 - private organization names
 - private repository URLs
 - private file paths when the path itself may reveal customer, employer, or product names
+
+Even with those redactions, private-local artifacts may still reveal owner-supplied private repository metadata such as repository count, project hygiene signals, release or tag presence, and coarse codebase-shape summaries. Do not commit generated private-local SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional.
 
 Public repository evidence may stay visible.
 

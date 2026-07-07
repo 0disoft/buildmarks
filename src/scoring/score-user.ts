@@ -9,6 +9,7 @@ import {
   type SignalType,
   type UserSignalReport
 } from "../shared/types";
+import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
 import { classifySignalType } from "./signal-type";
 import { validatePrivateRepositoryDisclosure } from "./private-disclosure";
 import { scoreRepository, type ScoreRepoOptions } from "./score-repo";
@@ -151,6 +152,7 @@ function buildLimitations(
   ];
 
   if (includesPrivateSignals) {
+    limitations.push(privateLocalPublicCommitWarning);
     limitations.push(
       "Private-local cards use the same file, release, maintenance, and stewardship dimensions as public-only cards."
     );

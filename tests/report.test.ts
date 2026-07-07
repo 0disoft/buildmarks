@@ -89,7 +89,11 @@ describe("static report", () => {
     expect(report.profile.limitations).toContain(
       "Private-local output does not expose private file contents; built-in GitHub collection treats private README usage guidance conservatively."
     );
+    expect(report.profile.limitations).toContain(
+      "Private-local artifacts can reveal owner-supplied private repository metadata. Do not commit generated SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional."
+    );
     expect(html).toContain("Public + Private Signals");
+    expect(html).toContain("Do not commit generated SVG, HTML, or JSON artifacts");
     expect(html).toContain("private README usage guidance conservatively");
     expect(html).toContain("Owner-supplied private signals included");
     expect(html).toContain("Not independently verifiable");
@@ -193,6 +197,7 @@ describe("static report", () => {
     expect(html).toContain("Public + Private Signals");
     expect(html).toContain("Owner-supplied private signals included");
     expect(json.profile.signalVisibility?.privateRepositoriesIncluded).toBe(true);
+    expect(JSON.stringify(json.profile)).toContain("Do not commit generated SVG, HTML, or JSON artifacts");
     expect(json.repositories[0]?.name).toBe("Private repository 1");
     expect(JSON.stringify(json)).not.toContain("private-toolkit");
   });

@@ -755,6 +755,47 @@ describe("live public GitHub collector", () => {
     expect(JSON.stringify(profile)).not.toContain("secret-product");
   });
 
+  test("keeps authenticated repository pagination independent of filtered owner matches", async () => {
+    const requestedPageSizes: string[] = [];
+    const ownerPageOne = Array.from({ length: 25 }, (_value, index) =>
+      makeRepositoryResponse(`owner-toolkit-${index + 1}`)
+    );
+    const organizationPageOne = Array.from({ length: 75 }, (_value, index) =>
+      makeRepositoryResponse(`organization-toolkit-${index + 1}`, {
+        ownerLogin: "example-organization"
+      })
+    );
+    const ownerPageTwo = Array.from({ length: 5 }, (_value, index) =>
+      makeRepositoryResponse(`owner-toolkit-${index + 26}`)
+    );
+    const baseFetch = makeGitHubFetch();
+    const fetcher: GitHubCollectorFetch = async (url, init) => {
+      const parsed = new URL(url);
+
+      if (parsed.pathname === "/user/repos") {
+        requestedPageSizes.push(parsed.searchParams.get("per_page") ?? "");
+
+        if (parsed.searchParams.get("page") === "1") {
+          return jsonResponse([...ownerPageOne, ...organizationPageOne]);
+        }
+
+        return jsonResponse(ownerPageTwo);
+      }
+
+      return baseFetch(url, init);
+    };
+
+    const profile = await collectOwnerSuppliedGitHubProfile("example-builder", {
+      fetcher,
+      token: "private-local-token"
+    });
+
+    expect(requestedPageSizes).toEqual(["100", "100"]);
+    expect(profile.repositories).toHaveLength(30);
+    expect(profile.repositories.map((repository) => repository.name).at(-1)).toBe("owner-toolkit-30");
+    expect(profile.repositories.some((repository) => repository.owner === "example-organization")).toBe(false);
+  });
+
   test("redacts names and URLs when every private-local repository is private", async () => {
     const profile = await collectOwnerSuppliedGitHubProfile("example-builder", {
       fetcher: makeGitHubFetch({

@@ -120,6 +120,7 @@ describe("private repository signal contract", () => {
 
     expect(privateContract).toContain("Buildmarks is public-only by default");
     expect(privateContract).toContain("Private-local mode is opt-in");
+    expect(privateContract).toContain("Do not commit generated private-local SVG, HTML, or JSON artifacts");
     expect(privateContract).toContain("fine-grained GitHub token");
     expect(privateContract).toContain("Public + Private Signals");
     expect(privateContract).toContain("not independently verifiable from public GitHub");

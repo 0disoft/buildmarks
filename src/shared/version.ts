@@ -1,1 +1,1 @@
-export const buildmarksVersion = "0.1.18";
+export const buildmarksVersion = "0.1.19";

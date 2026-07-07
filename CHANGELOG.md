@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.19 - 2026-07-07
+
+- Warn private-local users that generated SVG, HTML, and JSON artifacts can reveal owner-supplied private repository metadata if committed to a public profile repository.
+- Keep authenticated private-local repository listing page sizes independent of filtered owner matches to avoid excess GitHub API calls when organization repositories are interleaved.
+- Add a tag-driven npm release workflow for Trusted Publisher OIDC publishing.
+
 ## v0.1.18 - 2026-07-07
 
 - Package npm library imports from built `dist/index.js` with generated TypeScript declarations at `dist/index.d.ts`.

@@ -289,9 +289,9 @@ class GitHubRestClient {
     const repositories: GitHubRepositoryResponse[] = [];
     let page = 1;
     const normalizedUsername = username.toLowerCase();
+    const perPage = 100;
 
     while (repositories.length < limit) {
-      const perPage = Math.min(100, limit - repositories.length);
       const pageRepositories = await this.fetchJson<unknown>(
         `/user/repos?visibility=all&affiliation=owner&sort=pushed&direction=desc&per_page=${perPage}&page=${page}`
       );

@@ -123,9 +123,9 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.18`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.19`.
 
-Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md).
+Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md). npm releases are published from `.github/workflows/release.yml` through npm Trusted Publisher OIDC when a `vX.Y.Z` tag matches `package.json`.
 
 ## Repository Shape
 
@@ -176,7 +176,7 @@ The token is optional and must be passed explicitly. Buildmarks does not read to
 
 The live collector is still a local library surface, not a hosted endpoint. It intentionally has no cache storage, Redis/KV binding, Cloudflare Worker, billing, or web server in this repository.
 
-Private repository signals are not part of `collectPublicGitHubProfile()`. Use `collectOwnerSuppliedGitHubProfile()` or the Action `private-local: "true"` input only when the owner explicitly supplies a read token; private-local output follows [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md) and clearly marks cards as owner-supplied private evidence.
+Private repository signals are not part of `collectPublicGitHubProfile()`. Use `collectOwnerSuppliedGitHubProfile()` or the Action `private-local: "true"` input only when the owner explicitly supplies a read token; private-local output follows [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md) and clearly marks cards as owner-supplied private evidence. Private-local artifacts can reveal owner-supplied private repository metadata, so do not commit the generated SVG, HTML, or JSON to a public profile repository unless that disclosure is intentional.
 
 ## Generate from a GitHub Username
 
@@ -228,7 +228,7 @@ Minimal action usage:
 
 Set `generate-report: "false"` when you only want the SVG card.
 
-Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact private repository names, omit private repository URLs, mark the card as `Public + Private Signals`, and use the same file, release, maintenance, usability, and stewardship dimensions as public-only cards. Built-in private-local collection does not expose private file contents, so README usage-guide detection is conservative for private repositories.
+Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact private repository names, omit private repository URLs, mark the card as `Public + Private Signals`, and use the same file, release, maintenance, usability, and stewardship dimensions as public-only cards. Built-in private-local collection does not expose private file contents, so README usage-guide detection is conservative for private repositories. Do not commit private-local SVG, HTML, or JSON artifacts to a public profile repository unless publishing that owner-supplied metadata is intentional.
 
 Action inputs are intentionally strict: `username`, `output`, and `report-output` must be non-empty, `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
 
