@@ -86,7 +86,11 @@ describe("static report", () => {
     expect(report.gaps.limitations).toContain(
       "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
     );
+    expect(report.profile.limitations).toContain(
+      "Private-local output does not expose private file contents; built-in GitHub collection treats private README usage guidance conservatively."
+    );
     expect(html).toContain("Public + Private Signals");
+    expect(html).toContain("private README usage guidance conservatively");
     expect(html).toContain("Owner-supplied private signals included");
     expect(html).toContain("Not independently verifiable");
     expect(html).toContain("Public + Private Signals from owner-supplied private-local and public evidence");

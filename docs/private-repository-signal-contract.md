@@ -28,6 +28,7 @@ Private-local mode is opt-in and must stay local or self-hosted by the repositor
 - Must state that private evidence is owner-supplied and not independently verifiable from public GitHub.
 - Must redact private repository names by default.
 - Must keep evidence reports private-local by default.
+- Must disclose that the built-in private-local collector does not expose private file contents and therefore treats README usage-guide detection conservatively for private repositories.
 
 ## Allowed Private-Local Evidence
 
@@ -48,6 +49,8 @@ Does it have docs, tests, CI, releases, and basic project hygiene?
 ```
 
 The intent is not to inspect private code or rank the owner.
+
+Because file contents are prohibited evidence, the built-in private-local collector does not read private README text. It can detect README file presence from the repository tree, but usage-guide evidence remains conservative unless supplied through an explicit owner-controlled input path that still follows the redaction and disclosure rules above.
 
 ## Prohibited Private-Local Evidence
 

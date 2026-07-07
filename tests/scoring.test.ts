@@ -376,6 +376,9 @@ describe("profile scoring", () => {
     expect(report.limitations).toContain(
       "Private-local cards use the same file, release, maintenance, and stewardship dimensions as public-only cards."
     );
+    expect(report.limitations).toContain(
+      "Private-local output does not expose private file contents; built-in GitHub collection treats private README usage guidance conservatively."
+    );
   });
 
   test("rejects private repository scoring without private-local disclosure", () => {

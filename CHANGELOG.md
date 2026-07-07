@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.18 - 2026-07-07
+
+- Package npm library imports from built `dist/index.js` with generated TypeScript declarations at `dist/index.d.ts`.
+- Add a `prepack` build step so `npm pack --dry-run` verifies the packaged JavaScript and declaration output.
+- Disclose that built-in private-local collection does not read private README text, making private usage-guide signals conservative.
+
 ## v0.1.17 - 2026-06-18
 
 - Simplify card headers so profile and repository cards show only the subject on the left and the tier on the right.

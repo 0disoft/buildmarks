@@ -125,6 +125,9 @@ describe("private repository signal contract", () => {
     expect(privateContract).toContain("not independently verifiable from public GitHub");
     expect(privateContract).toContain("redact private repository names by default");
     expect(privateContract).toContain("file contents");
+    expect(privateContract).toContain("treats README usage-guide detection conservatively");
+    expect(collectorContract).toContain("private README usage-guide detection is conservative");
+    expect(operations).toContain("private usage-guide signals are conservative");
     expect(privateContract).toContain("aggregate codebase-shape signals");
     expect(privateContract).toContain("commit messages");
     expect(privateContract).toContain("raw commit count");

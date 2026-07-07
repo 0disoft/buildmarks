@@ -63,15 +63,25 @@ describe("profile README workflow example", () => {
       keywords?: string[];
       license?: string;
       repository?: { type?: string; url?: string };
+      exports?: unknown;
       scripts?: Record<string, string>;
+      types?: string;
       version?: string;
       devDependencies?: Record<string, string>;
     };
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.17");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.17"');
+    expect(metadata.version).toBe("0.1.18");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.18"');
+    expect(metadata.types).toBe("./dist/index.d.ts");
+    expect(metadata.exports).toEqual({
+      ".": {
+        types: "./dist/index.d.ts",
+        import: "./dist/index.js",
+        default: "./dist/index.js"
+      }
+    });
     expect(metadata.homepage).toBe("https://github.com/0disoft/buildmarks");
     expect(metadata.repository).toEqual({
       type: "git",
@@ -93,6 +103,7 @@ describe("profile README workflow example", () => {
       expect(metadata.keywords).toContain(keyword);
     }
     for (const packagedPath of [
+      "dist",
       "src",
       "docs",
       "examples",
@@ -105,6 +116,8 @@ describe("profile README workflow example", () => {
       expect(metadata.files).toContain(packagedPath);
     }
     expect(metadata.scripts?.["pack:dry-run"]).toBe("npm pack --dry-run");
+    expect(metadata.scripts?.prepack).toBe("bun run build && bun run build:types");
+    expect(metadata.scripts?.["build:types"]).toBe("tsc -p tsconfig.build.json --emitDeclarationOnly");
     expect(metadata.scripts?.typecheck).toBe("tsc --noEmit");
     expect(metadata.devDependencies?.["@types/bun"]).toBeDefined();
     expect(metadata.devDependencies?.typescript).toBeDefined();
@@ -117,6 +130,9 @@ describe("profile README workflow example", () => {
     const readme = await readFile("README.md", "utf8");
 
     expect(changelog).toContain("## Unreleased");
+    expect(changelog).toContain("## v0.1.18 - 2026-07-07");
+    expect(changelog).toContain("dist/index.js");
+    expect(changelog).toContain("private README text");
     expect(changelog).toContain("## v0.1.0 - 2026-05-30");
     expect(changelog).toContain("First public Buildmarks foundation release");
     expect(changelog).toContain("## v0.1.1 - 2026-05-30");
@@ -185,10 +201,12 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.17`");
+    expect(npmPackaging).toContain("Current package version: `0.1.18`");
+    expect(npmPackaging).toContain("Export the library from `dist/index.js`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
-    expect(npmPackaging).toContain("Generated `dist/` and `out/` artifacts are intentionally not part of the package");
+    expect(npmPackaging).toContain("Generated `dist/` is package build output created during `prepack`");
+    expect(npmPackaging).toContain("Generated `out/` demo artifacts are intentionally not part of the package");
     expect(npmPackaging).toContain("not official adoption paths");
   });
 
@@ -249,6 +267,7 @@ describe("profile README workflow example", () => {
     expect(example).toContain("private-local mode requires an explicit owner-provided read token");
     expect(readme).toContain("redacted private repository names");
     expect(example).toContain("redacted private repository names");
+    expect(readme).toContain("README usage-guide detection is conservative for private repositories");
   });
 
   test("documents deferred activity aggregates and storage-neutral cache boundaries", async () => {

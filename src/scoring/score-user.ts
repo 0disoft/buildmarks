@@ -154,6 +154,9 @@ function buildLimitations(
     limitations.push(
       "Private-local cards use the same file, release, maintenance, and stewardship dimensions as public-only cards."
     );
+    limitations.push(
+      "Private-local output does not expose private file contents; built-in GitHub collection treats private README usage guidance conservatively."
+    );
   }
 
   if (activityWindowDays !== undefined) {

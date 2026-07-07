@@ -85,6 +85,8 @@ Rejected token behavior:
 
 Private repository support is a separate opt-in private-local mode rather than a change to the public collector. That boundary is documented in [Private Repository Signal Contract](private-repository-signal-contract.md).
 
+In private-local mode, the built-in collector keeps private file contents out of the collection boundary. It can detect private README file presence from tree metadata, but it does not read private README text, so private usage-guide signals are conservative.
+
 ## API Cost Policy
 
 The live local client should avoid being used as an uncached per-card hosted endpoint.

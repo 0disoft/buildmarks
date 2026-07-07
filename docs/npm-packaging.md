@@ -5,8 +5,9 @@ Buildmarks is published to npm as a library package, but the supported v0 profil
 ## Current Status
 
 - npm package name: `buildmarks`
-- Current package version: `0.1.17`
+- Current package version: `0.1.18`
 - Do not add a package `bin` entry yet.
+- Export the library from `dist/index.js` with TypeScript declarations at `dist/index.d.ts`.
 - Keep the package contents dry-run checkable with `npm pack --dry-run`.
 - Keep `0disoft/buildmarks@v0` as the recommended profile README artifact workflow.
 
@@ -39,8 +40,9 @@ Run:
 npm pack --dry-run
 ```
 
-The package should include the public OSS core and examples:
+The package should include the public OSS core, build output, declarations, and examples:
 
+- `dist/`
 - `src/`
 - `docs/`
 - `examples/`
@@ -50,4 +52,4 @@ The package should include the public OSS core and examples:
 - `README.md`
 - `LICENSE`
 
-Generated `dist/` and `out/` artifacts are intentionally not part of the package.
+Generated `dist/` is package build output created during `prepack`; it should be included in the package but not committed to the repository. Generated `out/` demo artifacts are intentionally not part of the package.
