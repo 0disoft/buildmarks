@@ -218,7 +218,7 @@ describe("profile README workflow example", () => {
     expect(npmPackaging).toContain("Generated `out/` demo artifacts are intentionally not part of the package");
     expect(npmPackaging).toContain("not official adoption paths");
     expect(releaseWorkflow).toContain("name: Release");
-    expect(releaseWorkflow).toContain('      - "v*"');
+    expect(releaseWorkflow).toContain('      - "v[0-9]*.[0-9]*.[0-9]*"');
     expect(releaseWorkflow).toContain("id-token: write");
     expect(releaseWorkflow).toContain("contents: read");
     expect(releaseWorkflow).toContain("environment: npm");
