@@ -132,6 +132,7 @@ export interface CollectedGitHubProfile {
   activityWindowDays?: number;
   activityAggregatesDeferred?: boolean;
   repositoryCollectionFailureCount?: number;
+  repositoryCollectionAttemptCount?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: CollectedGitHubRepository[];
 }
@@ -142,6 +143,7 @@ export interface ProfileInput {
   activityWindowDays?: number;
   activityAggregatesDeferred?: boolean;
   repositoryCollectionFailureCount?: number;
+  repositoryCollectionAttemptCount?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: RepositoryInput[];
 }
@@ -206,6 +208,7 @@ export interface UserSignalReport {
   activityWindowDays?: number;
   signalVisibility?: SignalVisibilityDisclosure;
   unavailableDimensions?: SignalDimension[];
+  evidenceStatus?: "complete" | "partial" | "insufficient";
   overall: number;
   signalType: SignalType;
   dimensions: Record<SignalDimension, number>;

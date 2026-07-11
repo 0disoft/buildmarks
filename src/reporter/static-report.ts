@@ -39,6 +39,7 @@ export function createStaticReport(
 }
 
 export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
+  const hasInsufficientEvidence = report.profile.evidenceStatus === "insufficient";
   const scopeSummary = report.profile.signalVisibility?.privateRepositoriesIncluded === true
     ? "Public + Private Signals · Owner-supplied private signals included · Not independently verifiable · Not a ranking"
     : "Public GitHub evidence only · Not a ranking";
@@ -159,8 +160,8 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
     <header>
       <p class="muted">Buildmarks static report</p>
       <h1>${escapeHtml(report.profile.username)}</h1>
-      <p class="score">${report.profile.overall}/100</p>
-      <p>${escapeHtml(report.profile.signalType)} · ${escapeHtml(scopeSummary)}</p>
+      <p class="score">${hasInsufficientEvidence ? "Not scored" : `${report.profile.overall}/100`}</p>
+      <p>${hasInsufficientEvidence ? "Not enough complete GitHub evidence for a reliable score" : escapeHtml(report.profile.signalType)} · ${escapeHtml(scopeSummary)}</p>
       ${privateLocalWarning}
       <p class="muted">Generated ${escapeHtml(report.profile.generatedAt)}</p>
     </header>

@@ -7,6 +7,7 @@ import {
   renderRepositorySignalCard,
   renderSignalGapsCard,
   renderUserSignalCard,
+  signalDimensions,
   scoreRepository,
   scoreUserProfile
 } from "../src";
@@ -16,6 +17,18 @@ const now = new Date("2026-05-28T00:00:00.000Z");
 const visibleVersion = `v${buildmarksVersion}`;
 
 describe("SVG renderer", () => {
+  test("renders a no-score fallback when evidence is insufficient", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard({
+      ...report,
+      evidenceStatus: "insufficient",
+      unavailableDimensions: [...signalDimensions]
+    });
+
+    expect(svg).toContain("Not enough complete GitHub evidence");
+    expect(svg).toContain("No signal score is shown");
+    expect(svg).not.toContain("Gold V");
+  });
   test("renders a readable profile card without executable SVG content", () => {
     const report = scoreUserProfile(
       {

@@ -16,6 +16,9 @@ export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): P
     ...(profile.repositoryCollectionFailureCount === undefined
       ? {}
       : { repositoryCollectionFailureCount: profile.repositoryCollectionFailureCount }),
+    ...(profile.repositoryCollectionAttemptCount === undefined
+      ? {}
+      : { repositoryCollectionAttemptCount: profile.repositoryCollectionAttemptCount }),
     ...(profile.signalVisibility ? { signalVisibility: profile.signalVisibility } : {}),
     repositories: profile.repositories.map(normalizePublicGitHubRepository)
   };

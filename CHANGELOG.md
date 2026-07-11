@@ -6,6 +6,11 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.20 - 2026-07-11
+
+- Track attempted repository collection coverage and withhold normal scores when failed or incomplete repository evidence reaches half of the attempted set.
+- Exclude repositories with truncated GitHub file trees from scores and gap hints instead of treating unobserved files as absent.
+
 ## v0.1.19 - 2026-07-07
 
 - Warn private-local users that generated SVG, HTML, and JSON artifacts can reveal owner-supplied private repository metadata if committed to a public profile repository.

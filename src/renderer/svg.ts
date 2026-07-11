@@ -49,6 +49,10 @@ export function renderUserSignalCard(
   report: UserSignalReport,
   options: RenderCardOptions = {}
 ): string {
+  if (report.evidenceStatus === "insufficient") {
+    return renderFallbackCard("Not enough complete GitHub evidence to calculate a reliable signal score");
+  }
+
   const theme = normalizeTheme(options.theme);
   const highlights = report.evidence.slice(0, 4).map((item) => evidenceToHighlight(item.label));
   const usernameRaw = coerceString(report.username, "unknown");

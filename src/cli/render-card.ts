@@ -160,6 +160,10 @@ export function parseProfileInput(value: unknown): ProfileInput {
   if (repositoryCollectionFailureCount !== undefined) {
     profile.repositoryCollectionFailureCount = repositoryCollectionFailureCount;
   }
+  const repositoryCollectionAttemptCount = optionalNonNegativeInteger(record, "repositoryCollectionAttemptCount");
+  if (repositoryCollectionAttemptCount !== undefined) {
+    profile.repositoryCollectionAttemptCount = repositoryCollectionAttemptCount;
+  }
 
   const signalVisibility = parseSignalVisibility(record.signalVisibility);
   if (signalVisibility !== undefined) {

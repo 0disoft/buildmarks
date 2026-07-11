@@ -129,8 +129,8 @@ function resolveMaxRepositories(value: number): number {
   return value;
 }
 
-function isEligibleRepository(repository: { isFork: unknown; isArchived: unknown }): boolean {
-  return repository.isFork === false && repository.isArchived === false;
+function isEligibleRepository(repository: RepositoryInput): boolean {
+  return repository.isFork === false && repository.isArchived === false && repository.codebaseShape?.treeTruncated !== true;
 }
 
 function isPresentSignal(value: unknown): boolean {

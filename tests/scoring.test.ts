@@ -502,9 +502,10 @@ describe("profile scoring", () => {
       { now }
     );
 
-    expect(report.limitations).toContain(
-      "Some GitHub repository file trees were truncated, so file-based signals may be incomplete."
-    );
+    expect(report.topRepos).toHaveLength(0);
+    expect(report.evidenceStatus).toBe("insufficient");
+    expect(report.unavailableDimensions).toEqual([...signalDimensions]);
+    expect(report.limitations).toContain("1 repository had truncated GitHub file trees and was excluded from scoring.");
   });
 
   test("discloses omitted repositories when GitHub detail collection partially fails", () => {
@@ -519,6 +520,17 @@ describe("profile scoring", () => {
     expect(report.limitations).toContain(
       "2 repositories could not be collected from GitHub and were omitted from this report."
     );
+  });
+
+  test("does not present a normal score when at least half of attempted repositories are unavailable", () => {
+    const report = scoreUserProfile({
+      ...(fixture as ProfileInput),
+      repositoryCollectionAttemptCount: 4,
+      repositoryCollectionFailureCount: 2
+    }, { now });
+
+    expect(report.evidenceStatus).toBe("insufficient");
+    expect(report.unavailableDimensions).toEqual([...signalDimensions]);
   });
 
   test("does not add context-only collaboration penalties for solo-looking profiles", () => {

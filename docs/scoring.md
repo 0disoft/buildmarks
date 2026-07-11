@@ -68,6 +68,8 @@ The public collector reads the Git tree metadata that GitHub already returns for
 
 Generated, vendor, dependency, build-output, lockfile, minified, and sourcemap paths are excluded from these shape calculations and from tree-derived test or example surface signals. These checks are intentionally coarse. They can suggest whether a repository is split into manageable source files and has visible test or example surface, but they do not prove code quality.
 
+Repositories whose GitHub recursive tree response is truncated are excluded from scoring and gap hints. Missing paths in a truncated response are unknown, not negative evidence. A profile is not presented as normally scored when failed collections and truncated trees make up at least half of the attempted repository set.
+
 ## Exclusions
 
 Buildmarks does not use these as primary quality signals:

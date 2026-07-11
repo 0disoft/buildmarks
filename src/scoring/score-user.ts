@@ -31,8 +31,12 @@ export function scoreUserProfile(
   const includesPrivateSignals = input.signalVisibility?.privateRepositoriesIncluded === true;
   const maxRepositories = resolveMaxRepositories(options.maxRepositories);
   const eligibleRepositories = input.repositories.filter(isEligibleRepository);
-  const hasTruncatedFileTree = eligibleRepositories.some((repository) => repository.codebaseShape?.treeTruncated === true);
-  const topRepos = eligibleRepositories
+  const completeTreeRepositories = eligibleRepositories.filter((repository) => repository.codebaseShape?.treeTruncated !== true);
+  const truncatedRepositoryCount = eligibleRepositories.length - completeTreeRepositories.length;
+  const collectionFailureCount = input.repositoryCollectionFailureCount ?? 0;
+  const collectionAttemptCount = input.repositoryCollectionAttemptCount ?? eligibleRepositories.length + collectionFailureCount;
+  const evidenceStatus = resolveEvidenceStatus(collectionAttemptCount, collectionFailureCount, truncatedRepositoryCount);
+  const topRepos = completeTreeRepositories
     .map((repository) => scoreRepository(repository, options))
     .sort((left, right) => right.weight * right.overall - left.weight * left.overall)
     .slice(0, maxRepositories);
@@ -49,6 +53,8 @@ export function scoreUserProfile(
     generatedAt,
     ...(input.activityWindowDays === undefined ? {} : { activityWindowDays: input.activityWindowDays }),
     ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
+    evidenceStatus,
+    ...(evidenceStatus === "insufficient" ? { unavailableDimensions: [...signalDimensions] } : {}),
     overall,
     signalType,
     dimensions,
@@ -61,9 +67,9 @@ export function scoreUserProfile(
       includesPrivateSignals,
       signalType,
       input.activityWindowDays,
-      hasTruncatedFileTree,
+      truncatedRepositoryCount,
       input.activityAggregatesDeferred === true,
-      input.repositoryCollectionFailureCount ?? 0
+      collectionFailureCount
     )
   };
 }
@@ -137,7 +143,7 @@ function buildLimitations(
   includesPrivateSignals: boolean,
   signalType: SignalType,
   activityWindowDays: number | undefined,
-  hasTruncatedFileTree: boolean,
+  truncatedRepositoryCount: number,
   activityAggregatesDeferred: boolean,
   repositoryCollectionFailureCount: number
 ): string[] {
@@ -165,8 +171,10 @@ function buildLimitations(
     limitations.push(`Repositories are filtered to activity within the last ${activityWindowDays} days.`);
   }
 
-  if (hasTruncatedFileTree) {
-    limitations.push("Some GitHub repository file trees were truncated, so file-based signals may be incomplete.");
+  if (truncatedRepositoryCount > 0) {
+    const repositoryLabel = truncatedRepositoryCount === 1 ? "repository" : "repositories";
+    const exclusionVerb = truncatedRepositoryCount === 1 ? "was" : "were";
+    limitations.push(`${truncatedRepositoryCount} ${repositoryLabel} had truncated GitHub file trees and ${exclusionVerb} excluded from scoring.`);
   }
 
   if (activityAggregatesDeferred) {
@@ -192,6 +200,18 @@ function buildLimitations(
   }
 
   return limitations;
+}
+
+function resolveEvidenceStatus(
+  attempted: number,
+  failed: number,
+  truncated: number
+): "complete" | "partial" | "insufficient" {
+  const unavailable = failed + truncated;
+  if (attempted <= 0 || unavailable >= attempted || unavailable / attempted >= 0.5) {
+    return "insufficient";
+  }
+  return unavailable > 0 ? "partial" : "complete";
 }
 
 export function makeEmptyDimensionScore(key: SignalDimension): DimensionScore {

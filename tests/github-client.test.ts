@@ -441,6 +441,7 @@ describe("live public GitHub collector", () => {
 
     expect(profile.repositories.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
     expect(profile.repositoryCollectionFailureCount).toBe(1);
+    expect(profile.repositoryCollectionAttemptCount).toBe(2);
   });
 
   test("does not treat invalid release or tag responses as absent release signals", async () => {

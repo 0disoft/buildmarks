@@ -189,6 +189,7 @@ export async function collectOwnerSuppliedGitHubProfile(
     activityWindowDays: policy.limits.repositoryActivityWindowDays,
     activityAggregatesDeferred,
     ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
+    repositoryCollectionAttemptCount: activeRepositories.length,
     signalVisibility: includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility,
     repositories: repositoriesWithPrivateLabels
   };
@@ -227,6 +228,7 @@ export async function collectPublicGitHubProfile(
     activityWindowDays: policy.limits.repositoryActivityWindowDays,
     activityAggregatesDeferred,
     ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
+    repositoryCollectionAttemptCount: activeRepositories.length,
     signalVisibility: publicOnlySignalVisibility,
     repositories: collected.repositories
   };

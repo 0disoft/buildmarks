@@ -49,6 +49,8 @@ The activity window uses the public `pushed_at` timestamp and filters repositori
 
 If one non-rate-limit repository detail collection fails after the repository list is loaded, the collector omits that repository, continues with the rest of the profile, and reports the omitted repository count as a limitation. Repository-list failures and GitHub rate-limit or abuse-limit responses remain fatal because the collector cannot know whether the partial profile is representative.
 
+Collected profiles record how many active repositories were attempted. If failed detail collections plus truncated file trees account for at least half of that attempted set, generated reports mark the evidence as insufficient and do not present a normal signal score. Repositories with truncated recursive trees are excluded from scoring and gap hints because an unobserved file cannot honestly be treated as absent.
+
 ## Live Client v0 Scope
 
 The live collector uses GitHub REST API endpoints for:
