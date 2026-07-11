@@ -40,6 +40,10 @@ inputs:
     description: Only analyze repositories pushed within this many days.
     required: false
     default: "365"
+  max-api-requests:
+    description: Maximum GitHub REST requests allowed for one profile collection.
+    required: false
+    default: "160"
 
 runs:
   using: composite
@@ -56,6 +60,7 @@ runs:
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
         BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
+        BUILDMARKS_MAX_API_REQUESTS: ${{ inputs.max-api-requests }}
       run: |
         set -euo pipefail
 
@@ -131,6 +136,15 @@ runs:
           exit 1
         fi
 
+        if [[ ! "$BUILDMARKS_MAX_API_REQUESTS" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error title=Invalid max-api-requests::Expected a positive integer."
+          exit 1
+        fi
+        if (( BUILDMARKS_MAX_API_REQUESTS > 500 )); then
+          echo "::error title=Invalid max-api-requests::Expected a value less than or equal to 500."
+          exit 1
+        fi
+
     - name: Set up Bun
       uses: oven-sh/setup-bun@v2
 
@@ -146,6 +160,7 @@ runs:
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
         BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
+        BUILDMARKS_MAX_API_REQUESTS: ${{ inputs.max-api-requests }}
       run: |
         set -euo pipefail
 
@@ -159,6 +174,8 @@ runs:
           "$BUILDMARKS_MAX_REPOSITORIES_SCORED"
           "--activity-window-days"
           "$BUILDMARKS_ACTIVITY_WINDOW_DAYS"
+          "--max-api-requests"
+          "$BUILDMARKS_MAX_API_REQUESTS"
         )
 
         if [ "$BUILDMARKS_PRIVATE_LOCAL" = "true" ]; then
@@ -186,6 +203,7 @@ runs:
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
         BUILDMARKS_MAX_REPOSITORIES_SCORED: ${{ inputs.max-repositories-scored }}
         BUILDMARKS_ACTIVITY_WINDOW_DAYS: ${{ inputs.activity-window-days }}
+        BUILDMARKS_MAX_API_REQUESTS: ${{ inputs.max-api-requests }}
       run: |
         set -euo pipefail
 
@@ -198,6 +216,8 @@ runs:
           "$BUILDMARKS_MAX_REPOSITORIES_SCORED"
           "--activity-window-days"
           "$BUILDMARKS_ACTIVITY_WINDOW_DAYS"
+          "--max-api-requests"
+          "$BUILDMARKS_MAX_API_REQUESTS"
         )
 
         if [ "$BUILDMARKS_PRIVATE_LOCAL" = "true" ]; then

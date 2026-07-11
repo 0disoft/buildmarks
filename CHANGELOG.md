@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.21 - 2026-07-11
+
+- Enforce a configurable per-profile GitHub REST request budget that counts retries and fails closed before exceeding the limit.
+- Abort in-flight sibling repository requests and stop scheduling new work after fatal rate-limit or request-budget errors.
+- Expose the request budget through the CLI and composite Action as `max-api-requests`.
+
 ## v0.1.20 - 2026-07-11
 
 - Track attempted repository collection coverage and withhold normal scores when failed or incomplete repository evidence reaches half of the attempted set.

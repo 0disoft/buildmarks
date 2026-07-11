@@ -100,7 +100,7 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-report.ts <github-username> <output-directory> [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>]"
+      "Usage: bun src/cli/render-github-report.ts <github-username> <output-directory> [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>] [--max-api-requests <n>]"
     );
     process.exitCode = 2;
     return;
@@ -134,6 +134,7 @@ function parseArgs(args: readonly string[]):
       maxRepositoriesScanned: number;
       maxRepositoriesScored: number;
       activityWindowDays: number;
+      maxApiRequests: number;
       privateLocal: boolean;
     }
   | { ok: false; message: string } {

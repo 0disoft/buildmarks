@@ -308,6 +308,7 @@ describe("live public GitHub collector", () => {
     const policy: GitHubCollectorPolicy = {
       ...defaultGitHubCollectorPolicy,
       limits: {
+        ...defaultGitHubCollectorPolicy.limits,
         maxRepositoriesScannedPerProfile: 2,
         maxRepositoriesScoredPerProfile: 2,
         repositoryActivityWindowDays: 365,
@@ -334,6 +335,7 @@ describe("live public GitHub collector", () => {
     const policy: GitHubCollectorPolicy = {
       ...defaultGitHubCollectorPolicy,
       limits: {
+        ...defaultGitHubCollectorPolicy.limits,
         maxRepositoriesScannedPerProfile: 30,
         maxRepositoriesScoredPerProfile: 12,
         repositoryActivityWindowDays: 180,
@@ -547,6 +549,61 @@ describe("live public GitHub collector", () => {
       status: 403,
       rateLimitReset: "1770000000"
     });
+  });
+
+  test("aborts sibling repository requests after a fatal rate limit", async () => {
+    const baseFetch = makeGitHubFetch({
+      repositories: [makeRepositoryResponse("limited-toolkit"), makeRepositoryResponse("slow-toolkit")]
+    });
+    let abortedSiblingRequests = 0;
+
+    await expect(collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        const parsed = new URL(url);
+        if (parsed.pathname.includes("/slow-toolkit/")) {
+          if (init.signal?.aborted) {
+            abortedSiblingRequests += 1;
+            throw new DOMException("aborted", "AbortError");
+          }
+          return await new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () => {
+              abortedSiblingRequests += 1;
+              reject(new DOMException("aborted", "AbortError"));
+            }, { once: true });
+          });
+        }
+        if (parsed.pathname === "/repos/example-builder/limited-toolkit/git/trees/main") {
+          return jsonResponse(
+            { message: "API rate limit exceeded" },
+            { status: 403, headers: { "x-ratelimit-remaining": "0" } }
+          );
+        }
+        return baseFetch(url, init);
+      }
+    })).rejects.toMatchObject({ code: "github_rate_limited" });
+
+    expect(abortedSiblingRequests).toBeGreaterThan(0);
+  });
+
+  test("fails closed before exceeding the configured GitHub request budget", async () => {
+    const policy: GitHubCollectorPolicy = {
+      ...defaultGitHubCollectorPolicy,
+      limits: {
+        ...defaultGitHubCollectorPolicy.limits,
+        maxApiRequestsPerProfile: 1
+      }
+    };
+    let requestCount = 0;
+
+    await expect(collectPublicGitHubProfile("example-builder", {
+      policy,
+      fetcher: async (url, init) => {
+        requestCount += 1;
+        return makeGitHubFetch()(url, init);
+      }
+    })).rejects.toMatchObject({ code: "github_request_budget_exhausted" });
+
+    expect(requestCount).toBe(1);
   });
 
   test("retries transient GitHub responses before failing collection", async () => {

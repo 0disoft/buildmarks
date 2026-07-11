@@ -39,6 +39,7 @@ Default repository limits:
 - Scan up to 30 repositories per profile by default. Policy validation caps this at 100.
 - Score up to 12 repositories per profile by default. Policy validation caps this at 24.
 - Collect up to 3 repositories concurrently by default. Policy validation caps this at 8.
+- Spend at most 160 GitHub REST requests per profile collection by default. Policy validation caps this at 500, and every retry spends budget.
 - Analyze repositories pushed within the last 365 days by default. Policy validation caps this at 3650.
 
 The scan limit protects GitHub API cost and local runtime. The bounded repository concurrency reduces local wait time without turning one profile into an unbounded burst of GitHub API requests. The score limit keeps one profile card readable and limits how much one account can make the renderer do.
@@ -98,6 +99,8 @@ GitHub currently documents unauthenticated REST requests as 60 requests per hour
 Before a hosted endpoint is added, it must define cache storage, abuse limits, stale-result behavior, and a way to avoid repeated uncached repository-content scans for the same profile.
 
 The live client applies a short timeout and one retry for transient GitHub responses before surfacing the request as failed.
+
+The request budget is enforced immediately before each HTTP attempt. Exhaustion is fatal for the profile rather than being hidden as an omitted repository. Fatal rate-limit and budget errors stop new repository work and abort in-flight sibling requests; an aborted request is not retried.
 
 The backend-free profile README workflow avoids per-view GitHub API cost by committing a generated SVG into the profile repository. Viewers load a static file from GitHub instead of causing fresh collection work.
 

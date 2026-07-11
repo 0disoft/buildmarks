@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
-import { createStaticReport, renderStaticReportHtml } from "../src";
+import { createStaticReport, defaultGitHubCollectorPolicy, renderStaticReportHtml } from "../src";
 import { renderGitHubArtifacts } from "../src/cli/render-github-artifacts";
 import { renderGitHubReportFiles } from "../src/cli/render-github-report";
 import { renderReportFiles } from "../src/cli/render-report";
@@ -249,6 +249,7 @@ describe("static report", () => {
           repositoryFileSignalsTtlSeconds: 86_400
         },
         limits: {
+          ...defaultGitHubCollectorPolicy.limits,
           maxRepositoriesScannedPerProfile: 2,
           maxRepositoriesScoredPerProfile: 1,
           repositoryActivityWindowDays: 365,

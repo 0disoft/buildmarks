@@ -23,6 +23,7 @@ describe("GitHub collector operations policy", () => {
     expect(defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile).toBeGreaterThan(0);
     expect(defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays).toBe(365);
     expect(defaultGitHubCollectorPolicy.limits.maxConcurrentRepositoryCollections).toBeGreaterThan(0);
+    expect(defaultGitHubCollectorPolicy.limits.maxApiRequestsPerProfile).toBe(160);
     expect(defaultGitHubCollectorPolicy.limits.maxRepositoriesScannedPerProfile).toBeGreaterThanOrEqual(
       defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile
     );
@@ -72,6 +73,7 @@ describe("GitHub collector operations policy", () => {
         repositoryFileSignalsTtlSeconds: -1
       },
       limits: {
+        ...defaultGitHubCollectorPolicy.limits,
         maxRepositoriesScannedPerProfile: 4,
         maxRepositoriesScoredPerProfile: 12,
         repositoryActivityWindowDays: 0,
@@ -95,10 +97,12 @@ describe("GitHub collector operations policy", () => {
     const policy: GitHubCollectorPolicy = {
       ...defaultGitHubCollectorPolicy,
       limits: {
+        ...defaultGitHubCollectorPolicy.limits,
         maxRepositoriesScannedPerProfile: 101,
         maxRepositoriesScoredPerProfile: 25,
         repositoryActivityWindowDays: 3651,
-        maxConcurrentRepositoryCollections: 9
+        maxConcurrentRepositoryCollections: 9,
+        maxApiRequestsPerProfile: 501
       }
     };
 
@@ -109,5 +113,6 @@ describe("GitHub collector operations policy", () => {
     expect(validation.errors).toContain("Max repositories scored per profile must be less than or equal to 24.");
     expect(validation.errors).toContain("Repository activity window days must be less than or equal to 3650.");
     expect(validation.errors).toContain("Max concurrent repository collections must be less than or equal to 8.");
+    expect(validation.errors).toContain("Max API requests per profile must be less than or equal to 500.");
   });
 });

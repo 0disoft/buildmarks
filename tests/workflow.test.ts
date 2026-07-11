@@ -72,8 +72,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.20");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.20"');
+    expect(metadata.version).toBe("0.1.21");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.21"');
     expect(metadata.types).toBe("./dist/index.d.ts");
     expect(metadata.exports).toEqual({
       ".": {
@@ -130,7 +130,7 @@ describe("profile README workflow example", () => {
     const readme = await readFile("README.md", "utf8");
 
     expect(changelog).toContain("## Unreleased");
-    expect(changelog).toContain("## v0.1.20 - 2026-07-11");
+    expect(changelog).toContain("## v0.1.21 - 2026-07-11");
     expect(changelog).toContain("owner-supplied private repository metadata");
     expect(changelog).toContain("filtered owner matches");
     expect(changelog).toContain("## v0.1.18 - 2026-07-07");
@@ -207,7 +207,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.20`");
+    expect(npmPackaging).toContain("Current package version: `0.1.21`");
     expect(npmPackaging).toContain("Workflow filename: `release.yml`");
     expect(npmPackaging).toContain("Environment name: `npm`");
     expect(npmPackaging).toContain("Allowed actions: `npm publish`");
@@ -276,7 +276,8 @@ describe("profile README workflow example", () => {
       "private-local",
       "max-repositories-scanned",
       "max-repositories-scored",
-      "activity-window-days"
+      "activity-window-days",
+      "max-api-requests"
     ]) {
       expect(action).toContain(`  ${input}:`);
       expect(readme).toContain(`| \`${input}\``);
@@ -290,6 +291,10 @@ describe("profile README workflow example", () => {
     expect(example).toContain("capped at 24");
     expect(readme).toContain("capped at 3650");
     expect(example).toContain("capped at 3650");
+    expect(readme).toContain("| `max-api-requests` | `160` |");
+    expect(example).toContain("| `max-api-requests` | `160` |");
+    expect(action).toContain("Invalid max-api-requests");
+    expect(action).toContain("less than or equal to 500");
     expect(readme).toContain('Must be exactly `"true"` or `"false"`');
     expect(example).toContain('Must be exactly `"true"` or `"false"`');
     expect(readme).toContain("private-local mode requires an explicit owner-provided read token");

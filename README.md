@@ -123,7 +123,7 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.20`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.21`.
 
 Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md). npm releases are published from `.github/workflows/release.yml` through npm Trusted Publisher OIDC when a `vX.Y.Z` tag matches `package.json`.
 
@@ -245,6 +245,7 @@ The default repository activity window is 365 days based on each repository's pu
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
 | `max-repositories-scored` | `12` | Positive integer profile summary limit, capped at 24. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
+| `max-api-requests` | `160` | Positive integer GitHub REST request budget for one profile collection, capped at 500. Retries spend budget. |
 
 ## Example Card Assets
 

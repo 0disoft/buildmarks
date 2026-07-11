@@ -12,6 +12,7 @@ export interface GitHubCollectorPolicy {
     maxRepositoriesScoredPerProfile: number;
     repositoryActivityWindowDays: number;
     maxConcurrentRepositoryCollections: number;
+    maxApiRequestsPerProfile: number;
   };
 }
 
@@ -39,7 +40,8 @@ export const defaultGitHubCollectorPolicy = {
     maxRepositoriesScannedPerProfile: 30,
     maxRepositoriesScoredPerProfile: 12,
     repositoryActivityWindowDays: 365,
-    maxConcurrentRepositoryCollections: 3
+    maxConcurrentRepositoryCollections: 3,
+    maxApiRequestsPerProfile: 160
   }
 } satisfies GitHubCollectorPolicy;
 
@@ -53,6 +55,7 @@ const maxRepositoriesScannedLimit = 100;
 const maxRepositoriesScoredLimit = 24;
 const repositoryActivityWindowDaysLimit = 3650;
 const maxConcurrentRepositoryCollectionsLimit = 8;
+const maxApiRequestsPerProfileLimit = 500;
 
 const privateRepositoryScopes = new Set([
   "repo",
@@ -134,6 +137,12 @@ export function validateGitHubCollectorPolicy(
     errors.push(
       `Max concurrent repository collections must be less than or equal to ${maxConcurrentRepositoryCollectionsLimit}.`
     );
+  }
+
+  if (!isPositiveInteger(policy.limits.maxApiRequestsPerProfile)) {
+    errors.push("Max API requests per profile must be a positive integer.");
+  } else if (policy.limits.maxApiRequestsPerProfile > maxApiRequestsPerProfileLimit) {
+    errors.push(`Max API requests per profile must be less than or equal to ${maxApiRequestsPerProfileLimit}.`);
   }
 
   if (

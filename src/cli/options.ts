@@ -13,6 +13,7 @@ export interface CommonGitHubCliOptions {
   maxRepositoriesScanned: number;
   maxRepositoriesScored: number;
   activityWindowDays: number;
+  maxApiRequests: number;
   privateLocal: boolean;
 }
 
@@ -28,6 +29,7 @@ export function parseCommonGitHubCliOptions(
   let maxRepositoriesScanned = githubCliDefaultLimits.maxRepositoriesScannedPerProfile;
   let maxRepositoriesScored = githubCliDefaultLimits.maxRepositoriesScoredPerProfile;
   let activityWindowDays = githubCliDefaultLimits.repositoryActivityWindowDays;
+  let maxApiRequests = githubCliDefaultLimits.maxApiRequestsPerProfile;
   let privateLocal = false;
 
   for (let index = 0; index < args.length; index += 1) {
@@ -81,6 +83,16 @@ export function parseCommonGitHubCliOptions(
       continue;
     }
 
+    if (arg === "--max-api-requests") {
+      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
+      if (typeof value === "string") {
+        return { ok: false, message: value };
+      }
+      maxApiRequests = value;
+      index += 1;
+      continue;
+    }
+
     if (isOptionLikeArgument(arg)) {
       return { ok: false, message: unknownOptionMessage(arg) };
     }
@@ -92,7 +104,8 @@ export function parseCommonGitHubCliOptions(
     privateLocal,
     maxRepositoriesScanned,
     maxRepositoriesScored,
-    activityWindowDays
+    activityWindowDays,
+    maxApiRequests
   });
   const validation = validateGitHubCollectorPolicy(policy, {
     mode: privateLocal ? "private-local" : "public-only"
@@ -108,6 +121,7 @@ export function parseCommonGitHubCliOptions(
       maxRepositoriesScanned,
       maxRepositoriesScored,
       activityWindowDays,
+      maxApiRequests,
       privateLocal,
       ...(token === undefined ? {} : { token })
     }
@@ -138,6 +152,7 @@ export function buildGitHubCollectorPolicyFromCli(
     maxRepositoriesScanned: number;
     maxRepositoriesScored: number;
     activityWindowDays: number;
+    maxApiRequests: number;
   }
 ): GitHubCollectorPolicy {
   const basePolicy = options.privateLocal
@@ -150,7 +165,8 @@ export function buildGitHubCollectorPolicyFromCli(
       maxRepositoriesScannedPerProfile: options.maxRepositoriesScanned,
       maxRepositoriesScoredPerProfile: options.maxRepositoriesScored,
       repositoryActivityWindowDays: options.activityWindowDays,
-      maxConcurrentRepositoryCollections: basePolicy.limits.maxConcurrentRepositoryCollections
+      maxConcurrentRepositoryCollections: basePolicy.limits.maxConcurrentRepositoryCollections,
+      maxApiRequestsPerProfile: options.maxApiRequests
     }
   };
 }

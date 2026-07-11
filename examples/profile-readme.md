@@ -113,6 +113,7 @@ Action inputs:
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
 | `max-repositories-scored` | `12` | Positive integer profile summary limit, capped at 24. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
+| `max-api-requests` | `160` | Positive integer GitHub REST request budget for one profile collection, capped at 500. Retries spend budget. |
 
 See [profile-smoke-test.md](profile-smoke-test.md) for the real v0 adoption smoke-test checklist.
 

@@ -420,6 +420,7 @@ describe("render-github-card CLI", () => {
       policy: {
         ...defaultGitHubCollectorPolicy,
         limits: {
+          ...defaultGitHubCollectorPolicy.limits,
           maxRepositoriesScannedPerProfile: 2,
           maxRepositoriesScoredPerProfile: 1,
           repositoryActivityWindowDays: 365,
@@ -478,7 +479,8 @@ describe("CLI option parsing", () => {
         privateLocal: true,
         maxRepositoriesScanned: 17,
         maxRepositoriesScored: defaultGitHubCollectorPolicy.limits.maxRepositoriesScoredPerProfile,
-        activityWindowDays: defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays
+        activityWindowDays: defaultGitHubCollectorPolicy.limits.repositoryActivityWindowDays,
+        maxApiRequests: defaultGitHubCollectorPolicy.limits.maxApiRequestsPerProfile
       }
     });
     expect(disallowedReportHref).toEqual({ ok: false, message: "Unknown option: --report-href" });
