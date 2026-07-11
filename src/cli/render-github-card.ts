@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
 import {
   collectOwnerSuppliedGitHubProfile,
@@ -47,7 +47,7 @@ export async function renderGitHubCardFile(
     const report = scoreUserProfile(profile, scoringOptions);
     const svg = renderUserSignalCard(report, options);
 
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    await writeTextFileAtomically(resolvedOutputPath, svg);
 
     return {
       ok: true,

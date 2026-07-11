@@ -6,6 +6,11 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.22 - 2026-07-11
+
+- Write generated SVG, HTML, and JSON files through flushed same-directory temporary files before atomically replacing each destination.
+- Remove owned temporary files after failed replacements while preserving existing destination content.
+
 ## v0.1.21 - 2026-07-11
 
 - Enforce a configurable per-profile GitHub REST request budget that counts retries and fails closed before exceeding the limit.

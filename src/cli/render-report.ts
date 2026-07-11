@@ -1,9 +1,9 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createStaticReport, renderStaticReportHtml } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { parseProfileInput } from "./render-card";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
 export interface RenderReportFileResult {
   ok: boolean;
@@ -31,8 +31,8 @@ export async function renderReportFiles(
     const report = createStaticReport(profile);
     const html = renderStaticReportHtml(report);
 
-    await writeFile(htmlPath, html, "utf8");
-    await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await writeTextFileAtomically(htmlPath, html);
+    await writeTextFileAtomically(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
 
     return {
       ok: true,

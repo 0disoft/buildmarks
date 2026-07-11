@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
 import {
   collectOwnerSuppliedGitHubProfile,
@@ -48,8 +48,8 @@ export async function renderGitHubReportFiles(
     const report = createStaticReport(profile, scoringOptions);
     const html = renderStaticReportHtml(report);
 
-    await writeFile(htmlPath, html, "utf8");
-    await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await writeTextFileAtomically(htmlPath, html);
+    await writeTextFileAtomically(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
 
     return {
       ok: true,

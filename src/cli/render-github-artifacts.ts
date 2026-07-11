@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
 import {
   collectOwnerSuppliedGitHubProfile,
@@ -53,9 +53,9 @@ export async function renderGitHubArtifacts(
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
     const staticReport = createStaticReport(profile, scoringOptions);
-    await writeFile(resolvedSvgPath, renderUserSignalCard(staticReport.profile), "utf8");
-    await writeFile(htmlPath, renderStaticReportHtml(staticReport), "utf8");
-    await writeFile(jsonPath, `${JSON.stringify(staticReport, null, 2)}\n`, "utf8");
+    await writeTextFileAtomically(resolvedSvgPath, renderUserSignalCard(staticReport.profile));
+    await writeTextFileAtomically(htmlPath, renderStaticReportHtml(staticReport));
+    await writeTextFileAtomically(jsonPath, `${JSON.stringify(staticReport, null, 2)}\n`);
 
     return {
       ok: true,

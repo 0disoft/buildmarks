@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
   renderFallbackCard,
@@ -8,7 +8,7 @@ import {
 } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { parseProfileInput } from "./render-card";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
 export interface RenderRepoCardFileResult {
   ok: boolean;
@@ -40,7 +40,7 @@ export async function renderRepoCardFile(
     const report = scoreRepository(repository);
     const svg = renderRepositorySignalCard(report);
 
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    await writeTextFileAtomically(resolvedOutputPath, svg);
 
     return {
       ok: true,

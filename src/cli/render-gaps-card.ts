@@ -1,9 +1,9 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { analyzeSignalGaps, renderFallbackCard, renderSignalGapsCard } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { parseProfileInput } from "./render-card";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
 export interface RenderGapsCardFileResult {
   ok: boolean;
@@ -28,7 +28,7 @@ export async function renderGapsCardFile(
     const report = analyzeSignalGaps(profile);
     const svg = renderSignalGapsCard(report);
 
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    await writeTextFileAtomically(resolvedOutputPath, svg);
 
     return {
       ok: true,

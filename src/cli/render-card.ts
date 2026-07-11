@@ -1,7 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile } from "./write-output";
+import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
@@ -40,7 +40,7 @@ export async function renderCardFile(
     const report = scoreUserProfile(profile);
     const svg = renderUserSignalCard(report, options);
 
-    await writeFile(resolvedOutputPath, svg, "utf8");
+    await writeTextFileAtomically(resolvedOutputPath, svg);
 
     return {
       ok: true,

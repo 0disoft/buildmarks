@@ -104,6 +104,8 @@ The request budget is enforced immediately before each HTTP attempt. Exhaustion 
 
 The backend-free profile README workflow avoids per-view GitHub API cost by committing a generated SVG into the profile repository. Viewers load a static file from GitHub instead of causing fresh collection work.
 
+Generated text artifacts are written to unpredictable temporary files in the destination directory, flushed, closed, and then renamed over the destination. This provides file-level atomic replacement on ordinary local filesystems. A multi-file SVG/HTML/JSON generation is not claimed to be one transaction, and directory fsync or network-filesystem durability is platform-dependent.
+
 ## API Version
 
 The live adapter sends `X-GitHub-Api-Version: 2026-03-10`, which is listed in GitHub's [REST API versions](https://docs.github.com/en/rest/about-the-rest-api/api-versions) documentation at the time this document was updated on 2026-05-29.

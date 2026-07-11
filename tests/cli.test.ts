@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
@@ -8,6 +8,7 @@ import { renderGapsCardFile } from "../src/cli/render-gaps-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
 import { parseCommonGitHubCliOptions, parsePositiveDecimalIntegerOption } from "../src/cli/options";
 import { renderRepoCardFile } from "../src/cli/render-repo-card";
+import { writeTextFileAtomically } from "../src/cli/write-output";
 import { defaultGitHubCollectorPolicy, privateLocalSignalVisibility, type GitHubCollectorFetch, type ProfileInput } from "../src";
 
 const tempDirectories: string[] = [];
@@ -17,6 +18,26 @@ afterEach(async () => {
 });
 
 describe("render-card CLI", () => {
+  test("atomically replaces text outputs without leaving temporary files", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "artifact.svg");
+    await writeFile(outputPath, "old", "utf8");
+
+    await writeTextFileAtomically(outputPath, "new");
+
+    expect(await readFile(outputPath, "utf8")).toBe("new");
+    expect(await readdir(directory)).toEqual(["artifact.svg"]);
+  });
+
+  test("cleans up owned temporary files when atomic replacement fails", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "occupied");
+    await mkdir(outputPath);
+
+    await expect(writeTextFileAtomically(outputPath, "new")).rejects.toBeDefined();
+
+    expect(await readdir(directory)).toEqual(["occupied"]);
+  });
   test("renders a local profile fixture into an SVG file", async () => {
     const directory = await makeTempDirectory();
     const outputPath = join(directory, "cards", "example-card.svg");
