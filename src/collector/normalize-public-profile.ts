@@ -3,7 +3,7 @@ import type {
   CollectedGitHubProfile,
   ProfileInput,
   RepositoryInput
-} from "../shared/types";
+} from "../shared/types.js";
 
 export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): ProfileInput {
   return {

@@ -1,4 +1,4 @@
-import type { SignalDimension, SignalType } from "../shared/types";
+import type { SignalDimension, SignalType } from "../shared/types.js";
 
 export function classifySignalType(dimensions: Record<SignalDimension, number>): SignalType {
   // Priority is intentional: each profile gets the strongest explanatory label, not every matching label.

@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.23 - 2026-07-12
+
+- Redact private repository identifiers from fatal private-local collection errors while preserving stable error metadata.
+- Exclude forked and archived repositories before detail collection so they cannot consume scan and request budgets.
+- Emit NodeNext-compatible declaration imports from the public package entrypoint.
+
 ## v0.1.22 - 2026-07-11
 
 - Write generated SVG, HTML, and JSON files through flushed same-directory temporary files before atomically replacing each destination.

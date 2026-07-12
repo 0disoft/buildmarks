@@ -2,7 +2,7 @@ import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
   type SignalVisibilityDisclosure
-} from "../shared/types";
+} from "../shared/types.js";
 
 export type PrivateRepositoryEvidenceKind =
   | "repository-metadata"

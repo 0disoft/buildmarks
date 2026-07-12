@@ -6,10 +6,10 @@ import {
   type SignalDimension,
   type UserSignalGapsReport,
   type UserSignalReport
-} from "../shared/types";
-import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
-import { analyzeSignalGaps } from "../scoring/gaps";
-import { scoreUserProfile, type ScoreUserProfileOptions } from "../scoring/score-user";
+} from "../shared/types.js";
+import { privateLocalPublicCommitWarning } from "../shared/private-local-warning.js";
+import { analyzeSignalGaps } from "../scoring/gaps.js";
+import { scoreUserProfile, type ScoreUserProfileOptions } from "../scoring/score-user.js";
 
 export interface BuildmarksStaticReport {
   version: 1;

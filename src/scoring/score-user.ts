@@ -8,11 +8,11 @@ import {
   type SignalDimension,
   type SignalType,
   type UserSignalReport
-} from "../shared/types";
-import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
-import { classifySignalType } from "./signal-type";
-import { validatePrivateRepositoryDisclosure } from "./private-disclosure";
-import { scoreRepository, type ScoreRepoOptions } from "./score-repo";
+} from "../shared/types.js";
+import { privateLocalPublicCommitWarning } from "../shared/private-local-warning.js";
+import { classifySignalType } from "./signal-type.js";
+import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
+import { scoreRepository, type ScoreRepoOptions } from "./score-repo.js";
 
 const MAX_REPOSITORIES = 12;
 const MAX_SINGLE_REPO_SHARE = 0.35;

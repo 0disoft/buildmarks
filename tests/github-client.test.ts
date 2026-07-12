@@ -785,6 +785,24 @@ describe("live public GitHub collector", () => {
     expect(serialized).not.toContain("\"redactedName\":true");
   });
 
+  test("excludes forked and archived repositories before detail collection", async () => {
+    const calls: string[] = [];
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: makeGitHubFetch({
+        repositories: [
+          makeRepositoryResponse("forked-toolkit", { fork: true }),
+          makeRepositoryResponse("archived-toolkit", { archived: true }),
+          makeRepositoryResponse("active-toolkit")
+        ],
+        onRequest: (url) => calls.push(url)
+      })
+    });
+
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(["active-toolkit"]);
+    expect(calls.some((url) => url.includes("forked-toolkit"))).toBe(false);
+    expect(calls.some((url) => url.includes("archived-toolkit"))).toBe(false);
+  });
+
   test("collects owner-supplied private-local repositories with redacted private names", async () => {
     const calls: string[] = [];
     const profile = await collectOwnerSuppliedGitHubProfile("example-builder", {
@@ -811,6 +829,39 @@ describe("live public GitHub collector", () => {
     });
     expect(profile.repositories[1]?.url).toBeUndefined();
     expect(JSON.stringify(profile)).not.toContain("secret-product");
+  });
+
+  test("redacts private repository names from fatal collection errors", async () => {
+    const baseFetch = makeGitHubFetch({
+      repositories: [makeRepositoryResponse("secret-launch-codename", { private: true })]
+    });
+    const fetcher: GitHubCollectorFetch = async (url, init) => {
+      if (url.includes("secret-launch-codename") && url.includes("/git/trees/")) {
+        return jsonResponse(
+          { message: "rate limited" },
+          { status: 429, headers: { "retry-after": "60" } }
+        );
+      }
+      return baseFetch(url, init);
+    };
+
+    let caught: unknown;
+    try {
+      await collectOwnerSuppliedGitHubProfile("example-builder", {
+        fetcher,
+        token: "private-local-token"
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toMatchObject({
+      code: "github_rate_limited",
+      status: 429,
+      rateLimitReset: "60"
+    });
+    expect(String(caught)).not.toContain("secret-launch-codename");
+    expect(String(caught)).toContain("Private repository");
   });
 
   test("keeps authenticated repository pagination independent of filtered owner matches", async () => {
@@ -1004,6 +1055,8 @@ function makeRepositoryResponse(
     ownerLogin?: string;
     pushedAt?: string;
     private?: boolean;
+    fork?: boolean;
+    archived?: boolean;
   } = {}
 ) {
   return {
@@ -1011,8 +1064,8 @@ function makeRepositoryResponse(
     name,
     html_url: options.htmlUrl ?? `https://github.com/example-builder/${name}`,
     private: options.private ?? false,
-    fork: false,
-    archived: false,
+    fork: options.fork ?? false,
+    archived: options.archived ?? false,
     stargazers_count: 42,
     forks_count: 7,
     created_at: "2025-01-01T00:00:00Z",

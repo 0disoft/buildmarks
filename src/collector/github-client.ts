@@ -4,14 +4,14 @@ import type {
   CollectedGitHubRepository,
   CollectedRepositoryActivitySignals,
   CollectedRepositoryFileSignals
-} from "../shared/types";
-import { privateLocalSignalVisibility, publicOnlySignalVisibility } from "../shared/types";
+} from "../shared/types.js";
+import { privateLocalSignalVisibility, publicOnlySignalVisibility } from "../shared/types.js";
 import {
   defaultGitHubCollectorPolicy,
   privateLocalGitHubCollectorPolicy,
   type GitHubCollectorPolicy,
   validateGitHubCollectorPolicy
-} from "./policy";
+} from "./policy.js";
 
 const githubApiBaseUrl = "https://api.github.com";
 const githubApiVersion = "2026-03-10";
@@ -176,12 +176,17 @@ export async function collectOwnerSuppliedGitHubProfile(
   const activeRepositories = repositories.filter((repository) =>
     wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
   );
-  const collected = await collectRepositories(
-    activeRepositories,
-    policy.limits.maxConcurrentRepositoryCollections,
-    (repository) => client.collectRepository(repository),
-    () => client.abortPendingRequests()
-  );
+  let collected: CollectedRepositoryBatch;
+  try {
+    collected = await collectRepositories(
+      activeRepositories,
+      policy.limits.maxConcurrentRepositoryCollections,
+      (repository) => client.collectRepository(repository),
+      () => client.abortPendingRequests()
+    );
+  } catch (error) {
+    throw redactPrivateRepositoryError(error, activeRepositories);
+  }
   const repositoriesWithPrivateLabels = relabelPrivateRepositories(collected.repositories);
   const includesPrivateRepositories = repositoriesWithPrivateLabels.some((repository) => repository.visibility === "private");
 
@@ -286,7 +291,7 @@ class GitHubRestClient {
       }
 
       const mapped = pageRepositories.map(asRepositoryResponse);
-      repositories.push(...mapped);
+      repositories.push(...mapped.filter(isRepositoryCollectionCandidate));
 
       if (mapped.length < perPage) {
         break;
@@ -314,7 +319,9 @@ class GitHubRestClient {
       }
 
       const mapped = pageRepositories.map(asRepositoryResponse);
-      repositories.push(...mapped.filter((repository) => repository.owner.login.toLowerCase() === normalizedUsername));
+      repositories.push(...mapped.filter((repository) =>
+        repository.owner.login.toLowerCase() === normalizedUsername && isRepositoryCollectionCandidate(repository)
+      ));
 
       if (mapped.length < perPage) {
         break;
@@ -656,6 +663,34 @@ async function collectRepositories(
 function shouldAbortRepositoryBatch(error: unknown): boolean {
   return error instanceof GitHubCollectorError &&
     (error.code === "github_rate_limited" || error.code === "github_request_budget_exhausted");
+}
+
+function isRepositoryCollectionCandidate(repository: GitHubRepositoryResponse): boolean {
+  return repository.fork === false && repository.archived === false;
+}
+
+function redactPrivateRepositoryError(
+  error: unknown,
+  repositories: readonly GitHubRepositoryResponse[]
+): unknown {
+  if (!(error instanceof GitHubCollectorError)) {
+    return error;
+  }
+
+  let message = error.message;
+  for (const repository of repositories) {
+    if (!repository.private) {
+      continue;
+    }
+    for (const identifier of new Set([repository.name, encodeURIComponent(repository.name)])) {
+      message = message.replaceAll(identifier, "Private repository");
+    }
+  }
+
+  return new GitHubCollectorError(error.code, message, {
+    ...(error.status === undefined ? {} : { status: error.status }),
+    ...(error.rateLimitReset === undefined ? {} : { rateLimitReset: error.rateLimitReset })
+  });
 }
 
 function relabelPrivateRepositories(

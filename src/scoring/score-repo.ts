@@ -7,10 +7,10 @@ import {
   type RepositoryInput,
   type RepoSignal,
   type SignalDimension
-} from "../shared/types";
-import { codebaseShapeMetric } from "./codebase-shape";
-import { createEvidence } from "./evidence";
-import { validatePrivateRepositoryRecord } from "./private-disclosure";
+} from "../shared/types.js";
+import { codebaseShapeMetric } from "./codebase-shape.js";
+import { createEvidence } from "./evidence.js";
+import { validatePrivateRepositoryRecord } from "./private-disclosure.js";
 
 const RECENT_DAYS = 180;
 

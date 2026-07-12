@@ -5,8 +5,8 @@ import {
   type SignalDimension,
   type UserSignalGapsReport,
   type UserSignalReport
-} from "../shared/types";
-import { buildmarksVersion } from "../shared/version";
+} from "../shared/types.js";
+import { buildmarksVersion } from "../shared/version.js";
 
 export interface RenderCardOptions {
   theme?: "auto" | "dark" | "light";

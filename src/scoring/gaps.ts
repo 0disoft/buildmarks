@@ -1,7 +1,7 @@
-import type { ProfileInput, RepositoryInput, SignalGap, SignalDimension, UserSignalGapsReport } from "../shared/types";
-import { codebaseShapeMetric } from "./codebase-shape";
-import { validatePrivateRepositoryDisclosure } from "./private-disclosure";
-import { scoreRepository } from "./score-repo";
+import type { ProfileInput, RepositoryInput, SignalGap, SignalDimension, UserSignalGapsReport } from "../shared/types.js";
+import { codebaseShapeMetric } from "./codebase-shape.js";
+import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
+import { scoreRepository } from "./score-repo.js";
 
 const maxGaps = 8;
 
