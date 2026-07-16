@@ -64,7 +64,7 @@ export async function renderGitHubReportFiles(
       ok: false,
       username: normalizedUsername,
       error: message,
-      message: "Buildmarks GitHub report is temporarily unavailable"
+      message: "Buildmarks couldn't refresh this GitHub report right now"
     };
     const fallbackHtml = `<!doctype html>
 <html lang="en">
@@ -72,7 +72,7 @@ export async function renderGitHubReportFiles(
 <body>
   <main>
     <h1>Buildmarks GitHub report unavailable</h1>
-    <p>No signal score is shown. Not a developer ranking.</p>
+    <p>No score is shown. Buildmarks is not a developer ranking.</p>
   </main>
 </body>
 </html>`;

@@ -38,7 +38,7 @@ export async function renderGapsCardFile(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown gaps render failure";
-    const svg = renderFallbackCard("Buildmarks signal gaps report is temporarily unavailable");
+    const svg = renderFallbackCard("Buildmarks couldn't generate project suggestions right now");
     const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {

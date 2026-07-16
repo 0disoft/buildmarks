@@ -3,7 +3,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
-import { createStaticReport, defaultGitHubCollectorPolicy, renderStaticReportHtml } from "../src";
+import {
+  createStaticReport,
+  defaultGitHubCollectorPolicy,
+  renderStaticReportHtml,
+  scoringMethodologyVersion
+} from "../src";
 import { renderGitHubArtifacts } from "../src/cli/render-github-artifacts";
 import { renderGitHubReportFiles } from "../src/cli/render-github-report";
 import { renderReportFiles } from "../src/cli/render-report";
@@ -20,10 +25,33 @@ describe("static report", () => {
     const report = createStaticReport(fixture as ProfileInput);
 
     expect(report.version).toBe(1);
+    expect(report.schemaVersion).toBe("buildmarks-report/v1");
+    expect(report.methodologyVersion).toBe(scoringMethodologyVersion);
+    expect(report.profile.methodologyVersion).toBe(scoringMethodologyVersion);
+    expect(report.profile.coverage.ratio).toBeGreaterThan(0);
+    expect(report.profile.confidence).not.toBeNull();
     expect(report.profile.username).toBe("example-builder");
     expect(report.profile.evidence.length).toBeGreaterThan(0);
     expect(report.gaps.gaps.length).toBeGreaterThan(0);
     expect(report.repositories.length).toBeGreaterThan(0);
+  });
+
+  test("ships a schema that identifies the additive report contract", async () => {
+    const schema = JSON.parse(
+      await readFile("schemas/buildmarks-report-v1.schema.json", "utf8")
+    ) as {
+      $schema: string;
+      properties: {
+        version: { const: number };
+        schemaVersion: { const: string };
+      };
+      required: string[];
+    };
+
+    expect(schema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
+    expect(schema.properties.version.const).toBe(1);
+    expect(schema.properties.schemaVersion.const).toBe("buildmarks-report/v1");
+    expect(schema.required).toContain("methodologyVersion");
   });
 
   test("uses the repository summary limit for profile and repository report sections", () => {
@@ -53,11 +81,24 @@ describe("static report", () => {
 
     expect(html).toContain("<!doctype html>");
     expect(html).toContain("Buildmarks static report");
-    expect(html).toContain("Dimension Scores");
-    expect(html).toContain("What's Missing");
-    expect(html).toContain("Repository Signals");
+    expect(html).toContain("Project Areas");
+    expect(html).toContain("What We Found");
+    expect(html).toContain("Ways to Improve");
+    expect(html).toContain("Repository Highlights");
     expect(html).toContain("Not a ranking");
     expect(html).not.toContain("<script");
+  });
+
+  test("renders honest empty states when no repository can be reviewed", () => {
+    const report = createStaticReport({ username: "empty-profile", repositories: [] });
+    const html = renderStaticReportHtml(report);
+
+    expect(report.profile.resultStatus).toBe("unavailable");
+    expect(html).toContain("Result unavailable");
+    expect(html).toContain("No project-area scores are available.");
+    expect(html).toContain("No project practices to show.");
+    expect(html).toContain("No project suggestions are available for this report.");
+    expect(html).toContain("No repository highlights to show.");
   });
 
   test("labels private-local static reports as owner-supplied and not independently verifiable", () => {
@@ -84,34 +125,38 @@ describe("static report", () => {
 
     expect(report.gaps.signalVisibility?.privateRepositoriesIncluded).toBe(true);
     expect(report.gaps.limitations).toContain(
-      "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
+      "These suggestions include owner-supplied private repositories that cannot be checked independently on public GitHub."
     );
     expect(report.profile.limitations).toContain(
-      "Private-local output does not expose private file contents; built-in GitHub collection treats private README usage guidance conservatively."
+      "Private-local cards use the same project checks as public cards, while keeping private file contents out of the output."
     );
     expect(report.profile.limitations).toContain(
       "Private-local artifacts can reveal owner-supplied private repository metadata. Do not commit generated SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional."
     );
-    expect(html).toContain("Public + Private Signals");
+    expect(html).toContain("Public GitHub plus owner-supplied private repositories");
     expect(html).toContain("Do not commit generated SVG, HTML, or JSON artifacts");
-    expect(html).toContain("private README usage guidance conservatively");
-    expect(html).toContain("Owner-supplied private signals included");
-    expect(html).toContain("Not independently verifiable");
-    expect(html).toContain("Public + Private Signals from owner-supplied private-local and public evidence");
+    expect(html).toContain("Private details cannot be checked independently");
+    expect(html).toContain("Suggestions drawn from the public and owner-supplied private repositories included in this local report");
     expect(html).not.toContain("<h3>Public Adoption</h3>");
     expect(html).not.toContain("<p><strong>N/A</strong></p>");
-    expect(html).not.toContain("Public GitHub evidence only · Not a ranking");
+    expect(html).not.toContain("Based on public GitHub repositories only · Not a ranking");
   });
 
   test("writes HTML and JSON report files", async () => {
     const directory = await makeTempDirectory();
     const result = await renderReportFiles("fixtures/example-public-profile.json", directory);
     const html = await readFile(result.htmlPath, "utf8");
-    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as { version: number };
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
+      version: number;
+      schemaVersion: string;
+      methodologyVersion: string;
+    };
 
     expect(result.ok).toBe(true);
     expect(html).toContain("Buildmarks static report");
     expect(json.version).toBe(1);
+    expect(json.schemaVersion).toBe("buildmarks-report/v1");
+    expect(json.methodologyVersion).toBe(scoringMethodologyVersion);
   });
 
   test("rejects empty report file paths before resolving them to the workspace", async () => {
@@ -151,7 +196,7 @@ describe("static report", () => {
     const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as {
       profile: { limitations: string[] };
     };
-    const limitation = "2 repositories could not be collected from GitHub and were omitted from this report.";
+    const limitation = "2 repositories could not be read from GitHub and were left out.";
 
     expect(result.ok).toBe(true);
     expect(html).toContain(limitation);
@@ -175,7 +220,7 @@ describe("static report", () => {
     expect(html).toContain("example-builder");
     expect(html).toContain("rgba(15, 139, 108, 0.18)");
     expect(html).toContain("color-mix(in srgb, var(--accent), transparent 82%)");
-    expect(html).toContain("Live GitHub issue, pull request, and external contributor aggregates are deferred");
+    expect(html).toContain("Issue replies, pull request reviews, and outside contributors are not folded into this version&#39;s score");
     expect(json.version).toBe(1);
     expect(json.profile.username).toBe("example-builder");
   });
@@ -194,8 +239,8 @@ describe("static report", () => {
     };
 
     expect(result.ok).toBe(true);
-    expect(html).toContain("Public + Private Signals");
-    expect(html).toContain("Owner-supplied private signals included");
+    expect(html).toContain("Public GitHub plus owner-supplied private repositories");
+    expect(html).toContain("Private details cannot be checked independently");
     expect(json.profile.signalVisibility?.privateRepositoriesIncluded).toBe(true);
     expect(JSON.stringify(json.profile)).toContain("Do not commit generated SVG, HTML, or JSON artifacts");
     expect(json.repositories[0]?.name).toBe("Private repository 1");
@@ -266,9 +311,10 @@ describe("static report", () => {
     expect(result.ok).toBe(true);
     expect(json.profile.topRepos).toHaveLength(1);
     expect(json.repositories).toHaveLength(1);
-    expect(json.profile.topRepos[0]?.name).toBe("usable-toolkit");
-    expect(json.profile.topRepos[0]?.name).toBe(json.repositories[0]?.name);
-    expect(json.gaps.gaps.every((gap) => gap.repository === "usable-toolkit")).toBe(true);
+    const selectedRepository = json.profile.topRepos[0]?.name;
+    expect(selectedRepository).toBeDefined();
+    expect(selectedRepository).toBe(json.repositories[0]?.name);
+    expect(json.gaps.gaps.every((gap) => gap.repository === selectedRepository)).toBe(true);
   });
 
   test("writes SVG and static reports from one public GitHub collection", async () => {
@@ -334,7 +380,7 @@ describe("static report", () => {
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
     expect(html).toContain("Buildmarks GitHub report unavailable");
-    expect(html).toContain("No signal score is shown");
+    expect(html).toContain("No score is shown");
     expect(html).not.toContain("Public GitHub signals only");
     expect(json.ok).toBe(false);
     expect(json.error).toBeDefined();
@@ -352,8 +398,8 @@ describe("static report", () => {
 
     expect(result.ok).toBe(false);
     expect(result.fallback).toBe(true);
-    expect(svg).toContain("No signal score is shown");
-    expect(html).toContain("No signal score is shown");
+    expect(svg).toContain("No score is shown");
+    expect(html).toContain("No score is shown");
     expect(svg).not.toContain("Public GitHub signals only");
     expect(html).not.toContain("Public GitHub signals only");
   });

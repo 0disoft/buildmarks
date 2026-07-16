@@ -1,5 +1,7 @@
 import {
   dimensionLabels,
+  privateLocalSignalVisibility,
+  signalTypeDisplayLabels,
   signalDimensions,
   type RepoSignal,
   type SignalDimension,
@@ -50,20 +52,24 @@ export function renderUserSignalCard(
   options: RenderCardOptions = {}
 ): string {
   if (report.evidenceStatus === "insufficient") {
-    return renderFallbackCard("Not enough complete GitHub evidence to calculate a reliable signal score");
+    return renderFallbackCard("Not enough complete repository data to calculate a reliable score");
   }
 
   const theme = normalizeTheme(options.theme);
-  const highlights = report.evidence.slice(0, 4).map((item) => evidenceToHighlight(item.label));
+  const highlights = [...new Set(
+    (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item.label))
+  )].slice(0, 4);
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
+  const overallLabel = report.resultStatus === "provisional" ? "Provisional" : scoreTier(overall);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
   const footerLabel = includesPrivateSignals
-    ? `Buildmarks ${brandVersion} · Public + Private Signals · ${generatedDate}`
-    : `Buildmarks ${brandVersion} · Public Signals · ${generatedDate}`;
+    ? `Buildmarks ${brandVersion} · ${privateLocalSignalVisibility.cardLabel} · ${generatedDate}`
+    : `Buildmarks ${brandVersion} · Public GitHub · ${generatedDate}`;
+  const footerAssessment = formatAssessmentSummary(report.confidence, report.coverage?.ratio);
   const context = buildProfileCardContext(report);
   const visibleDimensions = signalDimensions.filter((dimension) => !context.contextualDimensions.has(dimension));
   const rows = visibleDimensions.map((dimension, index) =>
@@ -78,7 +84,7 @@ export function renderUserSignalCard(
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
-  <title id="title">Buildmarks GitHub signal card for ${escapeXml(usernameRaw)}</title>
+  <title id="title">Buildmarks project card for ${escapeXml(usernameRaw)}</title>
   <desc id="desc">${escapeXml(desc)}</desc>
   ${renderDefs()}
   <style>${renderStyles()}</style>
@@ -86,8 +92,8 @@ export function renderUserSignalCard(
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="62" class="name">${escapeXml(username)}</text>
-  <text x="${rightEdgeX}" y="62" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
-  <g aria-label="Dimension signal tiers with underlying scores out of 100">
+  <text x="${rightEdgeX}" y="62" class="overall overall-${overallTone}">${escapeXml(overallLabel)}</text>
+  <g aria-label="Project areas with scores out of 100">
 ${rows.join("")}
   </g>
   <text x="36" y="${highlightLabelY}" class="section-label">Highlights</text>
@@ -95,24 +101,26 @@ ${rows.join("")}
 ${chips.join("")}
   </g>
   <text x="36" y="${footerY}" class="footer">${escapeXml(footerLabel)}</text>
+  <text x="${rightEdgeX}" y="${footerY}" class="footer right">${escapeXml(footerAssessment)}</text>
 </svg>`;
 }
 
-export function renderFallbackCard(message = "Buildmarks report is temporarily unavailable"): string {
+export function renderFallbackCard(message = "Buildmarks couldn't generate this report right now"): string {
   const safeMessage = fitText(message, 76);
+  const descriptionMessage = finishSentence(message);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
   <title id="title">Buildmarks fallback card</title>
-  <desc id="desc">${escapeXml(message)} No signal score is shown. Not a developer ranking.</desc>
+  <desc id="desc">${escapeXml(descriptionMessage)} No score is shown. Buildmarks is not a developer ranking.</desc>
   ${renderDefs()}
   <style>${renderStyles()}</style>
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
-  <text x="36" y="62" class="subtitle">Buildmarks signals</text>
+  <text x="36" y="62" class="subtitle">GitHub project snapshot</text>
   <rect x="36" y="148" width="688" height="116" rx="10" class="fallback-box" />
-  <text x="62" y="196" class="fallback-title">Card temporarily unavailable</text>
+  <text x="62" y="196" class="fallback-title">Card unavailable</text>
   <text x="62" y="228" class="fallback-body">${escapeXml(safeMessage)}</text>
   <text x="36" y="${footerY}" class="footer">Buildmarks ${escapeXml(brandVersion)}</text>
 </svg>`;
@@ -126,23 +134,24 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   const generatedDate = formatDate(report.generatedAt);
   const visibleGaps = report.gaps.slice(0, 4);
   const gapCount = report.gaps.length;
+  const suggestionLabel = gapCount === 1 ? "suggestion" : "suggestions";
   const rows = visibleGaps.length === 0
     ? [renderEmptyGapRow(includesPrivateSignals)]
     : visibleGaps.map((gap, index) => renderGapRow(gap.repository, gap.dimension, gap.missing, 156 + index * 54));
-  const scopeLabel = includesPrivateSignals ? "Missing owner-supplied signals" : "Missing public GitHub signals";
-  const footerScope = includesPrivateSignals ? "Public + Private Signals" : "Public Signals";
+  const scopeLabel = includesPrivateSignals ? "Included projects" : "Public GitHub projects";
+  const footerScope = includesPrivateSignals ? privateLocalSignalVisibility.cardLabel : "Public GitHub";
   const desc = visibleGaps.length === 0
     ? includesPrivateSignals
-      ? `No obvious owner-supplied signal gaps detected for ${usernameRaw}. Private-local signals are not independently verifiable.`
-      : `No obvious public signal gaps detected for ${usernameRaw}. Public GitHub data only.`
+      ? `No project suggestions are available for ${usernameRaw}. Owner-supplied private repositories cannot be checked independently.`
+      : `No project suggestions are available for ${usernameRaw}. Based on public GitHub repositories only.`
     : includesPrivateSignals
-      ? `Signal gaps for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} missing ${gap.missing.join(", ")}`).join("; ")}. Private repositories were included by the owner, and private-local signals are not independently verifiable.`
-      : `Signal gaps for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} missing ${gap.missing.join(", ")}`).join("; ")}. Public GitHub data only.`;
+      ? `Suggested project improvements for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} could add ${gap.missing.join(", ")}`).join("; ")}. Owner-supplied private repositories cannot be checked independently.`
+      : `Suggested project improvements for ${usernameRaw}: ${visibleGaps.map((gap) => `${gap.repository} could add ${gap.missing.join(", ")}`).join("; ")}. Based on public GitHub repositories only.`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
-  <title id="title">Buildmarks signal gaps card for ${escapeXml(usernameRaw)}</title>
-  <desc id="desc">${escapeXml(desc)} These are improvement hints, not a ranking.</desc>
+  <title id="title">Buildmarks project suggestions for ${escapeXml(usernameRaw)}</title>
+  <desc id="desc">${escapeXml(desc)} These are project suggestions, not a ranking.</desc>
   ${renderDefs()}
   <style>${renderStyles()}</style>
   <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
@@ -150,12 +159,12 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="62" class="subtitle">${escapeXml(scopeLabel)}</text>
   <text x="36" y="96" class="name">${escapeXml(username)}</text>
-  <text x="36" y="136" class="type">What's Missing</text>
-  <text x="604" y="112" class="gap-count">${gapCount} gaps found</text>
-  <g aria-label="${escapeXml(includesPrivateSignals ? "Signal gaps detected from owner-supplied private-local repository evidence" : "Signal gaps detected from public repository evidence")}">
+  <text x="36" y="136" class="type">Ways to Improve</text>
+  <text x="604" y="112" class="gap-count">${gapCount} ${suggestionLabel}</text>
+  <g aria-label="${escapeXml(includesPrivateSignals ? "Suggestions drawn from included public and owner-supplied repositories" : "Suggestions drawn from public repositories")}">
 ${rows.join("")}
   </g>
-  <text x="36" y="${footerY}" class="footer">Buildmarks Gaps ${escapeXml(brandVersion)} · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
+  <text x="36" y="${footerY}" class="footer">Buildmarks ${escapeXml(brandVersion)} · ${escapeXml(footerScope)} · ${escapeXml(generatedDate)}</text>
 </svg>`;
 }
 
@@ -167,17 +176,26 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   const overallTone = scoreTone(overall);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
   const footerLabel = includesPrivateSignals
-    ? `Buildmarks Repo ${brandVersion} · Public + Private Signals`
-    : `Buildmarks Repo ${brandVersion} · Public Signals`;
-  const rows = signalDimensions.map((dimension, index) =>
+    ? `Buildmarks Repo ${brandVersion} · ${privateLocalSignalVisibility.cardLabel}`
+    : `Buildmarks Repo ${brandVersion} · Public GitHub`;
+  const visibleDimensions = signalDimensions.filter(
+    (dimension) => {
+      const assessment = report.dimensions[dimension].assessment;
+      return assessment === undefined || assessment.applicability === "applicable";
+    }
+  );
+  const rows = visibleDimensions.map((dimension, index) =>
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
   );
-  const chips = report.evidence.slice(0, 4).map((item, index) => renderEvidenceChip(evidenceToHighlight(item.label), index));
+  const highlights = [...new Set(
+    (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item.label))
+  )].slice(0, 4);
+  const chips = highlights.map((label, index) => renderEvidenceChip(label, index));
   const desc = buildRepositoryDescription(report, overall);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
-  <title id="title">Buildmarks repository signal card for ${escapeXml(repoNameRaw)}</title>
+  <title id="title">Buildmarks repository card for ${escapeXml(repoNameRaw)}</title>
   <desc id="desc">${escapeXml(desc)}</desc>
   ${renderDefs()}
   <style>${renderStyles()}</style>
@@ -186,7 +204,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="62" class="name">${escapeXml(repoName)}</text>
   <text x="${rightEdgeX}" y="62" class="overall overall-${overallTone}">${escapeXml(scoreTier(overall))}</text>
-  <g aria-label="Repository dimension signal tiers with underlying scores out of 100">
+  <g aria-label="Repository areas with scores out of 100">
 ${rows.join("")}
   </g>
   <text x="36" y="${highlightLabelY}" class="section-label">Highlights</text>
@@ -282,21 +300,19 @@ function renderGapRow(repository: string, dimension: SignalDimension, missing: s
   const dimensionText = fitText(dimensionLabels[dimension], 24);
 
   return `
-    <g role="img" aria-label="${escapeXml(`${repository}: missing ${missing.join(", ")} for ${dimensionText}`)}">
+    <g role="img" aria-label="${escapeXml(`${repository}: consider adding ${missing.join(", ")} for ${dimensionText}`)}">
       <rect x="36" y="${y - 26}" width="688" height="46" rx="8" class="chip-bg" />
       <text x="52" y="${y - 5}" class="label">${escapeXml(label)}</text>
       <text x="504" y="${y - 5}" class="chip">${escapeXml(dimensionText)}</text>
-      <text x="52" y="${y + 14}" class="subtitle">missing: ${escapeXml(missingText)}</text>
+      <text x="52" y="${y + 14}" class="subtitle">could add: ${escapeXml(missingText)}</text>
     </g>`;
 }
 
 function renderEmptyGapRow(includesPrivateSignals = false): string {
-  const title = includesPrivateSignals
-    ? "No obvious owner-supplied signal gaps detected"
-    : "No obvious public signal gaps detected";
+  const title = "No project suggestions are available";
   const body = includesPrivateSignals
-    ? "This reflects owner-supplied private-local repository evidence."
-    : "This only reflects public GitHub repository evidence.";
+    ? "No suggestions were identified from the repositories included here."
+    : "No suggestions were identified from the available public GitHub repositories.";
 
   return `
     <g role="img" aria-label="${escapeXml(title)}">
@@ -422,7 +438,10 @@ function renderStyles(): string {
 
 function buildDescription(report: UserSignalReport, overall: number): string {
   const context = buildProfileCardContext(report);
-  const signalCount = countProfileSignals(report);
+  const detailCount = countProfileSignals(report);
+  const repositoryCount = report.selection?.evaluatedCount ?? report.topRepos.length;
+  const repositoryLabel = repositoryCount === 1 ? "repository" : "repositories";
+  const detailLabel = detailCount === 1 ? "project practice" : "project practices";
   const scores = signalDimensions
     .filter((dimension) => !context.contextualDimensions.has(dimension))
     .map((dimension) => {
@@ -432,10 +451,10 @@ function buildDescription(report: UserSignalReport, overall: number): string {
     .join(", ");
 
   if (report.signalVisibility?.privateRepositoriesIncluded === true) {
-    return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public and owner-supplied private signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Owner-supplied private repository signals are included and are not independently verifiable from public GitHub; not a developer ranking.`;
+    return `Buildmarks reviewed ${repositoryCount} ${repositoryLabel} and found ${detailCount} ${detailLabel}. The overall result is ${scoreTier(overall)}, ${overall} out of 100. ${scores}. Owner-supplied private repositories are included and cannot be checked independently on public GitHub. Buildmarks is not a developer ranking.`;
   }
 
-  return `${signalCount} distinct signals found across ${report.topRepos.length} summarized repositories. Overall public signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. Public GitHub data only; not a developer ranking.`;
+  return `Buildmarks reviewed ${repositoryCount} ${repositoryLabel} and found ${detailCount} ${detailLabel}. The overall result is ${scoreTier(overall)}, ${overall} out of 100. ${scores}. This card is based on public GitHub repositories only. Buildmarks is not a developer ranking.`;
 }
 
 type ProfileCardContext = {
@@ -443,24 +462,54 @@ type ProfileCardContext = {
 };
 
 function buildProfileCardContext(report: UserSignalReport): ProfileCardContext {
-  const contextualDimensions = new Set(report.unavailableDimensions ?? []);
+  const contextualDimensions = new Set([
+    ...(report.unavailableDimensions ?? []),
+    ...(report.notApplicableDimensions ?? [])
+  ]);
 
   return { contextualDimensions };
 }
 
 function buildRepositoryDescription(report: RepoSignal, overall: number): string {
-  const signalCount = countRepositorySignals(report);
+  const detailCount = countRepositorySignals(report);
+  const detailLabel = detailCount === 1 ? "project practice" : "project practices";
   const scores = signalDimensions
+    .filter((dimension) => {
+      const assessment = report.dimensions[dimension].assessment;
+      return assessment === undefined || assessment.applicability === "applicable";
+    })
     .map((dimension) => {
       const score = safeScore(report.dimensions[dimension].score);
       return `${dimensionLabels[dimension]} ${scoreTier(score)}, ${score} out of 100`;
     })
     .join(", ");
   const scope = report.signalVisibility?.privateRepositoriesIncluded === true
-    ? "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub"
-    : "Public GitHub data only";
+    ? "This owner-supplied private repository cannot be checked independently on public GitHub"
+    : "Based on public GitHub only";
 
-  return `Repository signal for ${report.owner}/${report.name}: ${signalCount} signals found. Overall repository signal tier is ${scoreTier(overall)}, with ${overall} out of 100 available in the report. ${scores}. ${scope}; not a developer ranking.`;
+  return `Buildmarks found ${detailCount} ${detailLabel} for ${report.owner}/${report.name}. The repository result is ${scoreTier(overall)}, ${overall} out of 100. ${scores}. ${scope}. Buildmarks is not a developer ranking.`;
+}
+
+function finishSentence(value: string): string {
+  const trimmed = value.trim();
+  return /[.!?…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+function formatAssessmentSummary(
+  confidence: UserSignalReport["confidence"],
+  coverageRatio: number | undefined
+): string {
+  const confidenceLabel = confidence === "high"
+    ? "High confidence"
+    : confidence === "medium"
+      ? "Medium confidence"
+      : confidence === "low"
+        ? "Low confidence"
+        : "Confidence unavailable";
+  const coverageLabel = typeof coverageRatio === "number" && Number.isFinite(coverageRatio)
+    ? `${Math.round(Math.max(0, Math.min(1, coverageRatio)) * 100)}% checked`
+    : "Coverage unavailable";
+  return `${confidenceLabel} · ${coverageLabel}`;
 }
 
 function countProfileSignals(report: UserSignalReport): number {

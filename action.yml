@@ -6,7 +6,7 @@ branding:
 
 inputs:
   username:
-    description: GitHub username to analyze.
+    description: GitHub username whose public projects should be reviewed.
     required: true
   output:
     description: SVG output path, relative to the caller repository.
@@ -33,7 +33,7 @@ inputs:
     required: false
     default: "30"
   max-repositories-scored:
-    description: Maximum public repositories to summarize in the card.
+    description: Maximum repositories to show on the card; all successfully reviewed repositories still contribute to the calculation.
     required: false
     default: "12"
   activity-window-days:

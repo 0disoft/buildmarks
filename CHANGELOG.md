@@ -6,6 +6,17 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.2.0 - 2026-07-16
+
+- Introduce scoring methodology `2.0.0` while keeping the static report format at `version: 1` and identifying it as `buildmarks-report/v1`.
+- Match project checks to declared or conservatively detected repository kinds, leaving irrelevant areas out instead of counting them as failures.
+- Separate scores from confidence, coverage, and applicability so missing GitHub data lowers certainty rather than silently lowering a project score.
+- Cap file-presence-only results at 40 until independent project details reinforce one another.
+- Calculate profile results from every eligible repository that was successfully reviewed, using the repository limit only for a kind-stratified display sample.
+- Keep a complete criterion-to-detail ledger in JSON reports while showing a short, readable set of highlights on cards.
+- Replace repetitive analysis jargon in cards, reports, and public documentation with reader-first descriptions of what Buildmarks found and what a project could improve.
+- Publish the additive report contract in `schemas/buildmarks-report-v1.schema.json`.
+
 ## v0.1.25 - 2026-07-16
 
 - Accept the current GitHub Community Profile API documentation URL string shape without dropping otherwise valid repositories.

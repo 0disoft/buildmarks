@@ -1,18 +1,18 @@
 # Activity Aggregate Methodology
 
-Buildmarks v0 intentionally leaves public issue, pull request, and external contributor aggregates at zero in the live collector. This document defines the methodology boundary before any API expansion.
+Buildmarks currently leaves public issue, pull request, and outside-contributor aggregates at zero in the live collector. The fields exist, but the collection work stays deferred until the cost and interpretation are honest enough to ship.
 
 ## Goal
 
-Activity aggregates should explain visible maintainer behavior, not rank people.
+These aggregates may eventually add context about how a public project is cared for. They must not become a popularity contest or a developer ranking.
 
-Allowed future signals:
+Possible future inputs:
 
 - public issue response traces
 - public pull request review traces
 - public external contributor traces
 
-Rejected signals:
+Still out of bounds:
 
 - raw commit count
 - contribution streaks
@@ -22,25 +22,25 @@ Rejected signals:
 
 ## Public Issue Response
 
-The intended signal is whether public repository maintainers respond to issues in a way that leaves a visible maintenance trace.
+The useful question is simple: when people open public issues, is there a visible sign that the project is being tended?
 
-Future collection may use public issue metadata and public comments to derive aggregate counts such as responded issues or unresolved public issues. It must not read private discussion, private triage, or organization-only context.
+Future collection may use public issue metadata and comments to count things such as issues with a maintainer response or still-open issues without one. Those counts need age windows and repository-size context before they mean much. Private discussion, private triage, and organization-only work stay outside the boundary.
 
 ## Public Pull Request Review
 
-The intended signal is whether collaboration happens through public review traces.
+Here the question is whether collaboration leaves a public review trail.
 
-Future collection may count public review or review-comment presence at an aggregate level. It must not infer review quality from private code review, private repositories, employer work, or raw comment volume.
+Future collection may count the presence of public reviews or review comments at an aggregate level. Comment volume is a bad stand-in for review quality, and silence says nothing about review that happened privately or elsewhere.
 
 ## External Contributors
 
-The intended signal is whether a repository has visible participation from people other than the owner.
+This would describe whether people other than the owner visibly participate in the public project.
 
-Future collection may use public pull request authors, public contributor metadata, or public issue and pull request participation. It must cap and explain the signal because popularity and project age can distort it.
+Future collection may use public pull request authors, contributor metadata, or issue and pull request participation. Any result must be capped and explained because an old, popular project naturally attracts more people than a new or specialized one.
 
 ## API Cost Boundary
 
-These aggregates are deferred because they can multiply API requests across repositories. Before implementation, Buildmarks must define:
+These fields are deferred because collecting them can multiply API requests across every repository in a profile. Before implementation, Buildmarks must define:
 
 - endpoint list and request budget
 - cache keys and TTLs
@@ -48,4 +48,4 @@ These aggregates are deferred because they can multiply API requests across repo
 - rate-limit failure behavior
 - tests with mocked fetch only
 
-Until then, the live collector keeps these aggregate fields at zero and documents that limitation in reports.
+Until then, the live collector keeps the fields at zero, sets `activityAggregatesDeferred`, and says plainly in generated reports that issue replies, reviews, and outside contributors were not folded into the score. Zero here means “not collected,” not “none happened.”

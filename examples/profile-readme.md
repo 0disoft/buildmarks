@@ -7,7 +7,7 @@
 2. Add the generated card and report link to your profile `README.md`:
 
 ```md
-![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
+![Buildmarks public project snapshot](./assets/buildmarks.svg)
 
 [View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)
 ```
@@ -22,7 +22,7 @@ assets/buildmarks-report/buildmarks-report.html
 assets/buildmarks-report/buildmarks-report.json
 ```
 
-This is the recommended backend-free path. GitHub serves the checked-in SVG and report files directly from your profile repository.
+This is the recommended backend-free path. GitHub serves the checked-in SVG and report directly from your profile repository, so profile views do not trigger fresh API requests.
 
 ## Static Checked-In Card
 
@@ -35,7 +35,7 @@ bun run build:card
 Then copy the generated SVG into a public location that your GitHub profile README can load.
 
 ```md
-![Buildmarks public GitHub signal card](./out/example-card.svg)
+![Buildmarks public project snapshot](./out/example-card.svg)
 ```
 
 ## Public GitHub Collection
@@ -67,14 +67,14 @@ bun src/cli/render-github-card.ts YOUR_USERNAME assets/buildmarks.svg --max-repo
 Then reference the checked-in SVG from your profile README:
 
 ```md
-![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
+![Buildmarks public project snapshot](./assets/buildmarks.svg)
 
 [View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)
 ```
 
 The token is optional for local public-only experiments, but authenticated requests are much less likely to hit GitHub's low unauthenticated REST API limit. Buildmarks does not read tokens from environment variables automatically; pass a token explicitly when you want one used.
 
-Private-local mode is opt-in. Use `private-local: "true"` only in owner-controlled workflows that pass an explicit token with read access to selected private repositories. Private repository names and URLs are redacted by default. Do not commit private-local SVG, HTML, or JSON artifacts to a public profile repository unless publishing that owner-supplied metadata is intentional.
+Private-local mode is opt-in. Use `private-local: "true"` only in an owner-controlled workflow with an explicit read token for selected private repositories. Names and URLs are redacted by default, but the artifacts can still reveal private project details. Do not commit private-local SVG, HTML, or JSON to a public profile repository unless that disclosure is intentional.
 
 ## GitHub Actions
 
@@ -86,7 +86,7 @@ The composite action generates files only. The workflow around it owns checkout,
 
 Use exact string values for action booleans. `generate-report` and `private-local` accept `"true"` or `"false"` only, and repository limits must be positive integers.
 
-The default repository activity window is 365 days from the public `pushed_at` timestamp. Use `activity-window-days: "180"` for a six-month card that emphasizes recent work and makes fewer per-repository API calls.
+The default repository activity window is 365 days from the public `pushed_at` timestamp. Use `activity-window-days: "180"` for a six-month snapshot that emphasizes recent projects and makes fewer per-repository API calls. This is a collection window, not a claim that older work has no value.
 
 Minimal action step:
 
@@ -111,7 +111,7 @@ Action inputs:
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
-| `max-repositories-scored` | `12` | Positive integer profile summary limit, capped at 24. |
+| `max-repositories-scored` | `12` | Positive integer repository display limit, capped at 24. Despite the legacy input name, all successfully evaluated repositories contribute to the profile calculation. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
 | `max-api-requests` | `160` | Positive integer GitHub REST request budget for one profile collection, capped at 500. Retries spend budget. |
 
@@ -122,14 +122,14 @@ See [profile-smoke-test.md](profile-smoke-test.md) for the real v0 adoption smok
 Committed sample SVGs are available in [assets](assets) for quick visual inspection:
 
 ```md
-![Buildmarks public GitHub signal card](./assets/example-card.svg)
-![Buildmarks public signal gaps card](./assets/example-gaps-card.svg)
-![Buildmarks repository signal card](./assets/example-repo-card.svg)
+![Buildmarks public project snapshot](./assets/example-card.svg)
+![Buildmarks project improvement card](./assets/example-gaps-card.svg)
+![Buildmarks repository snapshot](./assets/example-repo-card.svg)
 ```
 
-## Signal Gaps Card
+## Project Suggestions Card
 
-Generate a static "What's Missing" card from the local fixture:
+Generate a static card with practical ways to strengthen the projects in the local fixture:
 
 ```bash
 bun run build:gaps-card
@@ -138,10 +138,10 @@ bun run build:gaps-card
 Then reference it from your README:
 
 ```md
-![Buildmarks public signal gaps card](./out/example-gaps-card.svg)
+![Buildmarks project improvement card](./out/example-gaps-card.svg)
 ```
 
-## Repository Card
+## Repository Snapshot Card
 
 Generate a static card for one repository from the local fixture:
 
@@ -152,7 +152,7 @@ bun run build:repo-card
 Then reference it from a project README:
 
 ```md
-![Buildmarks repository signal card](./out/example-repo-card.svg)
+![Buildmarks repository snapshot](./out/example-repo-card.svg)
 ```
 
 ## Inspectable Static Report
@@ -168,5 +168,7 @@ Then link to the static report from your README:
 ```md
 [View the Buildmarks report](./out/report/buildmarks-report.html)
 ```
+
+The JSON next to the HTML uses `schemaVersion: "buildmarks-report/v1"` and scoring methodology `2.0.0`. Library consumers can validate its shape with the packaged schema at `schemas/buildmarks-report-v1.schema.json`. The report also separates the score from confidence, coverage, and applicability, and records how many repositories were evaluated versus how many fit on the card.
 
 For a hosted version, replace the checked-in SVG path with the future card endpoint once that service exists.

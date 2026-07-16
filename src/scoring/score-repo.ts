@@ -1,18 +1,14 @@
 import {
-  dimensionLabels,
   privateLocalSignalVisibility,
+  scoringMethodologyVersion,
   signalDimensions,
-  type DimensionScore,
-  type Evidence,
+  type RepoSignalV2,
   type RepositoryInput,
-  type RepoSignal,
   type SignalDimension
 } from "../shared/types.js";
-import { codebaseShapeMetric } from "./codebase-shape.js";
-import { createEvidence } from "./evidence.js";
+import { assessRepository } from "./assessment.js";
 import { validatePrivateRepositoryRecord } from "./private-disclosure.js";
-
-const RECENT_DAYS = 180;
+import { resolveRepositoryKind } from "./repository-kind.js";
 
 export const repositoryOverallWeights = {
   maintainability: 0.25,
@@ -23,12 +19,6 @@ export const repositoryOverallWeights = {
   stewardship: 0.15
 } satisfies Record<SignalDimension, number>;
 
-type ScoredPart = {
-  passed: boolean;
-  points: number;
-  evidence: Evidence;
-};
-
 export interface ScoreRepoOptions {
   now?: Date;
 }
@@ -36,214 +26,65 @@ export interface ScoreRepoOptions {
 export function scoreRepository(
   repository: RepositoryInput,
   options: ScoreRepoOptions = {}
-): RepoSignal {
+): RepoSignalV2 {
   validatePrivateRepositoryRecord(repository);
 
   const now = options.now ?? new Date();
-  const dimensions = {
-    completeness: scoreBooleanDimension("completeness", [
-      part(repository.hasReadme, 3, "README found", "file", repository.name),
-      part(repository.hasUsageGuide, 4, "README includes usage guidance", "file", repository.name),
-      part(repository.hasLicense, 2, "License file found", "file", repository.name),
-      part(repository.hasReleases, 3, "Release or tag found", "release", repository.name),
-      part(repository.hasDemoOrDocs, 3, "Demo or documentation link found", "repository", repository.name),
-      part(repository.hasPackageArtifact, 3, "Package or installable artifact found", "repository", repository.name)
-    ]),
-    maintainability: scoreBooleanDimension("maintainability", [
-      part(repository.hasTests, 5, "Test signal found", "file", repository.name),
-      part(repository.hasCi, 5, "CI workflow found", "workflow", repository.name),
-      part(repository.hasChangelog, 3, "Changelog or release notes found", "file", repository.name),
-      part(hasTestSurface(repository), 2, "Test file surface found", "file", repository.name),
-      part(hasCompactSourceShape(repository), 2, "Compact source file shape", "file", repository.name),
-      part(hasExampleSurface(repository), 1, "Example or fixture surface found", "file", repository.name),
-      part(repository.hasContributing, 2, "Contribution guide found", "file", repository.name),
-      part(repository.hasCodeOfConduct, 1, "Code of conduct found", "file", repository.name),
-      part(repository.hasSecurityPolicy, 1, "Security policy found", "file", repository.name),
-      part(wasRecentlyPushed(repository.pushedAt, now), 3, "Recent maintenance activity", "repository", repository.name)
-    ]),
-    usability: scoreBooleanDimension("usability", [
-      part(repository.hasReadme, 3, "README found", "file", repository.name),
-      part(repository.hasUsageGuide, 4, "README includes usage guidance", "file", repository.name),
-      part(repository.hasDemoOrDocs, 3, "Demo or documentation link found", "repository", repository.name),
-      part(repository.hasPackageArtifact, 3, "Package or installable artifact found", "repository", repository.name),
-      part(hasExampleSurface(repository), 2, "Example or fixture surface found", "file", repository.name)
-    ]),
-    shipping: scoreBooleanDimension("shipping", [
-      part(repository.hasReleases, 4, "Release or tag found", "release", repository.name),
-      part(repository.hasPackageArtifact, 3, "Package or installable artifact found", "repository", repository.name),
-      part(repository.hasDemoOrDocs, 3, "Demo or documentation link found", "repository", repository.name),
-      part(wasRecentlyPushed(repository.pushedAt, now), 2, "Recent shipping or maintenance activity", "repository", repository.name),
-      part(repository.hasSecurityPolicy, 1, "Security policy found", "file", repository.name)
-    ]),
-    consistency: scoreBooleanDimension("consistency", [
-      part(hasLivedAtLeast(repository.createdAt, now, RECENT_DAYS), 4, "Public history over 180 days", "repository", repository.name),
-      part(wasRecentlyPushed(repository.pushedAt, now), 3, "Repository has recent public activity", "repository", repository.name),
-      part(repository.hasChangelog, 1, "Changelog found", "file", repository.name),
-      part(repository.hasReleases, 2, "Release found", "release", repository.name)
-    ]),
-    stewardship: scoreBooleanDimension("stewardship", [
-      part(repository.hasLicense, 3, "License file found", "file", repository.name),
-      part(repository.hasSecurityPolicy, 3, "Security policy found", "file", repository.name),
-      part(repository.hasContributing, 3, "Contribution guide found", "file", repository.name),
-      part(repository.hasCodeOfConduct, 2, "Code of conduct found", "file", repository.name),
-      part(repository.hasChangelog, 2, "Changelog or release notes found", "file", repository.name),
-      part(wasRecentlyPushed(repository.pushedAt, now), 2, "Recent stewardship activity", "repository", repository.name)
-    ])
-  } satisfies Record<SignalDimension, DimensionScore>;
-
-  const overall = weightedOverall(dimensions);
-  const weight = repoWeight(dimensions);
-  const includesPrivateSignals = isPrivateRepositorySignal(repository);
+  const includesPrivateRepositories = isPrivateRepository(repository);
+  const owner = includesPrivateRepositories ? "Private owner" : repository.owner;
+  const repositoryKind = resolveRepositoryKind(repository);
+  const assessed = assessRepository(repository, repositoryKind, now, repository.name);
+  const weightedOverall = weightedRepositoryOverall(assessed.dimensions);
+  const overallAssessment = {
+    ...assessed.overall,
+    score: assessed.overall.score === null ? null : weightedOverall
+  };
+  const overall = overallAssessment.score ?? 0;
 
   return {
-    owner: outputOwner(repository),
+    owner,
     name: repository.name,
     ...(repository.url === undefined ? {} : { url: repository.url }),
-    ...(includesPrivateSignals ? { signalVisibility: privateLocalSignalVisibility } : {}),
-    dimensions,
+    ...(includesPrivateRepositories ? { signalVisibility: privateLocalSignalVisibility } : {}),
+    methodologyVersion: scoringMethodologyVersion,
+    repositoryKind,
+    dimensions: assessed.dimensions,
+    assessment: overallAssessment,
     overall,
-    weight,
-    evidence: collectTopEvidence(dimensions)
+    weight: 1,
+    evidence: collectSummaryDetails(assessed.evidenceLedger),
+    evidenceLedger: assessed.evidenceLedger
   };
 }
 
-function outputOwner(repository: RepositoryInput): string {
-  return isPrivateRepositorySignal(repository)
-    ? "Private owner"
-    : repository.owner;
+function collectSummaryDetails(details: RepoSignalV2["evidenceLedger"]): RepoSignalV2["evidence"] {
+  const preferred = details.filter((item) => item.basis === "corroborated");
+  const remaining = details.filter((item) => item.basis !== "corroborated");
+  return [...preferred, ...remaining].slice(0, 5);
 }
 
-function isPrivateRepositorySignal(repository: RepositoryInput): boolean {
+function isPrivateRepository(repository: RepositoryInput): boolean {
   return repository.visibility === "private" || repository.redactedName === true;
 }
 
-function part(
-  passed: unknown,
-  points: number,
-  label: string,
-  source: Evidence["source"],
-  repo: string
-): ScoredPart {
-  const passedSignal = passed === true;
-
-  return {
-    passed: passedSignal,
-    points,
-    evidence: createEvidence(passedSignal ? "positive" : "neutral", label, source, repo)
-  };
-}
-
-function scoreBooleanDimension(
-  key: SignalDimension,
-  parts: readonly ScoredPart[]
-): DimensionScore {
-  const max = parts.reduce((total, item) => total + item.points, 0);
-  const raw = parts.reduce((total, item) => total + (item.passed ? item.points : 0), 0);
-
-  return {
-    key,
-    label: dimensionLabels[key],
-    score: max === 0 ? 0 : Math.round((raw / max) * 100),
-    maxScore: 100,
-    evidence: parts.filter((item) => item.passed).map((item) => item.evidence)
-  };
-}
-
-function weightedOverall(dimensions: Record<SignalDimension, DimensionScore>): number {
-  const score = signalDimensions.reduce(
-    (total, dimension) => total + clampScore(dimensions[dimension].score) * repositoryOverallWeights[dimension],
+export function weightedRepositoryOverall(
+  dimensions: RepoSignalV2["dimensions"]
+): number {
+  const applicable = signalDimensions.filter(
+    (dimension) => dimensions[dimension].assessment.score !== null
+  );
+  const totalWeight = applicable.reduce(
+    (total, dimension) => total + repositoryOverallWeights[dimension],
     0
   );
-
-  return clampScore(Math.round(score));
-}
-
-function repoWeight(dimensions: Record<SignalDimension, DimensionScore>): number {
-  return Number(
-    (
-      1 +
-      clampScore(dimensions.completeness.score) / 100 * 0.3 +
-      clampScore(dimensions.maintainability.score) / 100 * 0.3 +
-      clampScore(dimensions.shipping.score) / 100 * 0.25 +
-      clampScore(dimensions.stewardship.score) / 100 * 0.15
-    ).toFixed(3)
-  );
-}
-
-function collectTopEvidence(dimensions: Record<SignalDimension, DimensionScore>): Evidence[] {
-  return signalDimensions.flatMap((dimension) => dimensions[dimension].evidence).slice(0, 5);
-}
-
-function clampScore(value: number): number {
-  if (!Number.isFinite(value)) {
+  if (totalWeight === 0) {
     return 0;
   }
-
-  return Math.max(0, Math.min(100, value));
-}
-
-function wasRecentlyPushed(value: unknown, now: Date): boolean {
-  const date = parseDate(value);
-  if (date === null) {
-    return false;
-  }
-
-  const ageMilliseconds = now.getTime() - date.getTime();
-
-  return ageMilliseconds >= 0 && ageMilliseconds <= RECENT_DAYS * 24 * 60 * 60 * 1000;
-}
-
-function hasLivedAtLeast(value: unknown, now: Date, days: number): boolean {
-  const date = parseDate(value);
-  if (date === null) {
-    return false;
-  }
-
-  return now.getTime() - date.getTime() >= days * 24 * 60 * 60 * 1000;
-}
-
-function hasTestSurface(repository: RepositoryInput): boolean {
-  const shape = repository.codebaseShape;
-  if (shape === undefined) {
-    return false;
-  }
-
-  const sourceFileCount = codebaseShapeMetric(shape.sourceFileCount);
-  if (sourceFileCount === 0) {
-    return false;
-  }
-
-  return codebaseShapeMetric(shape.testFileCount) >= 2 || codebaseShapeMetric(shape.testToSourceRatio) >= 0.08;
-}
-
-function hasCompactSourceShape(repository: RepositoryInput): boolean {
-  const shape = repository.codebaseShape;
-  if (shape === undefined) {
-    return false;
-  }
-
-  const sourceFileCount = codebaseShapeMetric(shape.sourceFileCount);
-  const medianSourceFileBytes = codebaseShapeMetric(shape.medianSourceFileBytes);
-  const p90SourceFileBytes = codebaseShapeMetric(shape.p90SourceFileBytes);
-  const oversizedSourceFileCount = codebaseShapeMetric(shape.oversizedSourceFileCount);
-  if (sourceFileCount < 4 || medianSourceFileBytes <= 0) {
-    return false;
-  }
-
-  const oversizedRatio = oversizedSourceFileCount / sourceFileCount;
-
-  return medianSourceFileBytes <= 8_000 && p90SourceFileBytes <= 32_000 && oversizedRatio <= 0.1;
-}
-
-function hasExampleSurface(repository: RepositoryInput): boolean {
-  return codebaseShapeMetric(repository.codebaseShape?.exampleFileCount) > 0;
-}
-
-function parseDate(value: unknown): Date | null {
-  if (typeof value !== "string" || value.trim() === "") {
-    return null;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Math.round(
+    applicable.reduce(
+      (total, dimension) =>
+        total + (dimensions[dimension].assessment.score ?? 0) * repositoryOverallWeights[dimension],
+      0
+    ) / totalWeight
+  );
 }

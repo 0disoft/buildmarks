@@ -46,7 +46,7 @@ export async function renderReportFiles(
     const fallbackReport = {
       ok: false,
       error: message,
-      message: "Buildmarks report is temporarily unavailable"
+      message: "Buildmarks couldn't generate this report right now"
     };
     const fallbackHtml = `<!doctype html>
 <html lang="en">
@@ -54,7 +54,7 @@ export async function renderReportFiles(
 <body>
   <main>
     <h1>Buildmarks report unavailable</h1>
-    <p>No signal score is shown. Not a developer ranking.</p>
+    <p>No score is shown. Buildmarks is not a developer ranking.</p>
   </main>
 </body>
 </html>`;

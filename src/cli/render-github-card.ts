@@ -61,7 +61,7 @@ export async function renderGitHubCardFile(
 
       const writeError = await tryWriteTextFile(
         resolvedOutputPath,
-        renderFallbackCard("Not enough complete GitHub evidence to calculate a reliable signal score")
+        renderFallbackCard("Not enough complete repository data to calculate a reliable score")
       );
       return {
         ok: false,
@@ -83,7 +83,7 @@ export async function renderGitHubCardFile(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown GitHub render failure";
-    const svg = renderFallbackCard("Buildmarks GitHub report is temporarily unavailable");
+    const svg = renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now");
     const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
@@ -141,7 +141,7 @@ function insufficientEvidenceMessage(profile: ReturnType<typeof normalizePublicG
       )
       .join(", ");
 
-  return `Insufficient GitHub evidence: attempted=${attempted}, failed=${failed}, truncated=${truncated}; ${detail}.`;
+  return `Not enough complete repository data: attempted=${attempted}, failed=${failed}, truncated=${truncated}; ${detail}.`;
 }
 
 async function pathExists(path: string): Promise<boolean> {

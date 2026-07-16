@@ -72,8 +72,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.25");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.25"');
+    expect(metadata.version).toBe("0.2.0");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.2.0"');
     expect(metadata.types).toBe("./dist/index.d.ts");
     expect(metadata.exports).toEqual({
       ".": {
@@ -108,6 +108,7 @@ describe("profile README workflow example", () => {
       "docs",
       "examples",
       "fixtures",
+      "schemas",
       "action.yml",
       "CHANGELOG.md",
       "README.md",
@@ -173,7 +174,7 @@ describe("profile README workflow example", () => {
       expect(document).toContain("assets/buildmarks.svg");
       expect(document).toContain("assets/buildmarks-report/buildmarks-report.html");
       expect(document).toContain("assets/buildmarks-report/buildmarks-report.json");
-      expect(document).toContain("![Buildmarks public GitHub signal card](./assets/buildmarks.svg)");
+      expect(document).toContain("![Buildmarks public project snapshot](./assets/buildmarks.svg)");
       expect(document).toContain("[View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)");
     }
   });
@@ -205,17 +206,17 @@ describe("profile README workflow example", () => {
     expect(readme).toContain(".github/workflows/release.yml");
     expect(readme).toContain("Trusted Publisher OIDC");
     expect(readme).toContain("npm pack --dry-run");
-    expect(npmPackaging).toContain("Buildmarks is published to npm as a library package");
+    expect(npmPackaging).toContain("Buildmarks is published to npm as a library");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.1.22`");
+    expect(npmPackaging).toContain("Current package version: `0.2.0`");
     expect(npmPackaging).toContain("Workflow filename: `release.yml`");
     expect(npmPackaging).toContain("Environment name: `npm`");
     expect(npmPackaging).toContain("Allowed actions: `npm publish`");
     expect(npmPackaging).toContain("Export the library from `dist/index.js`");
     expect(npmPackaging).toContain("Do not add a package `bin` entry yet");
     expect(npmPackaging).toContain("npm pack --dry-run");
-    expect(npmPackaging).toContain("Generated `dist/` is package build output created during `prepack`");
-    expect(npmPackaging).toContain("Generated `out/` demo artifacts are intentionally not part of the package");
+    expect(npmPackaging).toContain("Generated `dist/` is created during `prepack`");
+    expect(npmPackaging).toContain("Generated `out/` demo artifacts are intentionally excluded");
     expect(npmPackaging).toContain("not official adoption paths");
     expect(releaseWorkflow).toContain("name: Release");
     expect(releaseWorkflow).toContain('      - "v[0-9]*.[0-9]*.[0-9]*"');
@@ -301,9 +302,9 @@ describe("profile README workflow example", () => {
     expect(example).toContain("private-local mode requires an explicit owner-provided read token");
     expect(readme).toContain("redacted private repository names");
     expect(example).toContain("redacted private repository names");
-    expect(readme).toContain("README usage-guide detection is conservative for private repositories");
-    expect(readme).toContain("Do not commit private-local SVG, HTML, or JSON artifacts");
-    expect(example).toContain("Do not commit private-local SVG, HTML, or JSON artifacts");
+    expect(readme).toContain("conservative about whether a private README contains useful setup guidance");
+    expect(readme).toContain("Do not commit private-local SVG, HTML, or JSON");
+    expect(example).toContain("Do not commit private-local SVG, HTML, or JSON");
   });
 
   test("documents deferred activity aggregates and storage-neutral cache boundaries", async () => {
@@ -327,7 +328,7 @@ describe("profile README workflow example", () => {
     expect(combined).toContain("hosted endpoint");
     expect(operations).toContain("cache-contract.md");
     expect(operations).toContain("activity-aggregate-methodology.md");
-    expect(operations).toContain("GitHub rate-limit or abuse-limit responses remain fatal");
+    expect(operations).toContain("Fatal rate-limit and budget errors stop new repository work");
   });
 
   test("keeps example assets and real smoke-test documentation discoverable", async () => {
@@ -352,8 +353,8 @@ describe("profile README workflow example", () => {
     expect(smokeTest).toContain("assets/buildmarks-report/buildmarks-report.html");
     expect(smokeTest).toContain("assets/buildmarks-report/buildmarks-report.json");
     expect(profileCard).toContain("Buildmarks");
-    expect(gapsCard).toContain("What's Missing");
-    expect(repoCard).toContain("Buildmarks repository signal card");
+    expect(gapsCard).toContain("Ways to Improve");
+    expect(repoCard).toContain("Buildmarks repository card");
     expect(repoCard).not.toContain("Repository Signal Tier");
     expect(repoCard).toContain("Buildmarks Repo v");
   });

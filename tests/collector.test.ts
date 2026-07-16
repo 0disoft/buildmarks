@@ -51,7 +51,7 @@ describe("public GitHub collector contract", () => {
     expect(profile.repositories.find((repository) => repository.name === "forked-library")?.isFork).toBe(true);
     expect(profile.repositories.find((repository) => repository.name === "archived-widget")?.isArchived).toBe(true);
     expect(report.topRepos.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
-    expect(report.limitations).toContain("Forked and archived repositories are excluded by default.");
+    expect(report.limitations).toContain("Forked and archived repositories are left out by default.");
   });
 
   test("keeps vanity-only metrics out of the collector fixture", () => {

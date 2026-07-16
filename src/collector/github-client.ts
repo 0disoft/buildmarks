@@ -14,6 +14,7 @@ import {
   type GitHubCollectorPolicy,
   validateGitHubCollectorPolicy
 } from "./policy.js";
+import { detectRepositoryKindFromPaths } from "../scoring/repository-kind.js";
 
 const githubApiBaseUrl = "https://api.github.com";
 const githubApiVersion = "2026-03-10";
@@ -364,9 +365,21 @@ class GitHubRestClient {
       withRepositoryCollectionOperation("tree", this.fetchRepositoryTree(owner, name, repository.default_branch))
     ]);
     const fileSignals = this.collectFileSignals(treeEntries.entries, repository, treeEntries.truncated);
+    const repositoryKind = detectRepositoryKindFromPaths(
+      treeEntries.entries.map((entry) => entry.path),
+      {
+        sourceFileCount: fileSignals.codebaseShape.sourceFileCount,
+        hasReadme: fileSignals.hasReadme,
+        hasDemoOrDocs: fileSignals.hasDemoOrDocs || hasNonEmptyString(repository.homepage)
+      }
+    );
     const collected: CollectedGitHubRepository = {
       owner,
       name: isPrivate ? "Private repository" : name,
+      repositoryKind: repositoryKind.kind,
+      repositoryKindSource: repositoryKind.source,
+      repositoryKindConfidence: repositoryKind.confidence,
+      ...(isPrivate ? { unavailableObservations: ["usageGuide"] } : {}),
       isFork: repository.fork,
       isArchived: repository.archived,
       stars: isPrivate ? 0 : repository.stargazers_count,

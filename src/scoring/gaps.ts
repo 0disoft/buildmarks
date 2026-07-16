@@ -1,7 +1,8 @@
 import type { ProfileInput, RepositoryInput, SignalGap, SignalDimension, UserSignalGapsReport } from "../shared/types.js";
 import { codebaseShapeMetric } from "./codebase-shape.js";
 import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
-import { scoreRepository } from "./score-repo.js";
+import { resolveRepositoryKind } from "./repository-kind.js";
+import { scoreUserProfile } from "./score-user.js";
 
 const maxGaps = 8;
 
@@ -17,7 +18,7 @@ export function analyzeSignalGaps(
   validatePrivateRepositoryDisclosure(input);
 
   const generatedAt = input.generatedAt ?? (options.now ?? new Date()).toISOString();
-  const eligibleRepositories = selectEligibleRepositories(input.repositories, options);
+  const eligibleRepositories = selectEligibleRepositories(input, options);
   const gaps = eligibleRepositories.flatMap(repositorySignalGaps).slice(0, maxGaps);
 
   return {
@@ -30,31 +31,35 @@ export function analyzeSignalGaps(
 }
 
 function selectEligibleRepositories(
-  repositories: readonly RepositoryInput[],
+  input: ProfileInput,
   options: AnalyzeSignalGapsOptions
 ): RepositoryInput[] {
+  const repositories = input.repositories;
   const eligibleRepositories = repositories.filter(isEligibleRepository);
   if (options.maxRepositories === undefined) {
     return eligibleRepositories;
   }
 
   const maxRepositories = resolveMaxRepositories(options.maxRepositories);
-  return eligibleRepositories
-    .map((repository) => ({
-      repository,
-      score: scoreRepository(repository, options)
-    }))
-    .sort((left, right) => right.score.weight * right.score.overall - left.score.weight * left.score.overall)
-    .slice(0, maxRepositories)
-    .map((item) => item.repository);
+  const displayedNames = new Set(
+    scoreUserProfile(
+      {
+        username: "gap-selection",
+        ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
+        repositories: eligibleRepositories
+      },
+      { ...options, maxRepositories }
+    ).topRepos.map((repository) => repository.name)
+  );
+  return eligibleRepositories.filter((repository) => displayedNames.has(repository.name));
 }
 
 function buildGapLimitations(includesPrivateSignals: boolean): string[] {
   return [
     includesPrivateSignals
-      ? "Owner-supplied private repository signals are included and are not independently verifiable from public GitHub."
-      : "Public GitHub data only.",
-    "These are improvement hints, not a developer ranking.",
+      ? "These suggestions include owner-supplied private repositories that cannot be checked independently on public GitHub."
+      : "These suggestions only reflect repositories visible on public GitHub.",
+    "These are practical project suggestions, not a developer ranking.",
     includesPrivateSignals
       ? "Employer work and non-GitHub maintenance are not inferred."
       : "Private work and non-GitHub maintenance are not inferred."
@@ -63,42 +68,58 @@ function buildGapLimitations(includesPrivateSignals: boolean): string[] {
 
 function repositorySignalGaps(repository: RepositoryInput): SignalGap[] {
   const gaps: SignalGap[] = [];
+  const kind = resolveRepositoryKind(repository).kind;
 
   pushGap(gaps, repository, "maintainability", [
-    [!isPresentSignal(repository.hasTests), "tests"],
-    [!isPresentSignal(repository.hasCi), "CI workflow"],
-    [!isPresentSignal(repository.hasChangelog), "changelog"],
-    [!isPresentSignal(repository.hasSecurityPolicy), "security policy"]
-  ], "Tests, automation, and change history improve maintenance confidence.");
+    [kind !== "documentation" && isMissingBooleanObservation(repository, "tests", repository.hasTests), "tests"],
+    [isMissingBooleanObservation(repository, "ci", repository.hasCi), "CI workflow"],
+    [isMissingBooleanObservation(repository, "changelog", repository.hasChangelog), "changelog"],
+    [isMissingBooleanObservation(repository, "securityPolicy", repository.hasSecurityPolicy), "security policy"]
+  ], "Tests, automation, and a visible change history make the project easier to maintain.", kind !== "experiment");
 
   pushGap(gaps, repository, "completeness", [
-    [!isPresentSignal(repository.hasReadme), "README"],
-    [!isPresentSignal(repository.hasUsageGuide), "usage guide"],
-    [!isPresentSignal(repository.hasLicense), "license"],
-    [!isPresentSignal(repository.hasDemoOrDocs), "docs or demo"]
-  ], "Completeness signals help other people understand, run, and reuse the project.");
+    [isMissingBooleanObservation(repository, "readme", repository.hasReadme), "README"],
+    [isMissingBooleanObservation(repository, "usageGuide", repository.hasUsageGuide), "usage guide"],
+    [isMissingBooleanObservation(repository, "license", repository.hasLicense), "license"],
+    [isMissingBooleanObservation(repository, "demoOrDocs", repository.hasDemoOrDocs), "docs or demo"]
+  ], "A clear starting point helps other people understand, run, and reuse the project.");
 
   pushGap(gaps, repository, "shipping", [
-    [!isPresentSignal(repository.hasReleases), "release or tag"],
-    [!isPresentSignal(repository.hasPackageArtifact), "package manifest"],
-    [!isPresentSignal(repository.hasDemoOrDocs), "docs or demo"]
-  ], "Shipping signals show the project is usable, not just browsable.");
+    [isMissingBooleanObservation(repository, "releases", repository.hasReleases), "release or tag"],
+    [kind !== "application" && isMissingBooleanObservation(repository, "packageArtifact", repository.hasPackageArtifact), "package manifest"],
+    [isMissingBooleanObservation(repository, "demoOrDocs", repository.hasDemoOrDocs), "docs or demo"]
+  ], "A release trail shows that the project can be used, not merely browsed.", kind !== "documentation" && kind !== "experiment");
 
   pushGap(gaps, repository, "usability", [
-    [!isPresentSignal(repository.hasUsageGuide), "usage guide"],
-    [!isPresentSignal(repository.hasDemoOrDocs), "docs or demo"],
-    [!isPresentSignal(repository.hasPackageArtifact), "package manifest"],
-    [codebaseShapeMetric(repository.codebaseShape?.exampleFileCount) === 0, "example or fixture files"]
-  ], "Usability signals help someone run, try, and understand the project quickly.");
+    [isMissingBooleanObservation(repository, "usageGuide", repository.hasUsageGuide), "usage guide"],
+    [isMissingBooleanObservation(repository, "demoOrDocs", repository.hasDemoOrDocs), "docs or demo"],
+    [kind !== "application" && kind !== "documentation" && isMissingBooleanObservation(repository, "packageArtifact", repository.hasPackageArtifact), "package manifest"],
+    [!isObservationUnavailable(repository, "codebaseShape") && codebaseShapeMetric(repository.codebaseShape?.exampleFileCount) === 0, "example or fixture files"]
+  ], "Clear instructions and examples help someone try the project without guesswork.");
 
   pushGap(gaps, repository, "stewardship", [
-    [!isPresentSignal(repository.hasContributing), "contribution guide"],
-    [!isPresentSignal(repository.hasCodeOfConduct), "code of conduct"],
-    [!isPresentSignal(repository.hasSecurityPolicy), "security policy"],
-    [!isPresentSignal(repository.hasChangelog), "changelog"]
-  ], "Stewardship signals show the project has clear ownership and care paths.");
+    [isMissingBooleanObservation(repository, "contributing", repository.hasContributing), "contribution guide"],
+    [isMissingBooleanObservation(repository, "codeOfConduct", repository.hasCodeOfConduct), "code of conduct"],
+    [isMissingBooleanObservation(repository, "securityPolicy", repository.hasSecurityPolicy), "security policy"],
+    [isMissingBooleanObservation(repository, "changelog", repository.hasChangelog), "changelog"]
+  ], "Contribution and security guidance make ownership and support paths easier to find.", kind !== "experiment");
 
   return gaps;
+}
+
+function isMissingBooleanObservation(
+  repository: RepositoryInput,
+  key: NonNullable<RepositoryInput["unavailableObservations"]>[number],
+  value: unknown
+): boolean {
+  return !isObservationUnavailable(repository, key) && !isPresentSignal(value);
+}
+
+function isObservationUnavailable(
+  repository: RepositoryInput,
+  key: NonNullable<RepositoryInput["unavailableObservations"]>[number]
+): boolean {
+  return repository.unavailableObservations?.includes(key) === true;
 }
 
 function pushGap(
@@ -106,8 +127,12 @@ function pushGap(
   repository: RepositoryInput,
   dimension: SignalDimension,
   checks: Array<[boolean, string]>,
-  whyItMatters: string
+  whyItMatters: string,
+  applicable = true
 ): void {
+  if (!applicable) {
+    return;
+  }
   const missing = checks.flatMap(([condition, label]) => (condition ? [label] : []));
   if (missing.length === 0) {
     return;

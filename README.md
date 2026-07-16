@@ -1,15 +1,15 @@
 # Buildmarks
 
-Buildmarks turns public GitHub activity into engineering signal cards for GitHub profile READMEs.
+Buildmarks turns the public traces around GitHub projects into compact profile README cards and inspectable reports.
 
-It is not a developer ranking tool. It does not claim to measure a person's full engineering ability. It only visualizes signals that are visible in public GitHub repositories.
+It is not a developer ranking tool and does not claim to measure a person's engineering ability. It shows what can be checked in public repositories: how projects are documented, maintained, packaged, and shipped.
 
 ```txt
 No streaks.
 No commit vanity.
 No language pie charts.
 
-Just public signals for maintainability, completeness, usability, shipping evidence, consistency, and stewardship.
+Just a public snapshot of maintainability, readiness, ease of use, shipping, consistency, and project care.
 ```
 
 ## Quick Start: GitHub Profile README
@@ -19,7 +19,7 @@ Just public signals for maintainability, completeness, usability, shipping evide
 2. Add the generated card and report link to your profile `README.md`:
 
 ```md
-![Buildmarks public GitHub signal card](./assets/buildmarks.svg)
+![Buildmarks public project snapshot](./assets/buildmarks.svg)
 
 [View the Buildmarks report](./assets/buildmarks-report/buildmarks-report.html)
 ```
@@ -45,11 +45,11 @@ The intended license is 0BSD so the scoring rules, renderer, and self-host path 
 ## Project Goals
 
 - Generate SVG cards that can be embedded in GitHub profile READMEs.
-- Explain public engineering signals instead of producing vanity stats.
+- Explain visible project practices instead of producing vanity stats.
 - Keep scoring rules transparent and inspectable.
-- Return JSON reports with the same signals summarized in cards.
+- Return JSON reports with the same findings summarized in cards.
 - Provide a self-hostable core before any hosted service layer.
-- Define a safe opt-in private-local mode for owners who want to include private repository signals without changing the public-only default.
+- Define a safe opt-in private-local mode for owners who want to include selected private repositories without changing the public-only default.
 
 ## Non-Goals
 
@@ -62,29 +62,29 @@ Buildmarks must not become:
 - a default private repository analyzer
 - a black-box developer score
 
-## Signal Areas
+## What Buildmarks Reviews
 
-Buildmarks focuses on these public signal areas:
+Buildmarks looks at six parts of a project:
 
 ```txt
 maintainability
-project completeness
-usability surface
-shipping evidence
+project readiness
+ease of use
+shipping
 consistency
-project stewardship
+project care
 ```
 
-The front-card dimensions avoid popularity and collaboration traces because those signals can be missing, deferred, or context-dependent. Stars, forks, public issue traces, and public review traces may still appear as inspectable evidence in reports, but they are not default tier rows.
+Popularity and collaboration activity stay out of the score because they are often missing, deferred, or shaped by project age and audience. Stars, forks, public issues, and reviews may add report context, but they do not raise the default result.
 
-Examples of signals:
+Examples of what Buildmarks can find:
 
 - README with installation or usage guidance
 - LICENSE file
 - release or tag history
 - CI workflow files
 - test configuration or test directory
-- coarse codebase shape signals such as test-file ratio and source-file size buckets
+- coarse repository shape such as test-file ratio and source-file size buckets
 - issue and pull request templates
 - demo, documentation, or package links
 
@@ -97,8 +97,20 @@ Examples of signals:
 - Archived repositories are excluded by default.
 - One popular repository must not dominate the whole profile.
 - Low public activity must never produce a harsh personal label.
-- Every score must show evidence and limitations.
+- Every score must show the supporting details, coverage, and limitations behind it.
 - Generated cards and reports must clearly disclose the data scope.
+
+## Scoring Methodology 2.0.0
+
+Methodology `2.0.0` reviews each repository according to its kind: `library`, `application`, `cli`, `documentation`, `monorepo`, `experiment`, or `general`. Checks that do not fit a kind are `not-applicable`; checks Buildmarks could not observe are `unavailable`. Neither is silently turned into a failed check.
+
+The report keeps four ideas separate: score, confidence, coverage, and applicability. A dimension needs at least 50% coverage before it receives a score. Isolated file-presence checks can reach at most 40; a higher score needs at least one corroborated practice, such as tests backed by CI or a release backed by an installable package.
+
+All eligible repositories that were successfully evaluated contribute to the profile calculation. The card display is shorter and uses a kind-stratified selection so different project types have a chance to appear. The report records both evaluated and displayed counts.
+
+Static JSON reports use `schemaVersion: "buildmarks-report/v1"` while the scoring rules use `methodologyVersion: "2.0.0"`. They are separate version lines. The npm package includes the report schema at `schemas/buildmarks-report-v1.schema.json`.
+
+See [docs/scoring.md](docs/scoring.md) for the complete calculation and its limits.
 
 ## Planned Surfaces
 
@@ -123,7 +135,7 @@ Buildmarks v0 is packaged as a public OSS core and GitHub Action artifact genera
 
 The primary v0 adoption path is backend-free profile README generation: `assets/buildmarks.svg`, `assets/buildmarks-report/buildmarks-report.html`, and `assets/buildmarks-report/buildmarks-report.json`. The composite action generates artifacts only; caller workflows own checkout, `contents: write`, commit, and push behavior.
 
-Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; npm package releases use explicit package versions such as `0.1.22`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md). The current public Action channel is `0disoft/buildmarks@v0`; the npm package uses explicit versions such as `0.2.0`.
 
 Buildmarks is published to npm as `buildmarks`, but the package has no `bin` entry yet. The recommended v0 adoption path is still the `0disoft/buildmarks@v0` GitHub Action. The npm package and dry-run package contents contract are documented in [docs/npm-packaging.md](docs/npm-packaging.md). npm releases are published from `.github/workflows/release.yml` through npm Trusted Publisher OIDC when a `vX.Y.Z` tag matches `package.json`.
 
@@ -152,11 +164,11 @@ The public collector contract is documented in [docs/github-collector-contract.m
 
 The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults for the live public GitHub collector.
 
-Owner-supplied private repository signals are documented separately in [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md). The default collector remains public-only; private repositories require the explicit `collectOwnerSuppliedGitHubProfile()` private-local path, owner-provided read-only token access, redaction defaults, and a `Public + Private Signals` disclosure.
+Owner-supplied private repositories are documented separately in [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md). The default collector remains public-only; private repositories require the explicit `collectOwnerSuppliedGitHubProfile()` path, an owner-provided read-only token, redaction by default, and the exact `Public + Private Signals` disclosure.
 
 Deferred public activity aggregates are documented in [docs/activity-aggregate-methodology.md](docs/activity-aggregate-methodology.md). The storage-neutral cache boundary is documented in [docs/cache-contract.md](docs/cache-contract.md).
 
-The npm packaging status is documented in [docs/npm-packaging.md](docs/npm-packaging.md). The v0 package can be inspected with `npm pack --dry-run`.
+The npm packaging status is documented in [docs/npm-packaging.md](docs/npm-packaging.md). The package includes `schemas/buildmarks-report-v1.schema.json` and can be inspected with `npm pack --dry-run`.
 
 ## Collect from Public GitHub Data
 
@@ -176,7 +188,7 @@ The token is optional and must be passed explicitly. Buildmarks does not read to
 
 The live collector is still a local library surface, not a hosted endpoint. It intentionally has no cache storage, Redis/KV binding, Cloudflare Worker, billing, or web server in this repository.
 
-Private repository signals are not part of `collectPublicGitHubProfile()`. Use `collectOwnerSuppliedGitHubProfile()` or the Action `private-local: "true"` input only when the owner explicitly supplies a read token; private-local output follows [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md) and clearly marks cards as owner-supplied private evidence. Private-local artifacts can reveal owner-supplied private repository metadata, so do not commit the generated SVG, HTML, or JSON to a public profile repository unless that disclosure is intentional.
+Private repositories are not part of `collectPublicGitHubProfile()`. Use `collectOwnerSuppliedGitHubProfile()` or the Action `private-local: "true"` input only when the owner explicitly supplies a read token. Private-local output follows [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md) and is labeled `Public + Private Signals`. Even with redacted names, the artifacts can reveal private project details, so do not commit the SVG, HTML, or JSON to a public profile repository unless that disclosure is intentional.
 
 ## Generate from a GitHub Username
 
@@ -228,7 +240,7 @@ Minimal action usage:
 
 Set `generate-report: "false"` when you only want the SVG card.
 
-Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact private repository names, omit private repository URLs, mark the card as `Public + Private Signals`, and use the same file, release, maintenance, usability, and stewardship dimensions as public-only cards. Built-in private-local collection does not expose private file contents, so README usage-guide detection is conservative for private repositories. Do not commit private-local SVG, HTML, or JSON artifacts to a public profile repository unless publishing that owner-supplied metadata is intentional.
+Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact repository names, omit private URLs, use the exact `Public + Private Signals` label, and apply the same project checks as public-only cards. The built-in collector does not read private file contents, so it is conservative about whether a private README contains useful setup guidance. Do not commit private-local SVG, HTML, or JSON to a public profile repository unless publishing those details is intentional.
 
 Action inputs are intentionally strict: `username`, `output`, and `report-output` must be non-empty, `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
 
@@ -243,7 +255,7 @@ The default repository activity window is 365 days based on each repository's pu
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
-| `max-repositories-scored` | `12` | Positive integer profile summary limit, capped at 24. |
+| `max-repositories-scored` | `12` | Positive integer repository display limit, capped at 24. Despite the legacy input name, all successfully evaluated repositories contribute to the profile calculation. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
 | `max-api-requests` | `160` | Positive integer GitHub REST request budget for one profile collection, capped at 500. Retries spend budget. |
 
@@ -254,32 +266,32 @@ Committed sample SVGs live under [examples/assets](examples/assets) so readers c
 Profile card:
 
 ```md
-![Buildmarks public GitHub signal card](./examples/assets/example-card.svg)
+![Buildmarks public project snapshot](./examples/assets/example-card.svg)
 ```
 
-Signal gaps card:
+Project suggestions card:
 
 ```md
-![Buildmarks public signal gaps card](./examples/assets/example-gaps-card.svg)
+![Buildmarks project improvement card](./examples/assets/example-gaps-card.svg)
 ```
 
 Repository card:
 
 ```md
-![Buildmarks repository signal card](./examples/assets/example-repo-card.svg)
+![Buildmarks repository card](./examples/assets/example-repo-card.svg)
 ```
 
-## Generate a Signal Gaps Card
+## Generate a Project Suggestions Card
 
-Buildmarks can also render a "What's Missing" card from the same local profile fixture:
+Buildmarks can also turn the same local profile fixture into a short list of practical ways to strengthen the projects:
 
 ```bash
 bun run build:gaps-card
 ```
 
-The gaps card is an improvement guide based on missing public repository signals such as tests, CI, licenses, changelogs, releases, or contribution guides.
+The suggestions card offers concrete ways to improve a project, such as adding tests, CI, licensing, change notes, releases, or contribution guidance.
 
-## Generate a Repository Signal Card
+## Generate a Repository Snapshot Card
 
 Buildmarks can render a single repository card from the same profile fixture:
 
@@ -293,7 +305,7 @@ To choose another repository from a profile JSON file:
 bun src/cli/render-repo-card.ts path/to/profile.json owner/repo out/repo-card.svg
 ```
 
-Repository cards are useful inside project READMEs because they show one repository's maintainability, completeness, usability, shipping, consistency, and stewardship signals without turning the owner profile into a leaderboard.
+Repository cards are useful inside project READMEs because they show how one project is maintained, documented, made usable, and shipped without turning its owner into a leaderboard entry.
 
 ## Generate an Inspectable Static Report
 
@@ -310,7 +322,9 @@ out/report/buildmarks-report.html
 out/report/buildmarks-report.json
 ```
 
-The report shows dimension scores, evidence, signal gaps, repository-level signals, and limitations. It is designed to sit next to generated SVG cards in a profile README repository or static site.
+The report shows dimension scores, confidence, coverage, applicability, supporting details, improvement ideas, repository kinds, and limitations. Its calculation uses every eligible repository that was successfully evaluated even when the card displays only a representative subset.
+
+The JSON declares `schemaVersion: "buildmarks-report/v1"` and `methodologyVersion: "2.0.0"`. Validate its envelope with the packaged schema at `schemas/buildmarks-report-v1.schema.json`; do not assume the schema version and methodology version advance together.
 
 To generate the same report directly from public GitHub data:
 
@@ -321,7 +335,7 @@ bun src/cli/render-github-report.ts octocat out/report --token "public-data-toke
 Like the SVG GitHub CLI, the report CLI requires tokens to be passed explicitly and writes fallback HTML/JSON files if collection fails.
 Add `--private-local` with an explicit owner-provided token when generating a private-local report.
 
-To generate a GitHub SVG with an evidence link manually:
+To generate a GitHub SVG that can sit beside a report link:
 
 ```bash
 bun src/cli/render-github-card.ts octocat out/octocat-card.svg

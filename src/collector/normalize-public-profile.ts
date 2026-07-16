@@ -34,6 +34,16 @@ function normalizePublicGitHubRepository(repository: CollectedGitHubProfile["rep
     ...(repository.url === undefined ? {} : { url: repository.url }),
     ...(repository.visibility ? { visibility: repository.visibility } : {}),
     ...(repository.redactedName === undefined ? {} : { redactedName: repository.redactedName }),
+    ...(repository.repositoryKind === undefined ? {} : { repositoryKind: repository.repositoryKind }),
+    ...(repository.repositoryKindSource === undefined
+      ? {}
+      : { repositoryKindSource: repository.repositoryKindSource }),
+    ...(repository.repositoryKindConfidence === undefined
+      ? {}
+      : { repositoryKindConfidence: repository.repositoryKindConfidence }),
+    ...(repository.unavailableObservations === undefined
+      ? {}
+      : { unavailableObservations: [...repository.unavailableObservations] }),
     isFork: repository.isFork,
     isArchived: repository.isArchived,
     stars: repository.stars,

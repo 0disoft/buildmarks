@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
-  <title id="title">Buildmarks repository signal card for example-builder/usable-toolkit</title>
-  <desc id="desc">Repository signal for example-builder/usable-toolkit: 21 signals found. Overall repository signal tier is Diamond II, with 97 out of 100 available in the report. Maintainability Diamond II, 96 out of 100, Project Completeness Diamond I, 100 out of 100, Usability Surface Diamond I, 100 out of 100, Shipping Evidence Diamond I, 100 out of 100, Consistency Diamond I, 100 out of 100, Project Stewardship Platinum II, 87 out of 100. Public GitHub data only; not a developer ranking.</desc>
+  <title id="title">Buildmarks repository card for example-builder/usable-toolkit</title>
+  <desc id="desc">Buildmarks found 34 project practices for example-builder/usable-toolkit. The repository result is Diamond III, 95 out of 100. Maintainability Diamond II, 97 out of 100, Project Readiness Diamond I, 100 out of 100, Ease of Use Diamond I, 100 out of 100, Shipping Diamond I, 100 out of 100, Consistency Diamond I, 100 out of 100, Project Care Platinum V, 72 out of 100. Based on public GitHub only. Buildmarks is not a developer ranking.</desc>
   <defs>
     <linearGradient id="panelStroke" x1="18" y1="18" x2="742" y2="402" gradientUnits="userSpaceOnUse">
       <stop offset="0%" class="stroke-start" />
@@ -114,32 +114,32 @@
   <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
   <path d="M24 22 H736" class="top-line" />
   <text x="36" y="62" class="name">example-builder/usable-toolkit</text>
-  <text x="704" y="62" class="overall overall-strong">Diamond II</text>
-  <g aria-label="Repository dimension signal tiers with underlying scores out of 100">
+  <text x="704" y="62" class="overall overall-strong">Diamond III</text>
+  <g aria-label="Repository areas with scores out of 100">
 
-    <g role="img" aria-label="Maintainability: Diamond II, 96 points out of 100">
+    <g role="img" aria-label="Maintainability: Diamond II, 97 points out of 100">
       <text x="36" y="128" class="label">Maintainability</text>
       <text x="306" y="128" class="score">Diamond II</text>
       <rect x="336" y="119" width="372" height="6" rx="3" class="track" aria-hidden="true" />
-      <rect x="336" y="119" width="357" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Maintainability score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="96" />
+      <rect x="336" y="119" width="361" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Maintainability score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="97" />
     </g>
-    <g role="img" aria-label="Project Completeness: Diamond I, 100 points out of 100">
-      <text x="36" y="157" class="label">Project Completeness</text>
+    <g role="img" aria-label="Project Readiness: Diamond I, 100 points out of 100">
+      <text x="36" y="157" class="label">Project Readiness</text>
       <text x="306" y="157" class="score">Diamond I</text>
       <rect x="336" y="148" width="372" height="6" rx="3" class="track" aria-hidden="true" />
-      <rect x="336" y="148" width="372" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Project Completeness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
+      <rect x="336" y="148" width="372" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Project Readiness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
-    <g role="img" aria-label="Usability Surface: Diamond I, 100 points out of 100">
-      <text x="36" y="186" class="label">Usability Surface</text>
+    <g role="img" aria-label="Ease of Use: Diamond I, 100 points out of 100">
+      <text x="36" y="186" class="label">Ease of Use</text>
       <text x="306" y="186" class="score">Diamond I</text>
       <rect x="336" y="177" width="372" height="6" rx="3" class="track" aria-hidden="true" />
-      <rect x="336" y="177" width="372" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Usability Surface score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
+      <rect x="336" y="177" width="372" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Ease of Use score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
-    <g role="img" aria-label="Shipping Evidence: Diamond I, 100 points out of 100">
-      <text x="36" y="215" class="label">Shipping Evidence</text>
+    <g role="img" aria-label="Shipping: Diamond I, 100 points out of 100">
+      <text x="36" y="215" class="label">Shipping</text>
       <text x="306" y="215" class="score">Diamond I</text>
       <rect x="336" y="206" width="372" height="6" rx="3" class="track" aria-hidden="true" />
-      <rect x="336" y="206" width="372" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Shipping Evidence score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
+      <rect x="336" y="206" width="372" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Shipping score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
     <g role="img" aria-label="Consistency: Diamond I, 100 points out of 100">
       <text x="36" y="244" class="label">Consistency</text>
@@ -147,11 +147,11 @@
       <rect x="336" y="235" width="372" height="6" rx="3" class="track" aria-hidden="true" />
       <rect x="336" y="235" width="372" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" />
     </g>
-    <g role="img" aria-label="Project Stewardship: Platinum II, 87 points out of 100">
-      <text x="36" y="273" class="label">Project Stewardship</text>
-      <text x="306" y="273" class="score">Platinum II</text>
+    <g role="img" aria-label="Project Care: Platinum V, 72 points out of 100">
+      <text x="36" y="273" class="label">Project Care</text>
+      <text x="306" y="273" class="score">Platinum V</text>
       <rect x="336" y="264" width="372" height="6" rx="3" class="track" aria-hidden="true" />
-      <rect x="336" y="264" width="324" height="6" rx="3" class="bar bar-strong" role="progressbar" aria-label="Project Stewardship score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="87" />
+      <rect x="336" y="264" width="268" height="6" rx="3" class="bar bar-middle" role="progressbar" aria-label="Project Care score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="72" />
     </g>
   </g>
   <text x="36" y="318" class="section-label">Highlights</text>
@@ -165,14 +165,14 @@
       <rect x="204" y="330" width="156" height="28" rx="6" class="chip-bg" />
       <text x="216" y="349" class="chip">CI</text>
     </g>
-    <g role="img" aria-label="Highlight: Changelog">
+    <g role="img" aria-label="Highlight: Change history">
       <rect x="372" y="330" width="156" height="28" rx="6" class="chip-bg" />
-      <text x="384" y="349" class="chip">Changelog</text>
+      <text x="384" y="349" class="chip">Change history</text>
     </g>
     <g role="img" aria-label="Highlight: Test Files">
       <rect x="540" y="330" width="156" height="28" rx="6" class="chip-bg" />
       <text x="552" y="349" class="chip">Test Files</text>
     </g>
   </g>
-  <text x="36" y="388" class="footer">Buildmarks Repo v0.1.22 · Public Signals</text>
+  <text x="36" y="388" class="footer">Buildmarks Repo v0.2.0 · Public GitHub</text>
 </svg>

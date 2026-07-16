@@ -1,91 +1,108 @@
 # Scoring
 
-Buildmarks uses transparent rule-based scoring before any live GitHub API or hosted service layer exists.
+Buildmarks uses a published set of rules to describe what can be seen in a repository. It does not rank developers, predict job performance, or fill in work that GitHub does not show.
 
-The score is not a developer ranking. In public-only mode it is a compact view of public GitHub evidence.
-In private-local mode, owner-supplied private repository signals may be included only when the card and report clearly disclose that those signals are not independently verifiable from public GitHub.
+Public-only results cover public repositories. Private-local results may also include repositories supplied by their owner, but those details cannot be checked independently on public GitHub and must be labeled accordingly.
 
-## v0 Dimensions
+## Methodology 2.0.0
 
-Buildmarks summarizes six dimensions:
+The current scoring methodology is `2.0.0`. That value describes how Buildmarks calculates a result; it is separate from the JSON report format. Static reports currently use `schemaVersion: "buildmarks-report/v1"`, whose package schema is published at `schemas/buildmarks-report-v1.schema.json`.
+
+This separation is deliberate. The scoring rules can evolve without pretending that every change creates a new report envelope, and a future report schema can change without silently changing how scores are calculated.
+
+## What Buildmarks Reviews
+
+Buildmarks looks at six parts of a project:
 
 - Maintainability
-- Project Completeness
-- Usability Surface
-- Shipping Evidence
+- Project Readiness
+- Ease of Use
+- Shipping
 - Consistency
-- Project Stewardship
+- Project Care
 
-Each repository receives a dimension score from 0 to 100. A profile report summarizes the highest-signal eligible repositories, excluding forks and archived repositories by default.
+Each repository is reviewed against checks that make sense for its kind. The supported kinds are `library`, `application`, `cli`, `documentation`, `monorepo`, `experiment`, and `general`.
 
-## Overall Weighting
+Repository kind may be declared by the caller, detected from the repository tree, inferred from the available project details, or left as the `general` fallback. The report records both the chosen kind and how confidently Buildmarks made that choice. Kind detection is intentionally conservative: a package manifest alone, for example, is not enough to claim that Buildmarks understands the project's purpose with high confidence.
 
-The v0 overall repository score uses this weighting:
+## Score, Confidence, Coverage, and Applicability
+
+These fields answer different questions and should not be collapsed into one number:
+
+- `score` describes the share of available points earned by the checks Buildmarks could actually complete.
+- `confidence` (`low`, `medium`, or `high`) summarizes how much of the applicable review was observed.
+- `coverage` records the observed check count, expected check count, and their ratio.
+- `applicability` says whether a check or dimension is `applicable`, `not-applicable`, or `unavailable`.
+
+`not-applicable` means the check does not fit that repository kind. A documentation repository is not penalized for lacking an application release pipeline. `unavailable` means the check would matter, but Buildmarks did not have enough information to decide. Unknown data is never treated as a failed check.
+
+A dimension needs at least 50% coverage before Buildmarks will calculate its score. Confidence is low below 60% coverage, medium from 60% through 84%, and high from 85% upward. When the profile as a whole is too incomplete, the result becomes `provisional` or `unavailable` instead of dressing a thin snapshot up as a firm conclusion.
+
+## How Points Work
+
+Methodology 2.0.0 gives more weight to project practices that reinforce one another than to isolated files. A CI workflow and a real test surface together say more than either item alone. Releases backed by an installable package, change notes that line up with shipped versions, and documentation backed by examples work the same way.
+
+Checks therefore use four bases:
+
+- `presence`: a useful public trace exists, such as a README, license, or workflow.
+- `corroborated`: two or more details support the same practice.
+- `shape`: coarse repository-tree measurements support the finding.
+- `history`: public dates support a recency or continuity finding.
+
+A dimension supported only by presence checks is capped at 40, even when every visible file is present. The cap is lifted only when at least one corroborated criterion in that dimension passes. This keeps a pile of empty checkbox files from looking equivalent to working project habits.
+
+Within each applicable dimension, points earned are divided by points available from the checks Buildmarks could complete, then scaled to 0–100. The repository total combines the six dimension assessments using these weights:
 
 - Maintainability: 25%
-- Project Completeness: 20%
-- Usability Surface: 15%
-- Shipping Evidence: 15%
+- Project Readiness: 20%
+- Ease of Use: 15%
+- Shipping: 15%
 - Consistency: 10%
-- Project Stewardship: 15%
+- Project Care: 15%
 
-The weighting intentionally keeps popularity and public collaboration traces out of the default profile-card dimensions. Stars, forks, issue responses, public reviews, and external contributor traces are context, not proof of engineering quality.
+Dimensions marked `not-applicable` are left out of the calculation. Missing observations reduce coverage instead of quietly becoming zeroes.
 
-## Evidence
+## Profile Calculation and Display
 
-In public-only mode, signals come from public repository evidence such as:
+Forked and archived repositories are excluded by default. Every remaining repository with a complete enough Git tree is evaluated, and all of those evaluated repositories contribute to the profile calculation.
 
-- README and usage guidance
-- LICENSE
-- CI workflows
-- tests
-- coarse codebase shape signals from the Git tree
-- changelog or release notes
-- releases or tags
-- demo, documentation, or package links
-- contribution guide
-- code of conduct
-- security policy
+The card and report may show fewer repositories than were used in the calculation. Display selection is `kind-stratified`: Buildmarks first tries to show a strong representative from each repository kind, then fills the remaining slots by score with a stable owner/name tie-break. The default display limit is 12. The report's `selection` object records eligible, evaluated, displayed, and limit counts so the distinction is visible.
 
-Popularity and public participation signals are not primary dimensions because they can be absent for healthy solo projects, private-local inputs, early projects, or repositories where issue and pull request activity is handled elsewhere.
+This prevents a profile full of one project type from hiding the rest of the owner's public project mix, while avoiding the older mistake of calculating the profile from only the repositories that fit on the card.
 
-Private-local scoring uses the same dimensions and evidence categories, but repository names must be redacted and the report must label the trust boundary as owner-supplied private-local evidence.
+## What Buildmarks Found
 
-Every score must expose evidence. If a future implementation cannot explain a score, it should not render that score.
+In public-only mode, Buildmarks can use public traces such as:
 
-## Codebase Shape Signals
+- README and practical setup or usage guidance
+- license information
+- CI workflows and visible tests
+- changelogs, releases, and tags
+- documentation, demos, examples, and package manifests
+- contribution, conduct, and security guidance
+- coarse repository-tree measurements such as test-file ratio and source-file size buckets
+- public creation and push dates
 
-Buildmarks uses a small codebase-shape signal inside Maintainability. It is not a separate quality grade.
+The `Evidence` API type and `evidenceLedger` report field retain their exact names for consumers. In the rendered report, these are simply the supporting details behind a result. A score that cannot point back to those details should not be shown.
 
-The public collector reads the Git tree metadata that GitHub already returns for a repository. It does not read source file contents or count lines. From that tree it can summarize:
+Stars, forks, issue traffic, review traffic, and outside contributors do not raise the default score. Healthy solo projects, young projects, and work coordinated elsewhere may have little or none of that public activity.
 
-- source file count
-- test file count and test-to-source ratio
-- example or fixture file count
-- median source file size in bytes
-- 90th percentile source file size in bytes
-- count of source files above the large-file threshold
+## Codebase Shape
 
-Generated, vendor, dependency, build-output, lockfile, minified, and sourcemap paths are excluded from these shape calculations and from tree-derived test or example surface signals. These checks are intentionally coarse. They can suggest whether a repository is split into manageable source files and has visible test or example surface, but they do not prove code quality.
+Buildmarks reads Git tree metadata, not source contents or line counts. It can summarize source, test, and example file counts; test-to-source ratio; median and 90th-percentile source-file sizes; and the share of unusually large source files.
 
-Repositories whose GitHub recursive tree response is truncated are excluded from scoring and gap hints. Missing paths in a truncated response are unknown, not negative evidence. A profile is not presented as normally scored when failed collections and truncated trees make up at least half of the attempted repository set.
+Generated, vendored, dependency, build-output, lockfile, minified, and sourcemap paths are left out. These measurements are rough clues about project structure, not a code-quality verdict.
 
-## Exclusions
+If GitHub truncates a recursive tree, that repository is excluded from scoring and improvement hints. A path missing from an incomplete tree is unknown, not absent. If failed collection and truncated trees account for at least half of the attempted repositories, Buildmarks does not present a normal score.
 
-Buildmarks does not use these as primary quality signals:
+## Boundaries
 
-- raw commit count
-- contribution streaks
-- follower count
-- language percentage charts
-- private repositories in the default public-only mode
-- private employer work
-- inferred seniority or job suitability
+Buildmarks does not use raw commit counts, contribution streaks, follower counts, language percentages, private employer work, inferred seniority, job suitability, or hiring pass/fail labels.
 
-Private-local mode is an explicit exception for owner-supplied repository signals. It must not infer private employer work, expose private repository names, or present those signals as publicly verifiable.
+Private-local mode is an explicit owner-controlled exception for selected private repositories. Names are redacted by default, private file contents stay outside the built-in collector, and the output must say `Public + Private Signals`. The result still describes repository practices, not the person who owns them.
 
-## Current Source of Truth
+## Source of Truth
 
-The executable v0 scoring rules live in `src/scoring/score-repo.ts` and `src/scoring/score-user.ts`.
+The methodology version and public types live in `src/shared/types.ts`. Criteria and point values live in `src/scoring/methodology-v2.ts`; assessment behavior lives in `src/scoring/assessment.ts`; repository and profile aggregation live in `src/scoring/score-repo.ts` and `src/scoring/score-user.ts`.
 
-The example input shape lives in `fixtures/example-public-profile.json`.
+The static report envelope is implemented in `src/reporter/static-report.ts` and described by `schemas/buildmarks-report-v1.schema.json`. Example input lives in `fixtures/example-public-profile.json`.

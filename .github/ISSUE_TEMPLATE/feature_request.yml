@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Buildmarks values transparent public GitHub evidence over vanity metrics.
+        Buildmarks values clear, inspectable project details over vanity metrics.
 
         Please do not propose features that require private repositories, follower scoring, language percentage scoring, raw commit count scoring, hiring suitability, telemetry, or hosted secrets.
   - type: textarea
@@ -29,7 +29,7 @@ body:
     attributes:
       label: Primary surface
       options:
-        - Scoring or evidence
+        - Scoring method or report details
         - SVG card rendering
         - Static report generation
         - GitHub collector

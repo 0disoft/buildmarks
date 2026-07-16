@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/0disoft/buildmarks/schemas/buildmarks-report-v1.schema.json",
+  "title": "Buildmarks static report",
+  "type": "object",
+  "required": [
+    "version",
+    "schemaVersion",
+    "methodologyVersion",
+    "profile",
+    "gaps",
+    "repositories"
+  ],
+  "properties": {
+    "version": { "const": 1 },
+    "schemaVersion": { "const": "buildmarks-report/v1" },
+    "methodologyVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "profile": { "$ref": "#/$defs/profile" },
+    "gaps": { "type": "object" },
+    "repositories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/repository" }
+    }
+  },
+  "$defs": {
+    "coverage": {
+      "type": "object",
+      "required": ["observed", "expected", "ratio"],
+      "properties": {
+        "observed": { "type": "integer", "minimum": 0 },
+        "expected": { "type": "integer", "minimum": 0 },
+        "ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "required": ["score", "confidence", "coverage", "applicability"],
+      "properties": {
+        "score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "confidence": { "enum": ["low", "medium", "high", null] },
+        "coverage": { "$ref": "#/$defs/coverage" },
+        "applicability": { "enum": ["applicable", "not-applicable", "unavailable"] }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "username",
+        "methodologyVersion",
+        "overall",
+        "assessment",
+        "dimensionAssessments",
+        "selection",
+        "resultStatus"
+      ],
+      "properties": {
+        "username": { "type": "string" },
+        "methodologyVersion": { "type": "string" },
+        "overall": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "assessment": { "$ref": "#/$defs/assessment" },
+        "dimensionAssessments": { "type": "object" },
+        "selection": { "type": "object" },
+        "resultStatus": { "enum": ["confirmed", "provisional", "unavailable"] }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "required": [
+        "owner",
+        "name",
+        "methodologyVersion",
+        "repositoryKind",
+        "overall",
+        "assessment",
+        "dimensions",
+        "evidenceLedger"
+      ],
+      "properties": {
+        "owner": { "type": "string" },
+        "name": { "type": "string" },
+        "methodologyVersion": { "type": "string" },
+        "repositoryKind": { "type": "object" },
+        "overall": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "assessment": { "$ref": "#/$defs/assessment" },
+        "dimensions": { "type": "object" },
+        "evidenceLedger": { "type": "array" }
+      }
+    }
+  }
+}

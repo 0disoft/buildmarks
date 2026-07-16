@@ -5,12 +5,16 @@ import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFil
 import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
+  repositoryKinds,
+  repositoryObservationKeys,
   renderFallbackCard,
   renderUserSignalCard,
   scoreUserProfile,
   type RenderCardOptions,
   type CodebaseShapeSignals,
   type ProfileInput,
+  type RepositoryKindSource,
+  type RepositoryObservationKey,
   type RepositoryInput
 } from "../index";
 
@@ -50,7 +54,7 @@ export async function renderCardFile(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown render failure";
-    const svg = renderFallbackCard("Buildmarks report is temporarily unavailable");
+    const svg = renderFallbackCard("Buildmarks couldn't generate this report right now");
     const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
@@ -184,7 +188,14 @@ function parseRepositoryInput(value: unknown): RepositoryInput {
   const redactedName = optionalBoolean(record, "redactedName");
   const name = requireString(record, "name");
   const url = optionalString(record, "url");
+  const repositoryKind = parseRepositoryKind(record.repositoryKind);
+  const repositoryKindSource = parseRepositoryKindSource(record.repositoryKindSource);
+  const repositoryKindConfidence = parseAssessmentConfidence(record.repositoryKindConfidence);
+  const unavailableObservations = parseUnavailableObservations(record.unavailableObservations);
   validatePrivateRepositoryInput(record, { name, url, visibility, redactedName });
+  if (repositoryKind === undefined && (repositoryKindSource !== undefined || repositoryKindConfidence !== undefined)) {
+    throw new Error("repository input kind source and confidence require repositoryKind");
+  }
 
   const repository: RepositoryInput = {
     owner: requireString(record, "owner"),
@@ -222,6 +233,22 @@ function parseRepositoryInput(value: unknown): RepositoryInput {
 
   if (redactedName !== undefined) {
     repository.redactedName = redactedName;
+  }
+
+  if (repositoryKind !== undefined) {
+    repository.repositoryKind = repositoryKind;
+  }
+
+  if (repositoryKindSource !== undefined) {
+    repository.repositoryKindSource = repositoryKindSource;
+  }
+
+  if (repositoryKindConfidence !== undefined) {
+    repository.repositoryKindConfidence = repositoryKindConfidence;
+  }
+
+  if (unavailableObservations !== undefined) {
+    repository.unavailableObservations = unavailableObservations;
   }
 
   const codebaseShape = parseCodebaseShape(record.codebaseShape);
@@ -371,6 +398,60 @@ function parseRepositoryVisibility(value: unknown): RepositoryInput["visibility"
   }
 
   return value;
+}
+
+function parseRepositoryKind(value: unknown): RepositoryInput["repositoryKind"] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "string" || !repositoryKinds.includes(value as NonNullable<RepositoryInput["repositoryKind"]>)) {
+    throw new Error("repository input repositoryKind is invalid");
+  }
+
+  return value as NonNullable<RepositoryInput["repositoryKind"]>;
+}
+
+function parseRepositoryKindSource(value: unknown): RepositoryKindSource | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "declared" && value !== "detected" && value !== "inferred" && value !== "fallback") {
+    throw new Error("repository input repositoryKindSource is invalid");
+  }
+
+  return value;
+}
+
+function parseAssessmentConfidence(value: unknown): RepositoryInput["repositoryKindConfidence"] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "low" && value !== "medium" && value !== "high") {
+    throw new Error("repository input repositoryKindConfidence is invalid");
+  }
+
+  return value;
+}
+
+function parseUnavailableObservations(value: unknown): RepositoryObservationKey[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error("repository input unavailableObservations must be an array when provided");
+  }
+
+  const observations = value.map((item) => {
+    if (
+      typeof item !== "string" ||
+      !repositoryObservationKeys.includes(item as RepositoryObservationKey)
+    ) {
+      throw new Error("repository input unavailableObservations contains an invalid observation");
+    }
+    return item as RepositoryObservationKey;
+  });
+
+  return [...new Set(observations)];
 }
 
 function validatePrivateRepositoryInput(

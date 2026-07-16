@@ -72,8 +72,8 @@ describe("render-card CLI", () => {
     expect(result.ok).toBe(false);
     expect(result.fallback).toBe(true);
     expect(result.error).toBeDefined();
-    expect(svg).toContain("Buildmarks report is temporarily unavailable");
-    expect(svg).toContain("No signal score is shown");
+    expect(svg).toContain("Buildmarks couldn&apos;t generate this report right now");
+    expect(svg).toContain("No score is shown");
   });
 
   test("writes a fallback SVG when the input shape is invalid", async () => {
@@ -88,7 +88,7 @@ describe("render-card CLI", () => {
     expect(result.ok).toBe(false);
     expect(result.fallback).toBe(true);
     expect(result.error).toContain("repositories array");
-    expect(svg).toContain("Buildmarks report is temporarily unavailable");
+    expect(svg).toContain("Buildmarks couldn&apos;t generate this report right now");
   });
 
   test("returns an error result when fallback SVG writing also fails", async () => {
@@ -313,6 +313,36 @@ describe("render-card CLI", () => {
     expect(result.fallback).toBe(false);
   });
 
+  test("preserves methodology metadata from local profile JSON", () => {
+    const profile = fixture as ProfileInput;
+    const repository = profile.repositories[0]!;
+    const parsed = parseProfileInput({
+      ...profile,
+      repositories: [{
+        ...repository,
+        repositoryKind: "documentation",
+        repositoryKindSource: "declared",
+        repositoryKindConfidence: "high",
+        unavailableObservations: ["usageGuide", "usageGuide", "codebaseShape"]
+      }]
+    });
+
+    expect(parsed.repositories[0]).toMatchObject({
+      repositoryKind: "documentation",
+      repositoryKindSource: "declared",
+      repositoryKindConfidence: "high",
+      unavailableObservations: ["usageGuide", "codebaseShape"]
+    });
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...repository, repositoryKind: "website" }]
+    })).toThrow("repositoryKind");
+    expect(() => parseProfileInput({
+      ...profile,
+      repositories: [{ ...repository, unavailableObservations: ["readmeText"] }]
+    })).toThrow("unavailableObservations");
+  });
+
   test("rejects unredacted private repository records in local profile input", () => {
     const profile = fixture as ProfileInput;
     const repository = profile.repositories[0]!;
@@ -424,12 +454,12 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("Buildmarks v");
     expect(svg).not.toContain("Public Signal Tier");
     expect(svg).toContain(">Gold I</text>");
-    expect(svg).toContain(">Diamond IV</text>");
+    expect(svg).toContain(">Diamond V</text>");
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });
 
-  test("passes the GitHub policy repository summary limit into card generation", async () => {
+  test("keeps the display limit from narrowing the profile calculation", async () => {
     const directory = await makeTempDirectory();
     const outputPath = join(directory, "cards", "limited-github-card.svg");
 
@@ -452,7 +482,7 @@ describe("render-github-card CLI", () => {
     const svg = await readFile(outputPath, "utf8");
 
     expect(result.ok).toBe(true);
-    expect(svg).toContain("across 1 summarized repositories");
+    expect(svg).toContain("Buildmarks reviewed 2 repositories");
   });
 
   test("writes a fallback SVG when GitHub collection fails", async () => {
@@ -467,8 +497,8 @@ describe("render-github-card CLI", () => {
     expect(result.ok).toBe(false);
     expect(result.fallback).toBe(true);
     expect(result.error).toBeDefined();
-    expect(svg).toContain("Buildmarks GitHub report is temporarily unavailable");
-    expect(svg).toContain("No signal score is shown");
+    expect(svg).toContain("Buildmarks couldn&apos;t refresh this GitHub report right now");
+    expect(svg).toContain("No score is shown");
   });
 
   test("preserves an existing SVG when repository evidence is insufficient", async () => {
@@ -520,8 +550,8 @@ describe("render-github-card CLI", () => {
     expect(result.ok).toBe(false);
     expect(result.fallback).toBe(true);
     expect(result.preservedExisting).toBeUndefined();
-    expect(svg).toContain("Card temporarily unavailable");
-    expect(svg).toContain("Not enough complete GitHub evidence");
+    expect(svg).toContain("Card unavailable");
+    expect(svg).toContain("Not enough complete repository data");
   });
 });
 
@@ -614,9 +644,9 @@ describe("render-gaps-card CLI", () => {
     expect(result.ok).toBe(true);
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
-    expect(svg).toContain("What's Missing");
-    expect(svg).toContain("Buildmarks Gaps v");
-    expect(svg).toContain("Missing public GitHub signals");
+    expect(svg).toContain("Ways to Improve");
+    expect(svg).toContain("Buildmarks v");
+    expect(svg).toContain("Public GitHub projects");
   });
 });
 
@@ -645,7 +675,7 @@ describe("render-repo-card CLI", () => {
     expect(result.ok).toBe(false);
     expect(result.fallback).toBe(true);
     expect(result.error).toContain("missing-repo");
-    expect(svg).toContain("Buildmarks repository signal report is temporarily unavailable");
+    expect(svg).toContain("Buildmarks couldn&apos;t generate this repository report right now");
   });
 });
 

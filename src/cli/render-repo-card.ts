@@ -51,7 +51,7 @@ export async function renderRepoCardFile(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown repository render failure";
-    const svg = renderFallbackCard("Buildmarks repository signal report is temporarily unavailable");
+    const svg = renderFallbackCard("Buildmarks couldn't generate this repository report right now");
     const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {

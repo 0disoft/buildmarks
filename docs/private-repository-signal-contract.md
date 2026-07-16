@@ -1,8 +1,8 @@
 # Private Repository Signal Contract
 
-Buildmarks is public-only by default. Public profile cards should remain safe to publish in a GitHub profile README without exposing private repository names, private organization work, or unverifiable claims.
+Buildmarks is public-only by default. A normal profile card should be safe to publish without leaking private repository names, private organization work, or claims that nobody else can check.
 
-Some developers do most of their meaningful work in private repositories. Buildmarks may support those users through an explicit private-local mode, but that mode is a different trust surface from the public card.
+Some people keep most of their projects private. Private-local mode can include those owner-supplied repositories, but it crosses a different trust boundary from a public card and must never masquerade as one.
 
 ## Modes
 
@@ -12,7 +12,7 @@ Public-only mode is the default.
 
 - Uses public GitHub repositories only.
 - Produces public-safe SVG and report artifacts.
-- Keeps evidence independently inspectable from public GitHub data.
+- Lets readers inspect the supporting details on public GitHub.
 - Does not require private token scopes.
 - Does not include private repositories, private contributions, employer work, or private organization activity.
 
@@ -22,27 +22,27 @@ Private-local mode is opt-in and must stay local or self-hosted by the repositor
 
 - Requires an explicitly supplied token.
 - Should use a fine-grained GitHub token with read-only access to selected repositories only.
-- May include private repository signals selected by the owner.
+- May include selected private repositories supplied by the owner.
 - Must not upload private repository data to a hosted Buildmarks service by default.
 - Must mark generated cards as `Public + Private Signals`.
-- Must state that private evidence is owner-supplied and not independently verifiable from public GitHub.
+- Must state that the private details came from the owner and cannot be checked independently on public GitHub.
 - Must redact private repository names by default.
-- Must keep evidence reports private-local by default.
+- Must keep detailed reports private-local by default.
 - Must warn that generated SVG, HTML, and JSON artifacts can reveal owner-supplied private repository metadata if committed to a public profile repository.
 - Must disclose that the built-in private-local collector does not expose private file contents and therefore treats README usage-guide detection conservatively for private repositories.
 
-## Allowed Private-Local Evidence
+## What Private-Local Mode May Review
 
-Private-local mode may use coarse evidence that resembles the public collector contract:
+Private-local mode may use the same coarse project details as the public collector:
 
 - repository metadata needed for aggregation
 - repository visibility and archive/fork flags
-- file-presence signals such as README, LICENSE, CI workflows, tests, changelog, contribution guide, code of conduct, security policy, demo/docs links, and package artifacts
-- aggregate codebase-shape signals such as source file count, test file count, example file count, and source file size buckets
+- familiar project surfaces such as README, LICENSE, CI workflows, tests, changelog, contribution guide, code of conduct, security policy, demo/docs links, and package manifests
+- coarse repository shape such as source, test, and example file counts plus source-file size buckets
 - release or tag presence
 - aggregate issue and pull request traces, when those methodology and API-cost rules are defined
 
-The intent is to answer questions like:
+The useful questions are modest:
 
 ```txt
 Does this private project look maintained?
@@ -51,9 +51,9 @@ Does it have docs, tests, CI, releases, and basic project hygiene?
 
 The intent is not to inspect private code or rank the owner.
 
-Because file contents are prohibited evidence, the built-in private-local collector does not read private README text. It can detect README file presence from the repository tree, but usage-guide evidence remains conservative unless supplied through an explicit owner-controlled input path that still follows the redaction and disclosure rules above.
+Because file contents are out of bounds, the built-in private-local collector does not read private README text. It can see that a README exists in tree metadata, but it cannot confidently say that the README teaches someone how to use the project. Any richer owner-controlled input still has to follow the same disclosure and redaction rules.
 
-## Prohibited Private-Local Evidence
+## What Private-Local Mode Must Not Use
 
 Private-local mode must not collect, store, render, or infer:
 
@@ -69,7 +69,7 @@ Private-local mode must not collect, store, render, or infer:
 
 ## Disclosure Requirements
 
-Any card or report that includes private repositories must disclose the trust boundary:
+Any card or report that includes private repositories must state the boundary in these exact terms:
 
 ```txt
 Public + Private Signals
@@ -90,7 +90,7 @@ Default redactions:
 - private repository URLs
 - private file paths when the path itself may reveal customer, employer, or product names
 
-Even with those redactions, private-local artifacts may still reveal owner-supplied private repository metadata such as repository count, project hygiene signals, release or tag presence, and coarse codebase-shape summaries. Do not commit generated private-local SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional.
+Redaction does not make the artifacts harmless. Repository count, project practices, release or tag presence, and coarse codebase shape can still reveal information the owner meant to keep private. Do not commit private-local SVG, HTML, or JSON to a public profile repository unless publishing that information is intentional.
 
 Public repository evidence may stay visible.
 
@@ -100,7 +100,7 @@ Private-local mode should prefer fine-grained GitHub tokens scoped to selected r
 
 Classic `repo` tokens are broader than necessary and should not be the default recommendation.
 
-Buildmarks core must not read ambient environment variables for private tokens. Callers must pass private-local tokens explicitly.
+Buildmarks core does not search environment variables for private tokens. Callers must pass a private-local token explicitly, making the access choice visible at the call site.
 
 ## Hosted Boundary
 

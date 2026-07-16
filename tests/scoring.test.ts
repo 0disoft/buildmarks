@@ -48,7 +48,7 @@ describe("profile scoring", () => {
     expect(report.overall).toBeGreaterThan(40);
     expect(report.dimensions.maintainability).toBeGreaterThan(report.dimensions.stewardship);
     expect(report.evidence.length).toBeGreaterThan(0);
-    expect(report.limitations).toContain("Forked and archived repositories are excluded by default.");
+    expect(report.limitations).toContain("Forked and archived repositories are left out by default.");
   });
 
   test("honors the requested repository summary limit", () => {
@@ -56,7 +56,9 @@ describe("profile scoring", () => {
 
     expect(report.topRepos).toHaveLength(1);
     expect(report.topRepos[0]?.name).toBe("usable-toolkit");
-    expect(report.limitations).toContain("Only the highest-signal 1 eligible repositories are summarized in this card.");
+    expect(report.limitations).toContain(
+      "The card shows 1 representative repository, while the profile calculation uses all 2 reviewed repositories."
+    );
   });
 
   test("discloses when no eligible repositories can be scored", () => {
@@ -70,7 +72,7 @@ describe("profile scoring", () => {
 
     expect(report.overall).toBe(0);
     expect(report.topRepos).toEqual([]);
-    expect(report.limitations).toContain("No eligible repositories were available to score.");
+    expect(report.limitations).toContain("No eligible repositories were available for review.");
   });
 
   test("does not depend on raw commit count, streaks, followers, or language percentages", () => {
@@ -139,8 +141,8 @@ describe("profile scoring", () => {
     );
 
     expect(withShape.dimensions.maintainability).toBeGreaterThan(withoutShape.dimensions.maintainability);
-    expect(withShape.evidence.some((item) => item.label === "Compact source file shape")).toBe(true);
-    expect(withShape.evidence.some((item) => item.label.includes("line"))).toBe(false);
+    expect(withShape.evidenceLedger.some((item) => item.criterionId === "maintainability.compact-shape")).toBe(true);
+    expect(withShape.evidenceLedger.some((item) => /line count|lines of code/i.test(item.label))).toBe(false);
   });
 
   test("does not reward tiny or oversized codebase shape samples", () => {
@@ -186,8 +188,8 @@ describe("profile scoring", () => {
       { now }
     );
 
-    expect(tinyShape.evidence.some((item) => item.label === "Compact source file shape")).toBe(false);
-    expect(oversizedShape.evidence.some((item) => item.label === "Compact source file shape")).toBe(false);
+    expect(tinyShape.evidenceLedger.some((item) => item.criterionId === "maintainability.compact-shape")).toBe(false);
+    expect(oversizedShape.evidenceLedger.some((item) => item.criterionId === "maintainability.compact-shape")).toBe(false);
   });
 
   test("does not treat future repository timestamps as recent activity", () => {
@@ -207,10 +209,10 @@ describe("profile scoring", () => {
       { now }
     );
 
-    expect(present.dimensions.maintainability.evidence.some((item) => item.label === "Recent maintenance activity")).toBe(true);
-    expect(future.dimensions.maintainability.evidence.some((item) => item.label === "Recent maintenance activity")).toBe(false);
-    expect(future.dimensions.shipping.evidence.some((item) => item.label === "Recent shipping or maintenance activity")).toBe(false);
-    expect(future.dimensions.consistency.evidence.some((item) => item.label === "Repository has recent public activity")).toBe(false);
+    expect(present.dimensions.maintainability.evidence.some((item) => item.criterionId === "maintainability.recent")).toBe(true);
+    expect(future.dimensions.maintainability.evidence.some((item) => item.criterionId === "maintainability.recent")).toBe(false);
+    expect(future.dimensions.shipping.evidence.some((item) => item.criterionId === "shipping.recent")).toBe(false);
+    expect(future.dimensions.consistency.evidence.some((item) => item.criterionId === "consistency.recent")).toBe(false);
   });
 
   test("keeps profile scores finite when numeric popularity inputs are not finite", () => {
@@ -256,9 +258,9 @@ describe("profile scoring", () => {
       { now }
     );
 
-    expect(report.evidence.some((item) => item.label === "Test file surface found")).toBe(false);
-    expect(report.evidence.some((item) => item.label === "Compact source file shape")).toBe(false);
-    expect(report.evidence.some((item) => item.label === "Example or fixture surface found")).toBe(false);
+    expect(report.evidenceLedger.some((item) => item.criterionId === "maintainability.test-surface")).toBe(false);
+    expect(report.evidenceLedger.some((item) => item.criterionId === "maintainability.compact-shape")).toBe(false);
+    expect(report.evidenceLedger.some((item) => item.criterionId === "maintainability.examples")).toBe(false);
     expect(Number.isFinite(report.dimensions.maintainability.score)).toBe(true);
     expect(report.dimensions.maintainability.score).toBeGreaterThanOrEqual(0);
     expect(report.dimensions.maintainability.score).toBeLessThanOrEqual(100);
@@ -311,7 +313,7 @@ describe("profile scoring", () => {
 
     expect(report.topRepos).toEqual([]);
     expect(report.overall).toBe(0);
-    expect(report.limitations).toContain("No eligible repositories were available to score.");
+    expect(report.limitations).toContain("No eligible repositories were available for review.");
   });
 
   test("does not let popularity and deferred public activity create a front-card dimension", () => {
@@ -366,18 +368,12 @@ describe("profile scoring", () => {
       },
       { now }
     );
-    const scoredDimensions = signalDimensions.map((dimension) => report.dimensions[dimension]);
-    const expectedOverall = Math.round(
-      scoredDimensions.reduce((total, score) => total + score, 0) / scoredDimensions.length
-    );
+    const expectedOverall = expectedProfileOverall(report);
 
     expect(report.unavailableDimensions).toBeUndefined();
     expect(report.overall).toBe(expectedOverall);
     expect(report.limitations).toContain(
-      "Private-local cards use the same file, release, maintenance, and stewardship dimensions as public-only cards."
-    );
-    expect(report.limitations).toContain(
-      "Private-local output does not expose private file contents; built-in GitHub collection treats private README usage guidance conservatively."
+      "Private-local cards use the same project checks as public cards, while keeping private file contents out of the output."
     );
     expect(report.limitations).toContain(
       "Private-local artifacts can reveal owner-supplied private repository metadata. Do not commit generated SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional."
@@ -481,7 +477,7 @@ describe("profile scoring", () => {
     );
 
     expect(report.activityWindowDays).toBe(180);
-    expect(report.limitations).toContain("Repositories are filtered to activity within the last 180 days.");
+    expect(report.limitations).toContain("Only repositories active within the last 180 days were collected.");
   });
 
   test("discloses when GitHub truncates repository file trees", () => {
@@ -505,7 +501,9 @@ describe("profile scoring", () => {
     expect(report.topRepos).toHaveLength(0);
     expect(report.evidenceStatus).toBe("insufficient");
     expect(report.unavailableDimensions).toEqual([...signalDimensions]);
-    expect(report.limitations).toContain("1 repository had truncated GitHub file trees and was excluded from scoring.");
+    expect(report.limitations).toContain(
+      "1 repository had an incomplete GitHub file tree and was left out of the calculation."
+    );
   });
 
   test("discloses omitted repositories when GitHub detail collection partially fails", () => {
@@ -518,7 +516,7 @@ describe("profile scoring", () => {
     );
 
     expect(report.limitations).toContain(
-      "2 repositories could not be collected from GitHub and were omitted from this report."
+      "2 repositories could not be read from GitHub and were left out."
     );
   });
 
@@ -553,10 +551,7 @@ describe("profile scoring", () => {
       },
       { now }
     );
-    const scoredDimensions = signalDimensions.map((dimension) => report.dimensions[dimension]);
-    const expectedOverall = Math.round(
-      scoredDimensions.reduce((total, score) => total + score, 0) / scoredDimensions.length
-    );
+    const expectedOverall = expectedProfileOverall(report);
 
     expect(signalDimensions).not.toContain("collaboration" as SignalDimension);
     expect(report.overall).toBe(expectedOverall);
@@ -569,7 +564,7 @@ describe("profile scoring", () => {
     expect(report.username).toBe("example-builder");
     expect(report.gaps.length).toBeGreaterThan(0);
     expect(report.gaps.some((gap) => gap.repository === "small-experiment")).toBe(true);
-    expect(report.limitations).toContain("These are improvement hints, not a developer ranking.");
+    expect(report.limitations).toContain("These are practical project suggestions, not a developer ranking.");
   });
 
   test("does not let invalid codebase shape numbers hide public signal gaps", () => {
@@ -626,6 +621,21 @@ describe("profile scoring", () => {
     expect(missing).toContain("contribution guide");
   });
 
+  test("does not recommend work for observations the collector could not inspect", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const report = analyzeSignalGaps({
+      username: "partial-observation-profile",
+      repositories: [{
+        ...sourceRepository,
+        hasUsageGuide: false,
+        unavailableObservations: ["usageGuide"]
+      }]
+    }, { now });
+    const missing = report.gaps.flatMap((gap) => gap.missing);
+
+    expect(missing).not.toContain("usage guide");
+  });
+
   test("rejects private repository gaps without matching private-local disclosure", () => {
     const sourceRepository = (fixture as ProfileInput).repositories[0]!;
     const { url: _url, ...sourceRepositoryWithoutUrl } = sourceRepository;
@@ -666,4 +676,23 @@ function dimensionScores(overrides: Partial<Record<SignalDimension, number>>): R
     stewardship: 0,
     ...overrides
   };
+}
+
+function expectedProfileOverall(report: ReturnType<typeof scoreUserProfile>): number {
+  const applicable = signalDimensions.filter(
+    (dimension) => report.dimensionAssessments[dimension].score !== null
+  );
+  const totalWeight = applicable.reduce(
+    (total, dimension) => total + repositoryOverallWeights[dimension],
+    0
+  );
+  if (totalWeight === 0) {
+    return 0;
+  }
+  return Math.round(
+    applicable.reduce(
+      (total, dimension) => total + report.dimensions[dimension] * repositoryOverallWeights[dimension],
+      0
+    ) / totalWeight
+  );
 }

@@ -1,6 +1,6 @@
 # GitHub Collector Operations
 
-Buildmarks has a small local GitHub REST client for public-only collection. This document defines the operations policy that client must follow.
+Buildmarks has a small local GitHub REST client for public-only collection. This document sets the guardrails that keep one profile refresh bounded and predictable.
 
 The executable source of truth is `defaultGitHubCollectorPolicy` for public-only collection and `privateLocalGitHubCollectorPolicy` for owner-supplied private-local collection in `src/collector/policy.ts`.
 
@@ -10,7 +10,7 @@ The current username-to-card CLI is `src/cli/render-github-card.ts`. It uses the
 
 ## Collection Boundary
 
-- Collection is public-only.
+- `collectPublicGitHubProfile()` is public-only.
 - Private repositories are not allowed.
 - Private contributions are not inferred.
 - Token mode must not require private repository or organization scopes.
@@ -28,7 +28,7 @@ Default cache contract values:
 
 These values define the storage-neutral cache contract only; the v0 local collector does not persist cache entries. A future profile report cache covers the normalized profile-level result used to render a card or JSON report.
 
-A future repository file-signals cache covers slower file-presence checks such as README, LICENSE, CI workflows, tests, changelog, contribution guide, security policy, package artifact signals, and coarse codebase-shape aggregates. The v0 live collector derives most path-based file signals and size-bucket shape signals from one recursive tree response per repository instead of probing every candidate path separately.
+A future repository file cache covers slower checks for README, LICENSE, CI, tests, changelog, contribution and security guidance, package manifests, and coarse codebase shape. The live collector currently derives most path-based findings and size buckets from one recursive tree response per repository instead of probing every possible path.
 
 The storage-neutral cache contract is documented in [Cache Contract](cache-contract.md). Buildmarks v0 does not ship Redis, KV, database, filesystem, or hosted cache storage.
 
@@ -37,22 +37,22 @@ The storage-neutral cache contract is documented in [Cache Contract](cache-contr
 Default repository limits:
 
 - Scan up to 30 repositories per profile by default. Policy validation caps this at 100.
-- Score up to 12 repositories per profile by default. Policy validation caps this at 24.
+- Display up to 12 evaluated repositories per profile by default. The legacy `maxRepositoriesScored` policy field controls this display limit and is capped at 24; all successfully evaluated repositories still contribute to the profile calculation.
 - Collect up to 3 repositories concurrently by default. Policy validation caps this at 8.
 - Spend at most 160 GitHub REST requests per profile collection by default. Policy validation caps this at 500, and every retry spends budget.
 - Analyze repositories pushed within the last 365 days by default. Policy validation caps this at 3650.
 
-The scan limit protects GitHub API cost and local runtime. The bounded repository concurrency reduces local wait time without turning one profile into an unbounded burst of GitHub API requests. The score limit keeps one profile card readable and limits how much one account can make the renderer do.
+The scan limit protects API cost and local runtime. Bounded concurrency shortens the wait without turning a profile refresh into an uncontrolled burst. The scored/display setting limits what the card can show, but methodology `2.0.0` calculates the profile from every eligible repository that was successfully evaluated, not only the repositories selected for display.
 
-The scan limit must be greater than or equal to the score limit.
+The scan limit must be greater than or equal to the display limit exposed as `maxRepositoriesScored`.
 
 The activity window uses the public `pushed_at` timestamp and filters repositories before per-repository collection. Callers may set `--activity-window-days 180` for a six-month card. This is a recency and cost-control setting, not proof that older projects are inactive or low quality.
 
-If one non-rate-limit repository detail collection fails after the repository list is loaded, the collector omits that repository, continues with the rest of the profile, and reports the omitted repository count as a limitation. Repository-list failures and GitHub rate-limit or abuse-limit responses remain fatal because the collector cannot know whether the partial profile is representative.
+If one repository detail request fails for a reason other than rate limiting, the collector leaves that repository out, continues with the rest, and reports how many were omitted. A repository-list failure, rate limit, abuse limit, or request-budget exhaustion remains fatal because the collector cannot tell whether the partial profile is representative.
 
-Collected profiles record how many active repositories were attempted. If failed detail collections plus truncated file trees account for at least half of that attempted set, generated reports mark the evidence as insufficient and do not present a normal signal score. Repositories with truncated recursive trees are excluded from scoring and gap hints because an unobserved file cannot honestly be treated as absent.
+Collected profiles record how many active repositories were attempted. If failed detail requests and truncated trees make up at least half of that set, generated reports mark the result as insufficient and do not present a normal score. A repository with an incomplete recursive tree is excluded from scoring and improvement hints because an unseen file cannot honestly be called missing.
 
-## Live Client v0 Scope
+## Live Client Scope
 
 The live collector uses GitHub REST API endpoints for:
 
@@ -62,7 +62,7 @@ The live collector uses GitHub REST API endpoints for:
 - public repository README text for usage-guide detection
 - public releases and tags
 
-The adapter sets activity aggregate fields to zero in v0. Public issue-response, pull-request-review, and external-contributor aggregate collection remains deferred because those signals need separate API-cost and methodology rules.
+The adapter sets activity aggregate fields to zero. Public issue replies, pull request reviews, and outside-contributor collection remain deferred because those fields need separate request-cost and interpretation rules.
 
 The deferred methodology is documented in [Activity Aggregate Methodology](activity-aggregate-methodology.md).
 
@@ -92,17 +92,17 @@ In private-local mode, the built-in collector keeps private file contents out of
 
 ## API Cost Policy
 
-The live local client should avoid being used as an uncached per-card hosted endpoint.
+The local client is not designed to sit behind an uncached endpoint that runs once per card view.
 
 GitHub currently documents unauthenticated REST requests as 60 requests per hour per originating IP address and authenticated REST requests as generally 5,000 requests per hour for a user token. It also documents secondary rate limits and recommends using rate-limit response headers. See the official [REST API rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) documentation for the current values.
 
 Before a hosted endpoint is added, it must define cache storage, abuse limits, stale-result behavior, and a way to avoid repeated uncached repository-content scans for the same profile.
 
-The live client applies a short timeout and one retry for transient GitHub responses before surfacing the request as failed.
+The live client uses a short timeout and retries a transient GitHub response once before reporting the request as failed.
 
 The request budget is enforced immediately before each HTTP attempt. Exhaustion is fatal for the profile rather than being hidden as an omitted repository. Fatal rate-limit and budget errors stop new repository work and abort in-flight sibling requests; an aborted request is not retried.
 
-The backend-free profile README workflow avoids per-view GitHub API cost by committing a generated SVG into the profile repository. Viewers load a static file from GitHub instead of causing fresh collection work.
+The backend-free profile README workflow pays collection cost only when it refreshes the checked-in artifacts. Profile visitors load a static SVG from GitHub and do not trigger new API work.
 
 Generated text artifacts are written to unpredictable temporary files in the destination directory, flushed, closed, and then renamed over the destination. This provides file-level atomic replacement on ordinary local filesystems. A multi-file SVG/HTML/JSON generation is not claimed to be one transaction, and directory fsync or network-filesystem durability is platform-dependent.
 
