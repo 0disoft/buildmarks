@@ -72,8 +72,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.1.24");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.1.24"');
+    expect(metadata.version).toBe("0.1.25");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.1.25"');
     expect(metadata.types).toBe("./dist/index.d.ts");
     expect(metadata.exports).toEqual({
       ".": {

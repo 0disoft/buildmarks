@@ -6,6 +6,11 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.25 - 2026-07-16
+
+- Accept the current GitHub Community Profile API documentation URL string shape without dropping otherwise valid repositories.
+- Classify community profile validation failures under the privacy-safe `community_profile` operation diagnostic.
+
 ## v0.1.24 - 2026-07-16
 
 - Preserve an existing healthy SVG when GitHub evidence is insufficient instead of replacing it with a fallback card.

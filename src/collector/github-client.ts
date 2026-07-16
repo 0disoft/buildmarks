@@ -587,10 +587,14 @@ function validateCommunityProfileResponse(community: GitHubCommunityProfileRespo
   ) {
     throw new GitHubCollectorError("invalid_github_response", "GitHub community profile files response was not an object.");
   }
-  if (community.documentation !== undefined && !isNullableObject(community.documentation)) {
+  if (
+    community.documentation !== undefined &&
+    !isNullableObject(community.documentation) &&
+    !isNonEmptyString(community.documentation)
+  ) {
     throw new GitHubCollectorError(
       "invalid_github_response",
-      "GitHub community profile documentation response was not an object or null."
+      "GitHub community profile documentation response was not a URL string, object, or null."
     );
   }
   if (community.files !== undefined) {
@@ -615,6 +619,10 @@ function validateCommunityProfileResponse(community: GitHubCommunityProfileRespo
 
 function isNullableObject(value: unknown): boolean {
   return value === null || (typeof value === "object" && !Array.isArray(value));
+}
+
+function isNonEmptyString(value: unknown): boolean {
+  return typeof value === "string" && value.trim() !== "";
 }
 
 function emptyActivitySignals(): CollectedRepositoryActivitySignals {
@@ -713,6 +721,9 @@ function repositoryCollectionOperation(error: unknown): RepositoryCollectionOper
   }
   if (!(error instanceof Error)) {
     return "unknown";
+  }
+  if (error.message.includes("community profile")) {
+    return "community_profile";
   }
   if (error.message.includes("/community/profile")) {
     return "community_profile";

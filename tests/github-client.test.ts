@@ -498,6 +498,25 @@ describe("live public GitHub collector", () => {
     expect(profile.repositoryCollectionFailureCount).toBe(1);
   });
 
+  test("accepts GitHub community documentation URLs as demo or docs evidence", async () => {
+    const baseFetch = makeGitHubFetch();
+    const profile = await collectPublicGitHubProfile("example-builder", {
+      fetcher: async (url, init) => {
+        if (new URL(url).pathname.endsWith("/community/profile")) {
+          return jsonResponse({
+            documentation: "https://docs.example.test",
+            files: {}
+          });
+        }
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(profile.repositories).toHaveLength(1);
+    expect(profile.repositories[0]?.files.hasDemoOrDocs).toBe(true);
+    expect(profile.repositoryCollectionFailureCount).toBeUndefined();
+  });
+
   test("does not treat invalid community profile field values as present file signals", async () => {
     const baseFetch = makeGitHubFetch({
       repositories: [
