@@ -376,7 +376,7 @@ describe("profile scoring", () => {
       "Private-local cards use the same project checks as public cards, while keeping private file contents out of the output."
     );
     expect(report.limitations).toContain(
-      "Private-local artifacts can reveal owner-supplied private repository metadata. Do not commit generated SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional."
+      "Private-local files can reveal details about owner-supplied private repositories. Do not commit generated SVG, HTML, or JSON files to a public profile unless you intend to share those details."
     );
   });
 
@@ -518,6 +518,37 @@ describe("profile scoring", () => {
     expect(report.limitations).toContain(
       "2 repositories could not be read from GitHub and were left out."
     );
+  });
+
+  test("keeps a normal result when almost all project details were checked", () => {
+    const sourceRepository = (fixture as ProfileInput).repositories[0]!;
+    const report = scoreUserProfile({
+      username: "nearly-complete-profile",
+      repositories: [{
+        ...sourceRepository,
+        unavailableObservations: ["securityPolicy"]
+      }]
+    }, { now });
+
+    expect(report.coverage.ratio).toBeGreaterThanOrEqual(0.85);
+    expect(report.coverage.ratio).toBeLessThan(1);
+    expect(report.resultStatus).toBe("confirmed");
+  });
+
+  test("keeps the early-result state when too many repositories were missed", () => {
+    const report = scoreUserProfile({
+      ...(fixture as ProfileInput),
+      repositoryCollectionAttemptCount: 10,
+      repositoryCollectionFailureCount: 2
+    }, { now });
+
+    expect(report.evidenceStatus).toBe("partial");
+    expect(report.resultStatus).toBe("provisional");
+    expect(report.selection).toMatchObject({
+      attemptedCount: 10,
+      missedCount: 2,
+      checkedRatio: 0.8
+    });
   });
 
   test("does not present a normal score when at least half of attempted repositories are unavailable", () => {

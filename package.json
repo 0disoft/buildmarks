@@ -1,6 +1,6 @@
 {
   "name": "buildmarks",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "GitHub profile cards showing how public projects are maintained, documented, and shipped.",
   "license": "0BSD",
   "keywords": [

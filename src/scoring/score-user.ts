@@ -56,6 +56,11 @@ export function scoreUserProfile(
     collectionFailureCount,
     truncatedRepositoryCount
   );
+  const collectionCheckedRatio = resolveCollectionCheckedRatio(
+    collectionAttemptCount,
+    collectionFailureCount,
+    truncatedRepositoryCount
+  );
   const evaluated = completeTreeRepositories.map((repository) => ({
     input: repository,
     scored: scoreRepository(repository, options)
@@ -88,7 +93,8 @@ export function scoreUserProfile(
   const resultStatus = resolveResultStatus(
     evidenceStatus,
     overallAssessment,
-    applicableDimensionCount
+    applicableDimensionCount,
+    collectionCheckedRatio
   );
   const evidenceLedger = evaluated.flatMap(({ scored }) => scored.evidenceLedger);
 
@@ -120,7 +126,10 @@ export function scoreUserProfile(
       eligibleCount: eligibleRepositories.length,
       evaluatedCount: evaluated.length,
       displayedCount: displayed.length,
-      displayLimit
+      displayLimit,
+      attemptedCount: collectionAttemptCount,
+      missedCount: collectionFailureCount + truncatedRepositoryCount,
+      checkedRatio: collectionCheckedRatio
     },
     topRepos: displayed.map(({ scored }) => scored),
     evidence: collectProfileHighlights(evidenceLedger),
@@ -282,7 +291,7 @@ function buildLimitations(
 
   if (overallAssessment.coverage.expected > 0 && overallAssessment.coverage.ratio < 1) {
     limitations.push(
-      `${Math.round(overallAssessment.coverage.ratio * 100)}% of the applicable checks could be completed.`
+      `Buildmarks checked ${Math.round(overallAssessment.coverage.ratio * 100)}% of the project details used for this result.`
     );
   }
 
@@ -305,6 +314,14 @@ function resolveCollectionStatus(
   return unavailable > 0 ? "partial" : "complete";
 }
 
+function resolveCollectionCheckedRatio(attempted: number, failed: number, truncated: number): number {
+  if (attempted <= 0) {
+    return 0;
+  }
+  const checked = Math.max(0, attempted - failed - truncated);
+  return Math.min(1, checked / attempted);
+}
+
 function resolveEvidenceStatus(
   collectionStatus: "complete" | "partial" | "insufficient",
   assessment: ScoreAssessment
@@ -321,15 +338,15 @@ function resolveEvidenceStatus(
 function resolveResultStatus(
   evidenceStatus: "complete" | "partial" | "insufficient",
   assessment: ScoreAssessment,
-  applicableDimensionCount: number
+  applicableDimensionCount: number,
+  collectionCheckedRatio: number
 ): ResultStatus {
   if (evidenceStatus === "insufficient" || assessment.score === null) {
     return "unavailable";
   }
   if (
-    evidenceStatus === "partial" ||
-    assessment.confidence === "low" ||
-    assessment.coverage.ratio < 0.6 ||
+    assessment.coverage.ratio < 0.85 ||
+    collectionCheckedRatio < 0.85 ||
     applicableDimensionCount < 4
   ) {
     return "provisional";

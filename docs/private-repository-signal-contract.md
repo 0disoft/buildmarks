@@ -1,4 +1,4 @@
-# Private Repository Signal Contract
+# Private Repository Rules
 
 Buildmarks is public-only by default. A normal profile card should be safe to publish without leaking private repository names, private organization work, or claims that nobody else can check.
 
@@ -24,12 +24,12 @@ Private-local mode is opt-in and must stay local or self-hosted by the repositor
 - Should use a fine-grained GitHub token with read-only access to selected repositories only.
 - May include selected private repositories supplied by the owner.
 - Must not upload private repository data to a hosted Buildmarks service by default.
-- Must mark generated cards as `Public + Private Signals`.
+- Must mark generated cards as `Public + Private Projects`.
 - Must state that the private details came from the owner and cannot be checked independently on public GitHub.
-- Must redact private repository names by default.
+- Must hide private repository names by default.
 - Must keep detailed reports private-local by default.
-- Must warn that generated SVG, HTML, and JSON artifacts can reveal owner-supplied private repository metadata if committed to a public profile repository.
-- Must disclose that the built-in private-local collector does not expose private file contents and therefore treats README usage-guide detection conservatively for private repositories.
+- Must warn that generated SVG, HTML, and JSON files can reveal details about owner-supplied private repositories if committed to a public profile.
+- Must explain that the built-in private-local collector does not read private file contents and may miss setup instructions inside a private README.
 
 ## What Private-Local Mode May Review
 
@@ -40,7 +40,7 @@ Private-local mode may use the same coarse project details as the public collect
 - familiar project surfaces such as README, LICENSE, CI workflows, tests, changelog, contribution guide, code of conduct, security policy, demo/docs links, and package manifests
 - coarse repository shape such as source, test, and example file counts plus source-file size buckets
 - release or tag presence
-- aggregate issue and pull request traces, when those methodology and API-cost rules are defined
+- issue and pull request activity, when the scoring and API-cost rules are defined
 
 The useful questions are modest:
 
@@ -51,7 +51,7 @@ Does it have docs, tests, CI, releases, and basic project hygiene?
 
 The intent is not to inspect private code or rank the owner.
 
-Because file contents are out of bounds, the built-in private-local collector does not read private README text. It can see that a README exists in tree metadata, but it cannot confidently say that the README teaches someone how to use the project. Any richer owner-controlled input still has to follow the same disclosure and redaction rules.
+Because file contents are out of bounds, the built-in private-local collector does not read private README text. It can see that a README exists in tree metadata, but it cannot tell whether that README contains useful setup instructions. Any richer owner-controlled input still has to follow the same privacy rules.
 
 ## What Private-Local Mode Must Not Use
 
@@ -64,7 +64,7 @@ Private-local mode must not collect, store, render, or infer:
 - raw commit count
 - contribution streaks
 - follower count
-- language percentages as a quality signal
+- language percentages as a quality measure
 - employer, seniority, compensation, hiring suitability, pass/fail, or developer worth
 
 ## Disclosure Requirements
@@ -72,9 +72,9 @@ Private-local mode must not collect, store, render, or infer:
 Any card or report that includes private repositories must state the boundary in these exact terms:
 
 ```txt
-Public + Private Signals
+Public + Private Projects
 Private repositories included by owner
-Private evidence is not independently verifiable from public GitHub
+Private project details cannot be checked independently on public GitHub
 ```
 
 The public-only card label must not be reused for private-local output.
@@ -92,7 +92,7 @@ Default redactions:
 
 Redaction does not make the artifacts harmless. Repository count, project practices, release or tag presence, and coarse codebase shape can still reveal information the owner meant to keep private. Do not commit private-local SVG, HTML, or JSON to a public profile repository unless publishing that information is intentional.
 
-Public repository evidence may stay visible.
+Public project details may stay visible.
 
 ## Token Boundary
 

@@ -1,6 +1,7 @@
 import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
+  isSupportedCardLabel,
   type ProfileInput,
   type RepositoryInput,
   type SignalVisibilityDisclosure
@@ -59,7 +60,7 @@ function disclosuresMatch(left: SignalVisibilityDisclosure, right: SignalVisibil
     left.privateRepositoriesIncluded === right.privateRepositoriesIncluded &&
     left.privateRepositoryNamesRedacted === right.privateRepositoryNamesRedacted &&
     left.independentlyVerifiable === right.independentlyVerifiable &&
-    left.cardLabel === right.cardLabel &&
+    isSupportedCardLabel(left.cardLabel, right.cardLabel) &&
     left.reportVisibility === right.reportVisibility
   );
 }

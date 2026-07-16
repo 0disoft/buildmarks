@@ -25,7 +25,7 @@ describe("SVG renderer", () => {
       unavailableDimensions: [...signalDimensions]
     });
 
-    expect(svg).toContain("Not enough complete repository data");
+    expect(svg).toContain("Buildmarks needs more project information");
     expect(svg).toContain("No score is shown");
     expect(svg).not.toContain("Gold V");
   });
@@ -48,6 +48,10 @@ describe("SVG renderer", () => {
     expect(svg).toContain(visibleVersion);
     expect(svg).toContain("overall overall-");
     expect(svg).toContain(">Gold I</text>");
+    expect(svg).toContain("100% checked");
+    expect(svg).not.toContain("confidence");
+    expect(svg).not.toContain("Provisional");
+    expect(svg).not.toMatch(/\b(?:coverage|evidence|applicability|assessment|methodology|signals?)\b/i);
     expect(svg).toContain(">Platinum V</text>");
     expect(svg).toContain(">Platinum III</text>");
     expect(svg).toContain(">Diamond II</text>");
@@ -138,7 +142,7 @@ describe("SVG renderer", () => {
     const svg = renderUserSignalCard(report);
 
     expect(svg).not.toContain("Owner-supplied GitHub activity");
-    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public + Private Signals · 2026-05-28`);
+    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public + Private Projects · 2026-05-28`);
     expect(svg).not.toContain("Public + Private Tier");
     expect(svg).not.toContain("<text x=\"704\" y=\"58\" class=\"subtitle right\">Public Signal Tier</text>");
     expect(svg).not.toContain("<text x=\"36\" y=\"273\" class=\"label\">Public Adoption</text>");
@@ -191,6 +195,20 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("Insufficient Public Signal");
     expect(svg).not.toContain("Bronze");
     expect(svg).not.toContain("Silver");
+  });
+
+  test("keeps the tier visible while calling a thin pass an early look", () => {
+    const report = scoreUserProfile({
+      ...(fixture as ProfileInput),
+      repositoryCollectionAttemptCount: 10,
+      repositoryCollectionFailureCount: 2
+    }, { now });
+    const svg = renderUserSignalCard(report);
+
+    expect(report.resultStatus).toBe("provisional");
+    expect(svg).toContain("Early look · 80% checked");
+    expect(svg).not.toContain("Provisional");
+    expect(svg).toContain(">Platinum III</text>");
   });
 
   test("maps high score tier boundaries with the full diamond ladder", () => {
@@ -312,7 +330,7 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("Included projects");
     expect(svg).toContain("1 suggestion");
-    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public + Private Signals`);
+    expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public + Private Projects`);
     expect(svg).toContain("Owner-supplied private repositories cannot be checked independently");
     expect(svg).not.toContain("Public GitHub projects");
     expect(svg).not.toContain("Buildmarks Gaps · Public Signals");
@@ -367,7 +385,7 @@ describe("SVG renderer", () => {
 
     expect(svg).toContain("Private owner/Private repository 1");
     expect(svg).not.toContain("Public + Private Repo Tier");
-    expect(svg).toContain(`Buildmarks Repo v${buildmarksVersion} · Public + Private Signals`);
+    expect(svg).toContain(`Buildmarks Repo v${buildmarksVersion} · Public + Private Projects`);
     expect(svg).toContain("This owner-supplied private repository cannot be checked independently on public GitHub");
     expect(svg).not.toContain("<text x=\"704\" y=\"58\" class=\"subtitle right\">Repository Signal Tier</text>");
     expect(svg).not.toContain("<text x=\"36\" y=\"388\" class=\"footer\">Buildmarks Repo</text>");

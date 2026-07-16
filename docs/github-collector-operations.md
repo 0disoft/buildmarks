@@ -24,7 +24,7 @@ The current username-to-card CLI is `src/cli/render-github-card.ts`. It uses the
 Default cache contract values:
 
 - Profile report cache TTL: 6 hours.
-- Repository file-signals cache TTL: 24 hours.
+- Repository details cache TTL: 24 hours.
 
 These values define the storage-neutral cache contract only; the v0 local collector does not persist cache entries. A future profile report cache covers the normalized profile-level result used to render a card or JSON report.
 
@@ -42,7 +42,7 @@ Default repository limits:
 - Spend at most 160 GitHub REST requests per profile collection by default. Policy validation caps this at 500, and every retry spends budget.
 - Analyze repositories pushed within the last 365 days by default. Policy validation caps this at 3650.
 
-The scan limit protects API cost and local runtime. Bounded concurrency shortens the wait without turning a profile refresh into an uncontrolled burst. The scored/display setting limits what the card can show, but methodology `2.0.0` calculates the profile from every eligible repository that was successfully evaluated, not only the repositories selected for display.
+The scan limit protects API cost and local runtime. Bounded concurrency shortens the wait without turning a profile refresh into an uncontrolled burst. The display setting limits what the card can show, but scoring rules `2.0.1` use every eligible repository that was successfully reviewed, not only the repositories selected for display.
 
 The scan limit must be greater than or equal to the display limit exposed as `maxRepositoriesScored`.
 
@@ -58,15 +58,15 @@ The live collector uses GitHub REST API endpoints for:
 
 - public user repositories
 - public repository community profile metrics
-- one recursive public repository tree lookup per scanned repository for file-presence and coarse codebase-shape signals
+- one recursive public repository tree lookup per scanned repository for files and rough project-shape details
 - public repository README text for usage-guide detection
 - public releases and tags
 
 The adapter sets activity aggregate fields to zero. Public issue replies, pull request reviews, and outside-contributor collection remain deferred because those fields need separate request-cost and interpretation rules.
 
-The deferred methodology is documented in [Activity Aggregate Methodology](activity-aggregate-methodology.md).
+The deferred work is documented in [Future Activity Checks](activity-aggregate-methodology.md).
 
-The adapter does not collect follower counts, language percentages, raw commit counts, contribution streaks, private repositories, private contributions, employer information, compensation, seniority, job fit, or hiring pass/fail signals.
+The adapter does not collect follower counts, language percentages, raw commit counts, contribution streaks, private repositories, private contributions, employer information, compensation, seniority, job fit, or hiring pass/fail labels.
 
 ## Token Policy
 
@@ -86,9 +86,9 @@ Rejected token behavior:
 - `security_events`
 - organization admin or private organization scopes
 
-Private repository support is a separate opt-in private-local mode rather than a change to the public collector. That boundary is documented in [Private Repository Signal Contract](private-repository-signal-contract.md).
+Private repository support is a separate opt-in private-local mode rather than a change to the public collector. Those rules are documented in [Private Repository Rules](private-repository-signal-contract.md).
 
-In private-local mode, the built-in collector keeps private file contents out of the collection boundary. It can detect private README file presence from tree metadata, but it does not read private README text, so private usage-guide signals are conservative.
+In private-local mode, the built-in collector does not read private file contents. It can see that a private README exists, but it cannot tell whether that README contains useful setup instructions.
 
 ## API Cost Policy
 

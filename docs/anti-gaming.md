@@ -15,7 +15,7 @@ Buildmarks is useful only if it refuses the shortcuts that make profile cards fl
 9. Low public activity must never produce a harsh personal label.
 10. A file standing alone cannot carry a dimension above 40; stronger results need project practices that support one another.
 11. Unknown information is not a failed check, and a check that does not fit the repository kind is not a zero.
-12. Every score must show the supporting details, coverage, and limits behind it.
+12. Every score must show what Buildmarks checked, what it found, and where the result stops.
 13. Generated cards and reports must say whether they cover public GitHub only or owner-supplied private repositories too.
 
 ## Labels
@@ -29,7 +29,7 @@ Use labels such as:
 - Builder
 - Steady Shipper
 - Well-Documented Project
-- General Signal Profile
+- Project Snapshot
 
 Avoid labels such as:
 

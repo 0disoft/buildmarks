@@ -1,4 +1,4 @@
-# Activity Aggregate Methodology
+# Future Activity Checks
 
 Buildmarks currently leaves public issue, pull request, and outside-contributor aggregates at zero in the live collector. The fields exist, but the collection work stays deferred until the cost and interpretation are honest enough to ship.
 

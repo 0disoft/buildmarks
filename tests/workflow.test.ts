@@ -72,8 +72,8 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.2.0");
-    expect(sharedVersion).toContain('buildmarksVersion = "0.2.0"');
+    expect(metadata.version).toBe("0.2.1");
+    expect(sharedVersion).toContain('buildmarksVersion = "0.2.1"');
     expect(metadata.types).toBe("./dist/index.d.ts");
     expect(metadata.exports).toEqual({
       ".": {
@@ -157,7 +157,7 @@ describe("profile README workflow example", () => {
     expect(changelog).toContain("max-repositories-scored");
     expect(changelog).toContain("from 8 to 12");
     expect(changelog).toContain("package version beside the top card brand mark");
-    expect(changelog).toContain("private-local repository signal contract");
+    expect(changelog).toContain("private-local rules for owner-supplied private repositories");
     expect(changelog).toContain("0disoft/buildmarks@v0");
     expect(changelog).toContain("no developer ranking");
     expect(readme).toContain("[CHANGELOG.md](CHANGELOG.md)");
@@ -300,9 +300,9 @@ describe("profile README workflow example", () => {
     expect(example).toContain('Must be exactly `"true"` or `"false"`');
     expect(readme).toContain("private-local mode requires an explicit owner-provided read token");
     expect(example).toContain("private-local mode requires an explicit owner-provided read token");
-    expect(readme).toContain("redacted private repository names");
-    expect(example).toContain("redacted private repository names");
-    expect(readme).toContain("conservative about whether a private README contains useful setup guidance");
+    expect(readme).toContain("hide repository names");
+    expect(example).toContain("hides their names");
+    expect(readme).toContain("may miss setup guidance inside a private README");
     expect(readme).toContain("Do not commit private-local SVG, HTML, or JSON");
     expect(example).toContain("Do not commit private-local SVG, HTML, or JSON");
   });
@@ -380,7 +380,7 @@ describe("profile README workflow example", () => {
     expect(action).toContain("less than or equal to 3650");
     expect(action).toContain("Invalid private-local");
     expect(action).toContain("private-local mode requires an explicit token input");
-    expect(action).toContain("Private-local artifacts can reveal owner-supplied private repository metadata");
+    expect(action).toContain("Private-local files can reveal details about owner-supplied private repositories");
     expect(action).toContain("BUILDMARKS_TOKEN: ${{ inputs.token }}");
     expect(action).toContain("${BUILDMARKS_TOKEN//[[:space:]]/}");
     expect(action).toContain("set -euo pipefail");

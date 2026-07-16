@@ -16,11 +16,11 @@ Profile report cache:
 - default TTL: 6 hours
 - value: normalized collected profile plus generated timestamp and limitations
 
-Repository file-signal cache:
+Repository details cache:
 
 - key shape: `repo-file-signals:v1:{owner}/{repo}:{defaultBranch}:{policyHash}`
 - default TTL: 24 hours
-- value: public file-presence signals and release or tag presence
+- value: public project files and release or tag presence
 
 The `policyHash` must represent scan limits and public-only collection settings that affect the result. It must not include secrets or token values.
 

@@ -109,7 +109,7 @@ Action inputs:
 | `generate-report` | `"true"` | Must be exactly `"true"` or `"false"`. |
 | `report-output` | `assets/buildmarks-report` | Non-empty HTML and JSON report directory. |
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
-| `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
+| `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Includes owner-supplied private repositories and hides their names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
 | `max-repositories-scored` | `12` | Positive integer repository display limit, capped at 24. Despite the legacy input name, all successfully evaluated repositories contribute to the profile calculation. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
@@ -169,6 +169,6 @@ Then link to the static report from your README:
 [View the Buildmarks report](./out/report/buildmarks-report.html)
 ```
 
-The JSON next to the HTML uses `schemaVersion: "buildmarks-report/v1"` and scoring methodology `2.0.0`. Library consumers can validate its shape with the packaged schema at `schemas/buildmarks-report-v1.schema.json`. The report also separates the score from confidence, coverage, and applicability, and records how many repositories were evaluated versus how many fit on the card.
+The JSON next to the HTML uses `schemaVersion: "buildmarks-report/v1"` and scoring rules `2.0.1`. Library consumers can validate its shape with the packaged schema at `schemas/buildmarks-report-v1.schema.json`. The report shows how much Buildmarks checked and records how many repositories were reviewed versus how many fit on the card.
 
 For a hosted version, replace the checked-in SVG path with the future card endpoint once that service exists.

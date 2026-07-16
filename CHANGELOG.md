@@ -6,15 +6,23 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.2.1 - 2026-07-16
+
+- Keep the actual tier visible when Buildmarks checked at least 85% of the relevant project details and repository collection.
+- Reserve the internal early-result state for genuinely thin reviews instead of treating every missing detail as a reason to hide the tier.
+- Remove stiff wording from cards and HTML reports; show the checked percentage in plain language.
+- Rename visible public/private scope labels to `Public GitHub projects` and `Public + Private Projects` while keeping existing JSON field names for compatibility.
+- Update scoring rules to `2.0.1`.
+
 ## v0.2.0 - 2026-07-16
 
-- Introduce scoring methodology `2.0.0` while keeping the static report format at `version: 1` and identifying it as `buildmarks-report/v1`.
+- Introduce scoring rules `2.0.0` while keeping the static report format at `version: 1` and identifying it as `buildmarks-report/v1`.
 - Match project checks to declared or conservatively detected repository kinds, leaving irrelevant areas out instead of counting them as failures.
-- Separate scores from confidence, coverage, and applicability so missing GitHub data lowers certainty rather than silently lowering a project score.
+- Keep missing GitHub details out of the score instead of silently counting them as failures.
 - Cap file-presence-only results at 40 until independent project details reinforce one another.
 - Calculate profile results from every eligible repository that was successfully reviewed, using the repository limit only for a kind-stratified display sample.
 - Keep a complete criterion-to-detail ledger in JSON reports while showing a short, readable set of highlights on cards.
-- Replace repetitive analysis jargon in cards, reports, and public documentation with reader-first descriptions of what Buildmarks found and what a project could improve.
+- Replace repetitive jargon in cards, reports, and public documentation with reader-first descriptions of what Buildmarks found and what a project could improve.
 - Publish the additive report contract in `schemas/buildmarks-report-v1.schema.json`.
 
 ## v0.1.25 - 2026-07-16
@@ -24,8 +32,8 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## v0.1.24 - 2026-07-16
 
-- Preserve an existing healthy SVG when GitHub evidence is insufficient instead of replacing it with a fallback card.
-- Fail the GitHub card command on insufficient evidence so caller workflows can retry or choose a safe fallback path.
+- Preserve an existing healthy SVG when GitHub did not return enough project information instead of replacing it with a fallback card.
+- Fail the GitHub card command when too much project information is missing so caller workflows can retry or choose a safe fallback path.
 - Report privacy-safe repository collection failure summaries by error code, operation, status, and count.
 
 ## v0.1.23 - 2026-07-12
@@ -47,7 +55,7 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## v0.1.20 - 2026-07-11
 
-- Track attempted repository collection coverage and withhold normal scores when failed or incomplete repository evidence reaches half of the attempted set.
+- Track how many repositories Buildmarks tried to read and withhold normal scores when at least half could not be read completely.
 - Exclude repositories with truncated GitHub file trees from scores and gap hints instead of treating unobserved files as absent.
 
 ## v0.1.19 - 2026-07-07
@@ -60,7 +68,7 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Package npm library imports from built `dist/index.js` with generated TypeScript declarations at `dist/index.d.ts`.
 - Add a `prepack` build step so `npm pack --dry-run` verifies the packaged JavaScript and declaration output.
-- Disclose that built-in private-local collection does not read private README text, making private usage-guide signals conservative.
+- Disclose that built-in private-local collection does not read private README text and may therefore miss private setup guidance.
 
 ## v0.1.17 - 2026-06-18
 
@@ -73,30 +81,30 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 - Redact private repository owner names from scored repository outputs and static reports.
 - Reject unsafe direct private repository scoring inputs before repository cards can expose names or URLs.
-- Show visible `Public + Private Signals` disclosure on private-local profile cards instead of leaving it only in accessible descriptions.
-- Derive README, license, contribution, code-of-conduct, and test-file signals from the Git tree when GitHub community profile data is missing.
+- Show the visible `Public + Private Projects` label on private-local profile cards instead of leaving the scope only in screen-reader text.
+- Find README, license, contribution, code-of-conduct, and test files from the Git tree when GitHub community profile data is missing.
 - Avoid counting directory entries as example or fixture files in codebase-shape scoring.
 - Reject blank GitHub repository identifiers in collected API responses before making detail requests.
 - Update collector documentation so implemented private-local support is no longer described as future work.
 - Avoid claiming private repositories are included when private-local collection returns only public repositories.
-- Apply private-local disclosure validation to direct signal-gap analysis.
+- Apply private-local disclosure validation to direct improvement suggestions.
 - Number redacted private repositories sequentially among emitted private repositories instead of using their scan position.
 - Reject missing GitHub CLI option values when the next token is another option flag.
 - Reject empty local input, SVG output, report output, and GitHub username values before they can resolve to the workspace or write fallback artifacts.
 - Reject option-like positional values in local auxiliary CLIs instead of treating mistyped flags as file paths.
 - Count root-level `tests/`, `test/`, `spec/`, and `__tests__/` source files as test files in codebase-shape scoring.
-- Treat non-boolean direct scoring and gap inputs as absent signals instead of accepting truthy malformed values.
+- Treat non-boolean direct scoring and suggestion inputs as missing instead of accepting malformed truthy values.
 - Validate non-empty `username`, `output`, `report-output`, and private-local token Action inputs before setup or artifact generation.
 - Trim local profile identity strings and reject blank local date strings before scoring or repository-card lookup.
 
 ## v0.1.15 - 2026-06-18
 
 - Replace context-dependent `Collaboration` and `Public Adoption` front-card dimensions with always-measurable `Usability Surface` and `Project Stewardship` dimensions.
-- Keep popularity and public collaboration traces out of default profile-card tier rows so cards do not show unavailable or deferred signal categories.
-- Reject private or redacted local repository inputs unless the profile uses private-local signal visibility disclosure.
+- Keep popularity and public collaboration activity out of default profile-card tier rows so cards do not show unfinished project areas.
+- Reject private or hidden-name local repository inputs unless the profile explicitly enables private-local project collection.
 - Disclose reports with no eligible repositories instead of silently rendering an unexplained Gold V card.
 - Normalize invalid runtime SVG theme values to the safe auto theme.
-- Make fallback SVG and HTML output scope-neutral so failed private-local runs do not claim public-only signal coverage.
+- Make fallback SVG and HTML output scope-neutral so failed private-local runs do not claim they reviewed public projects only.
 
 ## v0.1.14 - 2026-06-18
 
@@ -104,7 +112,7 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## v0.1.13 - 2026-06-18
 
-- Render profile and repository card scores as Gold, Platinum, and Diamond signal tiers while preserving underlying 0-100 scores in accessible descriptions, progress bars, and reports.
+- Render profile and repository card scores as Gold, Platinum, and Diamond tiers while preserving underlying 0-100 scores in screen-reader descriptions, progress bars, and reports.
 
 ## v0.1.12 - 2026-06-16
 
@@ -115,13 +123,13 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## v0.1.11 - 2026-06-13
 
-- Preserve GitHub recursive tree truncation warnings through collected file signals and profile report limitations.
+- Preserve GitHub recursive tree truncation warnings through collected file details and profile report limits.
 - Reject non-decimal CLI repository limit values such as hexadecimal or exponent notation.
 - Fall back to the current date when SVG card input contains an invalid generated date string.
 - Collect repository details with bounded concurrency and disclose deferred live activity aggregates in generated reports.
 - Classify GitHub 403 responses more precisely, reject private-local token owner mismatches, and keep private-local report and gap disclosures out of public-only wording.
 - Harden fallback artifact writes and SVG/HTML text sanitization for malformed output paths, protocol-relative report links, and control characters.
-- Type profile signal classifications as a fixed public union and tighten public-only private-repository disclosure validation.
+- Type profile labels as a fixed public union and tighten public-only private-repository disclosure validation.
 - Split public-only and private-local GitHub collector policy validation, disclose public-only collection explicitly, align static-report timestamps, and avoid duplicate scoring in combined GitHub artifact generation.
 - Omit individual repositories that fail detail collection while disclosing the omitted count, add bounded live-collector policy caps, and apply short GitHub request timeouts with transient retries.
 
@@ -156,8 +164,8 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## v0.1.4 - 2026-05-31
 
-- Reduce repetitive `signal`, `evidence`, and `found` wording on the front SVG cards.
-- Render compact highlight chips such as `Tests`, `CI`, and `Changelog` instead of long evidence sentences.
+- Remove repetitive stiff wording from the front SVG cards.
+- Render compact highlight chips such as `Tests`, `CI`, and `Changelog` instead of long explanatory sentences.
 - Show four front-card highlights so important maintenance marks are less likely to be hidden.
 - Keep longer explanations in reports and docs while making profile README cards cleaner.
 
@@ -170,18 +178,18 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## v0.1.2 - 2026-05-31
 
-- Add an explicit private-local repository signal contract for owner-supplied private evidence.
-- Render private-local cards with `Public + Private Signals` disclosure instead of public-only wording.
+- Add explicit private-local rules for owner-supplied private repositories.
+- Render private-local cards with the `Public + Private Projects` label instead of public-only wording.
 - Show public adoption as `N/A` on private-local cards and exclude it from the overall score.
-- Shift SVG card front matter from a large `/100` overall score to a `Signals Found` count with checked repository coverage.
-- Rename the card evidence section and report link to `Found Signals` and `View report` to keep the front card less defensive.
+- Shift SVG card front matter from a large `/100` overall score to a count of project details found across checked repositories.
+- Rename the card details section and report link to make the front card less defensive.
 - Treat public collaboration as context instead of a score penalty for independent-builder profiles.
-- Add coarse codebase-shape maintainability signals from Git tree metadata without reading source contents or counting lines.
+- Add rough codebase-shape details from the Git tree without reading source contents or counting lines.
 - Add a repository activity window policy and Action/CLI input so old repositories can be skipped before per-repository collection.
 - Document the real profile README adoption smoke-test path.
-- Add methodology notes for deferred public issue, pull request, and external contributor aggregates.
+- Add notes for future public issue, pull request, and outside-contributor checks.
 - Add a storage-neutral cache contract before any hosted endpoint work.
-- Add committed example SVG assets for profile, repository, and signal gaps cards.
+- Add committed example SVG files for profile, repository, and improvement cards.
 
 ## v0.1.1 - 2026-05-30
 
@@ -193,8 +201,8 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 ## v0.1.0 - 2026-05-30
 
 - First public Buildmarks foundation release.
-- Added fixture-based scoring and SVG rendering for public GitHub engineering signals.
-- Added local CLI surfaces for profile cards, repository cards, signal gaps cards, and inspectable static reports.
+- Added fixture-based scoring and SVG rendering for public GitHub project practices.
+- Added local CLI commands for profile cards, repository cards, improvement cards, and static reports.
 - Added a public-only GitHub REST collector for backend-free profile README artifact generation.
 - Added the `0disoft/buildmarks@v0` composite GitHub Action.
 - Added docs for scoring, anti-gaming principles, public GitHub collection boundaries, and collector operations.

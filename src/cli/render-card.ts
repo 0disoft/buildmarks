@@ -2,6 +2,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
+import { isSupportedCardLabel } from "../shared/types";
 import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
@@ -327,7 +328,7 @@ function validateSignalVisibilityDisclosure(disclosure: NonNullable<ProfileInput
       disclosure.scope !== privateLocalSignalVisibility.scope ||
       disclosure.privateRepositoryNamesRedacted !== privateLocalSignalVisibility.privateRepositoryNamesRedacted ||
       disclosure.independentlyVerifiable !== privateLocalSignalVisibility.independentlyVerifiable ||
-      disclosure.cardLabel !== privateLocalSignalVisibility.cardLabel ||
+      !isSupportedCardLabel(disclosure.cardLabel, privateLocalSignalVisibility.cardLabel) ||
       disclosure.reportVisibility !== privateLocalSignalVisibility.reportVisibility
     ) {
       throw new Error("private-local signalVisibility fields are inconsistent");
@@ -339,7 +340,7 @@ function validateSignalVisibilityDisclosure(disclosure: NonNullable<ProfileInput
     disclosure.scope !== publicOnlySignalVisibility.scope ||
     disclosure.privateRepositoryNamesRedacted !== publicOnlySignalVisibility.privateRepositoryNamesRedacted ||
     disclosure.independentlyVerifiable !== publicOnlySignalVisibility.independentlyVerifiable ||
-    disclosure.cardLabel !== publicOnlySignalVisibility.cardLabel ||
+    !isSupportedCardLabel(disclosure.cardLabel, publicOnlySignalVisibility.cardLabel) ||
     disclosure.reportVisibility !== publicOnlySignalVisibility.reportVisibility
   ) {
     throw new Error("public-only signalVisibility fields are inconsistent");

@@ -30,6 +30,11 @@ describe("static report", () => {
     expect(report.profile.methodologyVersion).toBe(scoringMethodologyVersion);
     expect(report.profile.coverage.ratio).toBeGreaterThan(0);
     expect(report.profile.confidence).not.toBeNull();
+    expect(report.profile.selection).toMatchObject({
+      attemptedCount: 2,
+      missedCount: 0,
+      checkedRatio: 1
+    });
     expect(report.profile.username).toBe("example-builder");
     expect(report.profile.evidence.length).toBeGreaterThan(0);
     expect(report.gaps.gaps.length).toBeGreaterThan(0);
@@ -86,6 +91,7 @@ describe("static report", () => {
     expect(html).toContain("Ways to Improve");
     expect(html).toContain("Repository Highlights");
     expect(html).toContain("Not a ranking");
+    expect(html).not.toMatch(/\b(?:confidence|coverage|provisional|evidence|applicability|assessment|methodology|signals?)\b/i);
     expect(html).not.toContain("<script");
   });
 
@@ -94,7 +100,7 @@ describe("static report", () => {
     const html = renderStaticReportHtml(report);
 
     expect(report.profile.resultStatus).toBe("unavailable");
-    expect(html).toContain("Result unavailable");
+    expect(html).toContain("Not enough project information yet");
     expect(html).toContain("No project-area scores are available.");
     expect(html).toContain("No project practices to show.");
     expect(html).toContain("No project suggestions are available for this report.");
@@ -131,10 +137,10 @@ describe("static report", () => {
       "Private-local cards use the same project checks as public cards, while keeping private file contents out of the output."
     );
     expect(report.profile.limitations).toContain(
-      "Private-local artifacts can reveal owner-supplied private repository metadata. Do not commit generated SVG, HTML, or JSON artifacts to a public profile repository unless that disclosure is intentional."
+      "Private-local files can reveal details about owner-supplied private repositories. Do not commit generated SVG, HTML, or JSON files to a public profile unless you intend to share those details."
     );
     expect(html).toContain("Public GitHub plus owner-supplied private repositories");
-    expect(html).toContain("Do not commit generated SVG, HTML, or JSON artifacts");
+    expect(html).toContain("Do not commit generated SVG, HTML, or JSON files");
     expect(html).toContain("Private details cannot be checked independently");
     expect(html).toContain("Suggestions drawn from the public and owner-supplied private repositories included in this local report");
     expect(html).not.toContain("<h3>Public Adoption</h3>");
@@ -242,7 +248,7 @@ describe("static report", () => {
     expect(html).toContain("Public GitHub plus owner-supplied private repositories");
     expect(html).toContain("Private details cannot be checked independently");
     expect(json.profile.signalVisibility?.privateRepositoriesIncluded).toBe(true);
-    expect(JSON.stringify(json.profile)).toContain("Do not commit generated SVG, HTML, or JSON artifacts");
+    expect(JSON.stringify(json.profile)).toContain("Do not commit generated SVG, HTML, or JSON files");
     expect(json.repositories[0]?.name).toBe("Private repository 1");
     expect(JSON.stringify(json)).not.toContain("private-toolkit");
   });

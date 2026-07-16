@@ -59,7 +59,19 @@
         "overall": { "type": "integer", "minimum": 0, "maximum": 100 },
         "assessment": { "$ref": "#/$defs/assessment" },
         "dimensionAssessments": { "type": "object" },
-        "selection": { "type": "object" },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "strategy": { "const": "kind-stratified" },
+            "eligibleCount": { "type": "integer", "minimum": 0 },
+            "evaluatedCount": { "type": "integer", "minimum": 0 },
+            "displayedCount": { "type": "integer", "minimum": 0 },
+            "displayLimit": { "type": "integer", "minimum": 1 },
+            "attemptedCount": { "type": "integer", "minimum": 0 },
+            "missedCount": { "type": "integer", "minimum": 0 },
+            "checkedRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
         "resultStatus": { "enum": ["confirmed", "provisional", "unavailable"] }
       }
     },

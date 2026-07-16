@@ -68,8 +68,8 @@ The package should include the public OSS core, build output, declarations, exam
 
 Generated `dist/` is created during `prepack`; it belongs in the package but not in the repository. Generated `out/` demo artifacts are intentionally excluded.
 
-## Report Schema and Methodology Version
+## JSON and Scoring Versions
 
 Static JSON reports currently declare `schemaVersion: "buildmarks-report/v1"`. Consumers can validate that envelope with the packaged file `schemas/buildmarks-report-v1.schema.json`.
 
-The same report also carries `methodologyVersion: "2.0.0"`. These versions describe different things: `schemaVersion` identifies the JSON shape, while `methodologyVersion` identifies the scoring rules that produced the values. Consumers should not treat one as an alias for the other.
+The same report also carries `methodologyVersion: "2.0.1"`. `schemaVersion` names the JSON shape, while `methodologyVersion` names the scoring rules that produced the values. Consumers should not treat one as an alias for the other.

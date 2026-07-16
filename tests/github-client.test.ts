@@ -19,7 +19,7 @@ describe("live public GitHub collector", () => {
     expect(profile.username).toBe("example-builder");
     expect(profile.activityAggregatesDeferred).toBe(true);
     expect(profile.signalVisibility?.privateRepositoriesIncluded).toBe(false);
-    expect(profile.signalVisibility?.cardLabel).toBe("Public GitHub signals");
+    expect(profile.signalVisibility?.cardLabel).toBe("Public GitHub projects");
     expect(profile.repositories).toHaveLength(1);
     expect(repository).toMatchObject({
       owner: "example-builder",
@@ -965,7 +965,7 @@ describe("live public GitHub collector", () => {
     });
 
     expect(profile.signalVisibility?.privateRepositoriesIncluded).toBe(false);
-    expect(profile.signalVisibility?.cardLabel).toBe("Public GitHub signals");
+    expect(profile.signalVisibility?.cardLabel).toBe("Public GitHub projects");
     expect(profile.repositories.every((repository) => repository.visibility !== "private")).toBe(true);
   });
 

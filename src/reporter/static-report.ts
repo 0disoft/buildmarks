@@ -178,8 +178,8 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
       <p class="muted">Buildmarks static report</p>
       <h1>${escapeHtml(report.profile.username)}</h1>
       <p class="score">${hasInsufficientEvidence ? "Not scored" : `${report.profile.overall}/100`}</p>
-      <p>${hasInsufficientEvidence ? "Not enough complete repository data for a reliable score" : escapeHtml(signalTypeDisplayLabels[report.profile.signalType])} · ${escapeHtml(scopeSummary)}</p>
-      <p class="muted">${escapeHtml(assessmentSummary(report.profile))}</p>
+      <p>${hasInsufficientEvidence ? "Buildmarks needs more project information before it can show a score" : escapeHtml(signalTypeDisplayLabels[report.profile.signalType])} · ${escapeHtml(scopeSummary)}</p>
+      <p class="muted">${escapeHtml(reviewSummary(report.profile))}</p>
       ${privateLocalWarning}
       <p class="muted">Generated ${escapeHtml(report.profile.generatedAt)}</p>
     </header>
@@ -219,7 +219,7 @@ function renderDimension(report: UserSignalReport, dimension: SignalDimension): 
   const assessment = report.dimensionAssessments?.[dimension];
   const detail = assessment === undefined
     ? ""
-    : `<p class="muted">${escapeHtml(formatConfidence(assessment.confidence))} · ${Math.round(assessment.coverage.ratio * 100)}% checked</p>`;
+    : `<p class="muted">${Math.round(assessment.coverage.ratio * 100)}% checked</p>`;
 
   return `<article class="item">
     <h3>${escapeHtml(dimensionLabels[dimension])}</h3>
@@ -242,28 +242,16 @@ function renderRepository(repository: RepoSignal): string {
   </article>`;
 }
 
-function assessmentSummary(report: UserSignalReport): string {
-  const confidence = formatConfidence(report.confidence ?? null);
-  const coverage = Math.round((report.coverage?.ratio ?? 0) * 100);
-  const status = report.resultStatus === "unavailable"
-    ? "Result unavailable"
-    : report.resultStatus === "provisional"
-      ? "Provisional result"
-      : "Reviewed result";
-  return `${status} · ${confidence} · ${coverage}% checked · Methodology ${report.methodologyVersion ?? "legacy"}`;
-}
-
-function formatConfidence(value: UserSignalReport["confidence"]): string {
-  if (value === "high") {
-    return "High confidence";
+function reviewSummary(report: UserSignalReport): string {
+  if (report.resultStatus === "unavailable") {
+    return "Not enough project information yet";
   }
-  if (value === "medium") {
-    return "Medium confidence";
-  }
-  if (value === "low") {
-    return "Low confidence";
-  }
-  return "Confidence unavailable";
+  const projectRatio = report.coverage?.ratio ?? 0;
+  const repositoryRatio = report.selection?.checkedRatio ?? projectRatio;
+  const checked = Math.round(Math.min(projectRatio, repositoryRatio) * 100);
+  return report.resultStatus === "provisional"
+    ? `Early look · ${checked}% checked`
+    : `${checked}% checked`;
 }
 
 function formatRepositoryKind(value: string): string {

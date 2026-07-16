@@ -52,7 +52,7 @@ export function renderUserSignalCard(
   options: RenderCardOptions = {}
 ): string {
   if (report.evidenceStatus === "insufficient") {
-    return renderFallbackCard("Not enough complete repository data to calculate a reliable score");
+    return renderFallbackCard("Buildmarks needs more project information before it can show a score");
   }
 
   const theme = normalizeTheme(options.theme);
@@ -64,12 +64,15 @@ export function renderUserSignalCard(
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
   const overallTone = scoreTone(overall);
-  const overallLabel = report.resultStatus === "provisional" ? "Provisional" : scoreTier(overall);
+  const overallLabel = scoreTier(overall);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
   const footerLabel = includesPrivateSignals
     ? `Buildmarks ${brandVersion} · ${privateLocalSignalVisibility.cardLabel} · ${generatedDate}`
     : `Buildmarks ${brandVersion} · Public GitHub · ${generatedDate}`;
-  const footerAssessment = formatAssessmentSummary(report.confidence, report.coverage?.ratio);
+  const footerNote = formatCheckedShare(
+    profileCheckedRatio(report),
+    report.resultStatus === "provisional"
+  );
   const context = buildProfileCardContext(report);
   const visibleDimensions = signalDimensions.filter((dimension) => !context.contextualDimensions.has(dimension));
   const rows = visibleDimensions.map((dimension, index) =>
@@ -101,7 +104,7 @@ ${rows.join("")}
 ${chips.join("")}
   </g>
   <text x="36" y="${footerY}" class="footer">${escapeXml(footerLabel)}</text>
-  <text x="${rightEdgeX}" y="${footerY}" class="footer right">${escapeXml(footerAssessment)}</text>
+  <text x="${rightEdgeX}" y="${footerY}" class="footer right">${escapeXml(footerNote)}</text>
 </svg>`;
 }
 
@@ -495,21 +498,24 @@ function finishSentence(value: string): string {
   return /[.!?…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
-function formatAssessmentSummary(
-  confidence: UserSignalReport["confidence"],
-  coverageRatio: number | undefined
-): string {
-  const confidenceLabel = confidence === "high"
-    ? "High confidence"
-    : confidence === "medium"
-      ? "Medium confidence"
-      : confidence === "low"
-        ? "Low confidence"
-        : "Confidence unavailable";
-  const coverageLabel = typeof coverageRatio === "number" && Number.isFinite(coverageRatio)
-    ? `${Math.round(Math.max(0, Math.min(1, coverageRatio)) * 100)}% checked`
-    : "Coverage unavailable";
-  return `${confidenceLabel} · ${coverageLabel}`;
+function formatCheckedShare(checkedRatio: number | undefined, isEarlyLook: boolean): string {
+  if (typeof checkedRatio !== "number" || !Number.isFinite(checkedRatio)) {
+    return "Some details couldn't be checked";
+  }
+  const checkedLabel = `${Math.round(Math.max(0, Math.min(1, checkedRatio)) * 100)}% checked`;
+  return isEarlyLook ? `Early look · ${checkedLabel}` : checkedLabel;
+}
+
+function profileCheckedRatio(report: UserSignalReport): number | undefined {
+  const projectRatio = report.coverage?.ratio;
+  const repositoryRatio = report.selection?.checkedRatio;
+  if (typeof projectRatio !== "number") {
+    return repositoryRatio;
+  }
+  if (typeof repositoryRatio !== "number") {
+    return projectRatio;
+  }
+  return Math.min(projectRatio, repositoryRatio);
 }
 
 function countProfileSignals(report: UserSignalReport): number {

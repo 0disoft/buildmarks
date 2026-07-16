@@ -9,7 +9,7 @@ export const signalDimensions = [
 
 export type SignalDimension = (typeof signalDimensions)[number];
 
-export const scoringMethodologyVersion = "2.0.0" as const;
+export const scoringMethodologyVersion = "2.0.1" as const;
 
 export type ScoringMethodologyVersion = typeof scoringMethodologyVersion;
 
@@ -288,7 +288,7 @@ export const publicOnlySignalVisibility = {
   privateRepositoriesIncluded: false,
   privateRepositoryNamesRedacted: false,
   independentlyVerifiable: true,
-  cardLabel: "Public GitHub signals",
+  cardLabel: "Public GitHub projects",
   reportVisibility: "public-safe"
 } satisfies SignalVisibilityDisclosure;
 
@@ -297,9 +297,18 @@ export const privateLocalSignalVisibility = {
   privateRepositoriesIncluded: true,
   privateRepositoryNamesRedacted: true,
   independentlyVerifiable: false,
-  cardLabel: "Public + Private Signals",
+  cardLabel: "Public + Private Projects",
   reportVisibility: "private-local"
 } satisfies SignalVisibilityDisclosure;
+
+const legacyCardLabels = new Map([
+  [publicOnlySignalVisibility.cardLabel, "Public GitHub signals"],
+  [privateLocalSignalVisibility.cardLabel, "Public + Private Signals"]
+]);
+
+export function isSupportedCardLabel(actual: string, expected: string): boolean {
+  return actual === expected || legacyCardLabels.get(expected) === actual;
+}
 
 export interface DimensionScore {
   key: SignalDimension;
@@ -343,6 +352,9 @@ export interface RepositorySelectionSummary {
   evaluatedCount: number;
   displayedCount: number;
   displayLimit: number;
+  attemptedCount: number;
+  missedCount: number;
+  checkedRatio: number;
 }
 
 export type ResultStatus = "confirmed" | "provisional" | "unavailable";

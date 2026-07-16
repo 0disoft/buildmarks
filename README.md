@@ -97,18 +97,18 @@ Examples of what Buildmarks can find:
 - Archived repositories are excluded by default.
 - One popular repository must not dominate the whole profile.
 - Low public activity must never produce a harsh personal label.
-- Every score must show the supporting details, coverage, and limitations behind it.
+- Every score must show what Buildmarks found, what it could not check, and where the result stops.
 - Generated cards and reports must clearly disclose the data scope.
 
-## Scoring Methodology 2.0.0
+## How Scoring Works
 
-Methodology `2.0.0` reviews each repository according to its kind: `library`, `application`, `cli`, `documentation`, `monorepo`, `experiment`, or `general`. Checks that do not fit a kind are `not-applicable`; checks Buildmarks could not observe are `unavailable`. Neither is silently turned into a failed check.
+Scoring rules `2.0.1` review each repository according to its kind: `library`, `application`, `cli`, `documentation`, `monorepo`, `experiment`, or `general`. Checks that do not fit are left out, and details Buildmarks could not inspect are left undecided instead of becoming failures.
 
-The report keeps four ideas separate: score, confidence, coverage, and applicability. A dimension needs at least 50% coverage before it receives a score. Isolated file-presence checks can reach at most 40; a higher score needs at least one corroborated practice, such as tests backed by CI or a release backed by an installable package.
+A project area needs at least half of its relevant details checked before it receives a score. The profile shows its normal tier when at least 85% of the project details and attempted repositories were checked. Isolated files can reach at most 40; a higher score needs another project detail to back them up, such as tests paired with CI or a release paired with an installable package.
 
 All eligible repositories that were successfully evaluated contribute to the profile calculation. The card display is shorter and uses a kind-stratified selection so different project types have a chance to appear. The report records both evaluated and displayed counts.
 
-Static JSON reports use `schemaVersion: "buildmarks-report/v1"` while the scoring rules use `methodologyVersion: "2.0.0"`. They are separate version lines. The npm package includes the report schema at `schemas/buildmarks-report-v1.schema.json`.
+Static JSON reports use `schemaVersion: "buildmarks-report/v1"` while the scoring rules use `methodologyVersion: "2.0.1"`. They are separate version lines. The npm package includes the JSON schema at `schemas/buildmarks-report-v1.schema.json`.
 
 See [docs/scoring.md](docs/scoring.md) for the complete calculation and its limits.
 
@@ -164,9 +164,9 @@ The public collector contract is documented in [docs/github-collector-contract.m
 
 The collector operations policy is documented in [docs/github-collector-operations.md](docs/github-collector-operations.md). It defines cache, token, repository limit, and API cost defaults for the live public GitHub collector.
 
-Owner-supplied private repositories are documented separately in [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md). The default collector remains public-only; private repositories require the explicit `collectOwnerSuppliedGitHubProfile()` path, an owner-provided read-only token, redaction by default, and the exact `Public + Private Signals` disclosure.
+Owner-supplied private repositories are documented separately in [the private repository rules](docs/private-repository-signal-contract.md). The default collector remains public-only; private repositories require the explicit `collectOwnerSuppliedGitHubProfile()` path, an owner-provided read-only token, hidden names by default, and the exact `Public + Private Projects` label.
 
-Deferred public activity aggregates are documented in [docs/activity-aggregate-methodology.md](docs/activity-aggregate-methodology.md). The storage-neutral cache boundary is documented in [docs/cache-contract.md](docs/cache-contract.md).
+Future issue, review, and contributor checks are documented in [Future Activity Checks](docs/activity-aggregate-methodology.md). Cache behavior is documented in [Cache Rules](docs/cache-contract.md).
 
 The npm packaging status is documented in [docs/npm-packaging.md](docs/npm-packaging.md). The package includes `schemas/buildmarks-report-v1.schema.json` and can be inspected with `npm pack --dry-run`.
 
@@ -188,7 +188,7 @@ The token is optional and must be passed explicitly. Buildmarks does not read to
 
 The live collector is still a local library surface, not a hosted endpoint. It intentionally has no cache storage, Redis/KV binding, Cloudflare Worker, billing, or web server in this repository.
 
-Private repositories are not part of `collectPublicGitHubProfile()`. Use `collectOwnerSuppliedGitHubProfile()` or the Action `private-local: "true"` input only when the owner explicitly supplies a read token. Private-local output follows [docs/private-repository-signal-contract.md](docs/private-repository-signal-contract.md) and is labeled `Public + Private Signals`. Even with redacted names, the artifacts can reveal private project details, so do not commit the SVG, HTML, or JSON to a public profile repository unless that disclosure is intentional.
+Private repositories are not part of `collectPublicGitHubProfile()`. Use `collectOwnerSuppliedGitHubProfile()` or the Action `private-local: "true"` input only when the owner explicitly supplies a read token. Private-local output follows [the private repository rules](docs/private-repository-signal-contract.md) and is labeled `Public + Private Projects`. Even with hidden names, the files can reveal private project details, so do not commit the SVG, HTML, or JSON to a public profile unless you intend to share those details.
 
 ## Generate from a GitHub Username
 
@@ -240,7 +240,7 @@ Minimal action usage:
 
 Set `generate-report: "false"` when you only want the SVG card.
 
-Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards redact repository names, omit private URLs, use the exact `Public + Private Signals` label, and apply the same project checks as public-only cards. The built-in collector does not read private file contents, so it is conservative about whether a private README contains useful setup guidance. Do not commit private-local SVG, HTML, or JSON to a public profile repository unless publishing those details is intentional.
+Set `private-local: "true"` only when the caller workflow passes an explicit owner-provided token that can read the selected private repositories. Private-local cards hide repository names, omit private URLs, use the exact `Public + Private Projects` label, and apply the same project checks as public-only cards. The built-in collector does not read private file contents, so it may miss setup guidance inside a private README. Do not commit private-local SVG, HTML, or JSON to a public profile unless you intend to share those details.
 
 Action inputs are intentionally strict: `username`, `output`, and `report-output` must be non-empty, `generate-report` must be exactly `"true"` or `"false"`, and repository limits must be positive integers. Invalid values fail before Buildmarks collects GitHub data.
 
@@ -322,9 +322,9 @@ out/report/buildmarks-report.html
 out/report/buildmarks-report.json
 ```
 
-The report shows dimension scores, confidence, coverage, applicability, supporting details, improvement ideas, repository kinds, and limitations. Its calculation uses every eligible repository that was successfully evaluated even when the card displays only a representative subset.
+The report shows project-area scores, how much Buildmarks checked, what it found, improvement ideas, project kinds, and clear limits. Its calculation uses every eligible repository that was successfully reviewed even when the card displays only a representative subset. The JSON also records attempted, missed, checked, and displayed repository counts.
 
-The JSON declares `schemaVersion: "buildmarks-report/v1"` and `methodologyVersion: "2.0.0"`. Validate its envelope with the packaged schema at `schemas/buildmarks-report-v1.schema.json`; do not assume the schema version and methodology version advance together.
+The JSON declares `schemaVersion: "buildmarks-report/v1"` and `methodologyVersion: "2.0.1"`. Validate it with the packaged schema at `schemas/buildmarks-report-v1.schema.json`; the JSON shape and scoring rules have separate version numbers.
 
 To generate the same report directly from public GitHub data:
 
