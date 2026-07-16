@@ -9,6 +9,8 @@ export type {
   ProfileInput,
   ProfileSignalScope,
   RepositoryInput,
+  RepositoryCollectionFailureSummary,
+  RepositoryCollectionOperation,
   RepositoryVisibility,
   RepoSignal,
   SignalReportVisibility,

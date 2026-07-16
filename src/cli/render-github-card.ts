@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { access, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
@@ -23,6 +23,7 @@ export interface RenderGitHubCardFileResult {
   username: string;
   outputPath: string;
   fallback: boolean;
+  preservedExisting?: boolean;
   error?: string;
 }
 
@@ -45,6 +46,31 @@ export async function renderGitHubCardFile(
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
     const report = scoreUserProfile(profile, scoringOptions);
+    if (report.evidenceStatus === "insufficient") {
+      const message = insufficientEvidenceMessage(profile);
+      if (await pathExists(resolvedOutputPath)) {
+        return {
+          ok: false,
+          username: profile.username,
+          outputPath: resolvedOutputPath,
+          fallback: false,
+          preservedExisting: true,
+          error: message
+        };
+      }
+
+      const writeError = await tryWriteTextFile(
+        resolvedOutputPath,
+        renderFallbackCard("Not enough complete GitHub evidence to calculate a reliable signal score")
+      );
+      return {
+        ok: false,
+        username: profile.username,
+        outputPath: resolvedOutputPath,
+        fallback: true,
+        error: appendWriteFailure(message, "Fallback SVG", writeError)
+      };
+    }
     const svg = renderUserSignalCard(report, options);
 
     await writeTextFileAtomically(resolvedOutputPath, svg);
@@ -88,7 +114,10 @@ async function main(args: readonly string[]): Promise<void> {
   });
 
   if (!result.ok) {
-    console.error(`Buildmarks wrote fallback SVG: ${result.error ?? "unknown GitHub render failure"}`);
+    const outcome = result.preservedExisting === true
+      ? "Buildmarks preserved the existing SVG"
+      : "Buildmarks wrote a fallback SVG";
+    console.error(`${outcome}: ${result.error ?? "unknown GitHub render failure"}`);
     process.exitCode = 1;
     return;
   }
@@ -97,6 +126,31 @@ async function main(args: readonly string[]): Promise<void> {
     console.error(`Buildmarks private-local warning: ${privateLocalPublicCommitWarning}`);
   }
   console.log(`Buildmarks GitHub SVG written: ${result.outputPath}`);
+}
+
+function insufficientEvidenceMessage(profile: ReturnType<typeof normalizePublicGitHubProfile>): string {
+  const attempted = profile.repositoryCollectionAttemptCount ?? profile.repositories.length;
+  const failed = profile.repositoryCollectionFailureCount ?? 0;
+  const truncated = profile.repositories.filter((repository) => repository.codebaseShape?.treeTruncated === true).length;
+  const summaries = profile.repositoryCollectionFailures ?? [];
+  const detail = summaries.length === 0
+    ? "no safe failure details were recorded"
+    : summaries
+      .map((failure) =>
+        `${failure.code}/${failure.operation}${failure.status === undefined ? "" : `/status-${failure.status}`}=${failure.count}`
+      )
+      .join(", ");
+
+  return `Insufficient GitHub evidence: attempted=${attempted}, failed=${failed}, truncated=${truncated}; ${detail}.`;
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function parseArgs(args: readonly string[]):

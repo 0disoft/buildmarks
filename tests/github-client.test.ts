@@ -444,6 +444,14 @@ describe("live public GitHub collector", () => {
     expect(profile.repositories.map((repository) => repository.name)).toEqual(["usable-toolkit"]);
     expect(profile.repositoryCollectionFailureCount).toBe(1);
     expect(profile.repositoryCollectionAttemptCount).toBe(2);
+    expect(profile.repositoryCollectionFailures).toEqual([
+      {
+        code: "invalid_github_response",
+        operation: "tree",
+        count: 1
+      }
+    ]);
+    expect(JSON.stringify(profile.repositoryCollectionFailures)).not.toContain("broken-toolkit");
   });
 
   test("does not treat invalid release or tag responses as absent release signals", async () => {

@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
 import fixture from "../fixtures/example-public-profile.json";
@@ -469,6 +469,59 @@ describe("render-github-card CLI", () => {
     expect(result.error).toBeDefined();
     expect(svg).toContain("Buildmarks GitHub report is temporarily unavailable");
     expect(svg).toContain("No signal score is shown");
+  });
+
+  test("preserves an existing SVG when repository evidence is insufficient", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "cards", "existing-card.svg");
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, "healthy-card", "utf8");
+    const baseFetch = makeGitHubFetch([
+      githubRepositoryResponse("usable-toolkit"),
+      githubRepositoryResponse("broken-toolkit")
+    ]);
+
+    const result = await renderGitHubCardFile("example-builder", outputPath, {
+      fetcher: async (url, init) => {
+        if (new URL(url).pathname === "/repos/example-builder/broken-toolkit/git/trees/main") {
+          return jsonResponse({ tree: "invalid" });
+        }
+        return baseFetch(url, init);
+      }
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.fallback).toBe(false);
+    expect(result.preservedExisting).toBe(true);
+    expect(result.error).toContain("attempted=2, failed=1, truncated=0");
+    expect(result.error).toContain("invalid_github_response/tree=1");
+    expect(result.error).not.toContain("broken-toolkit");
+    expect(await readFile(outputPath, "utf8")).toBe("healthy-card");
+  });
+
+  test("writes a fallback only when insufficient evidence has no existing SVG", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "cards", "first-card.svg");
+    const baseFetch = makeGitHubFetch([
+      githubRepositoryResponse("usable-toolkit"),
+      githubRepositoryResponse("broken-toolkit")
+    ]);
+
+    const result = await renderGitHubCardFile("example-builder", outputPath, {
+      fetcher: async (url, init) => {
+        if (new URL(url).pathname === "/repos/example-builder/broken-toolkit/git/trees/main") {
+          return jsonResponse({ tree: "invalid" });
+        }
+        return baseFetch(url, init);
+      }
+    });
+    const svg = await readFile(outputPath, "utf8");
+
+    expect(result.ok).toBe(false);
+    expect(result.fallback).toBe(true);
+    expect(result.preservedExisting).toBeUndefined();
+    expect(svg).toContain("Card temporarily unavailable");
+    expect(svg).toContain("Not enough complete GitHub evidence");
   });
 });
 

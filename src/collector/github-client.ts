@@ -3,7 +3,9 @@ import type {
   CollectedGitHubProfile,
   CollectedGitHubRepository,
   CollectedRepositoryActivitySignals,
-  CollectedRepositoryFileSignals
+  CollectedRepositoryFileSignals,
+  RepositoryCollectionFailureSummary,
+  RepositoryCollectionOperation
 } from "../shared/types.js";
 import { privateLocalSignalVisibility, publicOnlySignalVisibility } from "../shared/types.js";
 import {
@@ -20,6 +22,7 @@ const githubRawAccept = "application/vnd.github.raw+json";
 const activityAggregatesDeferred = true;
 const githubRequestTimeoutMilliseconds = 10_000;
 const githubRequestRetryCount = 1;
+const repositoryCollectionOperationSymbol = Symbol("repositoryCollectionOperation");
 
 const ciDirectoryPaths = [".github/workflows"];
 const ciFilePaths = [
@@ -197,6 +200,7 @@ export async function collectOwnerSuppliedGitHubProfile(
     activityAggregatesDeferred,
     ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
     repositoryCollectionAttemptCount: activeRepositories.length,
+    ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
     signalVisibility: includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility,
     repositories: repositoriesWithPrivateLabels
   };
@@ -237,6 +241,7 @@ export async function collectPublicGitHubProfile(
     activityAggregatesDeferred,
     ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
     repositoryCollectionAttemptCount: activeRepositories.length,
+    ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
     signalVisibility: publicOnlySignalVisibility,
     repositories: collected.repositories
   };
@@ -340,17 +345,23 @@ class GitHubRestClient {
     const name = repository.name;
     const isPrivate = repository.private;
     const [community, readmeText, hasReleasesOrTags, treeEntries] = await Promise.all([
-      this.fetchJson<GitHubCommunityProfileResponse>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/community/profile`, {
-        allowMissing: true
-      }),
+      withRepositoryCollectionOperation(
+        "community_profile",
+        this.fetchJson<GitHubCommunityProfileResponse>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/community/profile`, {
+          allowMissing: true
+        })
+      ),
       isPrivate
         ? Promise.resolve(null)
-        : this.fetchText(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`, {
-            accept: githubRawAccept,
-            allowMissing: true
-          }),
+        : withRepositoryCollectionOperation(
+            "readme",
+            this.fetchText(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`, {
+              accept: githubRawAccept,
+              allowMissing: true
+            })
+          ),
       this.hasReleasesOrTags(owner, name),
-      this.fetchRepositoryTree(owner, name, repository.default_branch)
+      withRepositoryCollectionOperation("tree", this.fetchRepositoryTree(owner, name, repository.default_branch))
     ]);
     const fileSignals = this.collectFileSignals(treeEntries.entries, repository, treeEntries.truncated);
     const collected: CollectedGitHubRepository = {
@@ -440,12 +451,18 @@ class GitHubRestClient {
 
   async hasReleasesOrTags(owner: string, repo: string): Promise<boolean> {
     const [releases, tags] = await Promise.all([
-      this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases?per_page=1`, {
-        allowMissing: true
-      }),
-      this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tags?per_page=1`, {
-        allowMissing: true
-      })
+      withRepositoryCollectionOperation(
+        "releases",
+        this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases?per_page=1`, {
+          allowMissing: true
+        })
+      ),
+      withRepositoryCollectionOperation(
+        "tags",
+        this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tags?per_page=1`, {
+          allowMissing: true
+        })
+      )
     ]);
 
     return responseArrayHasItems(releases, "releases") || responseArrayHasItems(tags, "tags");
@@ -618,6 +635,7 @@ async function collectRepositories(
   const workerCount = Math.min(Math.max(1, concurrency), repositories.length);
   let nextIndex = 0;
   let failureCount = 0;
+  const failures = new Map<string, RepositoryCollectionFailureSummary>();
   let fatalError: unknown;
 
   await Promise.all(
@@ -645,6 +663,7 @@ async function collectRepositories(
             return;
           }
           failureCount += 1;
+          recordRepositoryCollectionFailure(failures, error);
         }
       }
     })
@@ -656,8 +675,87 @@ async function collectRepositories(
 
   return {
     repositories: results.filter((repository): repository is CollectedGitHubRepository => repository !== undefined),
-    failureCount
+    failureCount,
+    failures: [...failures.values()].sort(compareRepositoryCollectionFailures)
   };
+}
+
+function recordRepositoryCollectionFailure(
+  failures: Map<string, RepositoryCollectionFailureSummary>,
+  error: unknown
+): void {
+  const code = error instanceof GitHubCollectorError ? error.code : "unknown_repository_collection_failure";
+  const operation = repositoryCollectionOperation(error);
+  const status = error instanceof GitHubCollectorError ? error.status : undefined;
+  const key = `${code}:${operation}:${status ?? "none"}`;
+  const current = failures.get(key);
+  if (current !== undefined) {
+    current.count += 1;
+    return;
+  }
+
+  failures.set(key, {
+    code,
+    operation,
+    ...(status === undefined ? {} : { status }),
+    count: 1
+  });
+}
+
+function repositoryCollectionOperation(error: unknown): RepositoryCollectionOperation {
+  if (error instanceof Error) {
+    const tagged = (error as Error & { [repositoryCollectionOperationSymbol]?: RepositoryCollectionOperation })[
+      repositoryCollectionOperationSymbol
+    ];
+    if (tagged !== undefined) {
+      return tagged;
+    }
+  }
+  if (!(error instanceof Error)) {
+    return "unknown";
+  }
+  if (error.message.includes("/community/profile")) {
+    return "community_profile";
+  }
+  if (error.message.includes("/readme")) {
+    return "readme";
+  }
+  if (error.message.includes("/releases")) {
+    return "releases";
+  }
+  if (error.message.includes("/tags")) {
+    return "tags";
+  }
+  if (error.message.includes("/git/trees/")) {
+    return "tree";
+  }
+  return "unknown";
+}
+
+async function withRepositoryCollectionOperation<T>(
+  operation: RepositoryCollectionOperation,
+  promise: Promise<T>
+): Promise<T> {
+  try {
+    return await promise;
+  } catch (error) {
+    if (error instanceof Error) {
+      Object.defineProperty(error, repositoryCollectionOperationSymbol, {
+        value: operation,
+        configurable: true
+      });
+    }
+    throw error;
+  }
+}
+
+function compareRepositoryCollectionFailures(
+  left: RepositoryCollectionFailureSummary,
+  right: RepositoryCollectionFailureSummary
+): number {
+  return left.code.localeCompare(right.code) ||
+    left.operation.localeCompare(right.operation) ||
+    (left.status ?? 0) - (right.status ?? 0);
 }
 
 function shouldAbortRepositoryBatch(error: unknown): boolean {
@@ -716,6 +814,7 @@ function relabelPrivateRepositories(
 interface CollectedRepositoryBatch {
   repositories: CollectedGitHubRepository[];
   failureCount: number;
+  failures: RepositoryCollectionFailureSummary[];
 }
 
 function asRepositoryResponse(value: unknown): GitHubRepositoryResponse {

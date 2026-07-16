@@ -109,6 +109,21 @@ export interface CollectedRepositoryActivitySignals {
   externalContributorCount: number;
 }
 
+export type RepositoryCollectionOperation =
+  | "community_profile"
+  | "readme"
+  | "releases"
+  | "tags"
+  | "tree"
+  | "unknown";
+
+export interface RepositoryCollectionFailureSummary {
+  code: string;
+  operation: RepositoryCollectionOperation;
+  status?: number;
+  count: number;
+}
+
 export interface CollectedGitHubRepository {
   owner: string;
   name: string;
@@ -133,6 +148,7 @@ export interface CollectedGitHubProfile {
   activityAggregatesDeferred?: boolean;
   repositoryCollectionFailureCount?: number;
   repositoryCollectionAttemptCount?: number;
+  repositoryCollectionFailures?: RepositoryCollectionFailureSummary[];
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: CollectedGitHubRepository[];
 }
@@ -144,6 +160,7 @@ export interface ProfileInput {
   activityAggregatesDeferred?: boolean;
   repositoryCollectionFailureCount?: number;
   repositoryCollectionAttemptCount?: number;
+  repositoryCollectionFailures?: RepositoryCollectionFailureSummary[];
   signalVisibility?: SignalVisibilityDisclosure;
   repositories: RepositoryInput[];
 }

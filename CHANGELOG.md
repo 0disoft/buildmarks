@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.1.24 - 2026-07-16
+
+- Preserve an existing healthy SVG when GitHub evidence is insufficient instead of replacing it with a fallback card.
+- Fail the GitHub card command on insufficient evidence so caller workflows can retry or choose a safe fallback path.
+- Report privacy-safe repository collection failure summaries by error code, operation, status, and count.
+
 ## v0.1.23 - 2026-07-12
 
 - Redact private repository identifiers from fatal private-local collection errors while preserving stable error metadata.
