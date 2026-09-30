@@ -10,6 +10,35 @@ import {
 const recentPushedAt = new Date().toISOString();
 
 describe("live public GitHub collector", () => {
+  test("keeps public pagination stable after filtering forks and archived repositories", async () => {
+    const repositories = Array.from({ length: 40 }, (_value, index) =>
+      makeRepositoryResponse(`toolkit-${index + 1}`, {
+        fork: index < 3,
+        archived: index >= 3 && index < 5
+      })
+    );
+    const requestedPageSizes: number[] = [];
+    const baseFetch = makeGitHubFetch();
+    const fetcher: GitHubCollectorFetch = async (url, init) => {
+      const parsed = new URL(url);
+      if (parsed.pathname === "/users/example-builder/repos") {
+        const pageSize = Number(parsed.searchParams.get("per_page"));
+        const page = Number(parsed.searchParams.get("page"));
+        requestedPageSizes.push(pageSize);
+        return jsonResponse(repositories.slice((page - 1) * pageSize, page * pageSize));
+      }
+      return baseFetch(url, init);
+    };
+    const profile = await collectPublicGitHubProfile("example-builder", { fetcher });
+
+    expect(requestedPageSizes).toEqual([30, 30]);
+    expect(profile.repositories.map((repository) => repository.name)).toEqual(
+      repositories.slice(5, 35).map((repository) => repository.name)
+    );
+    expect(profile.repositoryCollectionAttemptCount).toBe(30);
+    expect(new Set(profile.repositories.map((repository) => repository.name)).size).toBe(30);
+  });
+
   test("collects public repository metadata into the normalized collector contract", async () => {
     const fetcher = makeGitHubFetch();
 

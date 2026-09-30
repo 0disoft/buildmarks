@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
+import { assertSufficientEvidence, hasExistingOutput, InsufficientEvidenceError } from "./collection-outcome";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -22,6 +23,7 @@ export interface RenderGitHubReportFilesResult {
   outputDirectory: string;
   htmlPath: string;
   jsonPath: string;
+  preservedExisting?: boolean;
   error?: string;
 }
 
@@ -46,6 +48,7 @@ export async function renderGitHubReportFiles(
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
     const report = createStaticReport(profile, scoringOptions);
+    assertSufficientEvidence(profile, report.profile);
     const html = renderStaticReportHtml(report);
 
     await writeTextFileAtomically(htmlPath, html);
@@ -60,6 +63,17 @@ export async function renderGitHubReportFiles(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown GitHub report render failure";
+    if (error instanceof InsufficientEvidenceError && await hasExistingOutput([htmlPath, jsonPath])) {
+      return {
+        ok: false,
+        username: normalizedUsername,
+        outputDirectory: resolvedOutputDirectory,
+        htmlPath,
+        jsonPath,
+        preservedExisting: true,
+        error: message
+      };
+    }
     const fallbackReport = {
       ok: false,
       username: normalizedUsername,
@@ -113,7 +127,8 @@ async function main(args: readonly string[]): Promise<void> {
   });
 
   if (!result.ok) {
-    console.error(`Buildmarks wrote fallback GitHub report: ${result.error ?? "unknown report render failure"}`);
+    const outcome = result.preservedExisting === true ? "Buildmarks preserved the existing GitHub report" : "Buildmarks wrote fallback GitHub report";
+    console.error(`${outcome}: ${result.error ?? "unknown report render failure"}`);
     process.exitCode = 1;
     return;
   }

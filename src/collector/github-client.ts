@@ -285,9 +285,9 @@ class GitHubRestClient {
   async listUserRepositories(username: string, limit: number): Promise<GitHubRepositoryResponse[]> {
     const repositories: GitHubRepositoryResponse[] = [];
     let page = 1;
+    const perPage = Math.min(100, limit);
 
     while (repositories.length < limit) {
-      const perPage = Math.min(100, limit - repositories.length);
       const pageRepositories = await this.fetchJson<unknown>(
         `/users/${encodeURIComponent(username)}/repos?type=owner&sort=pushed&direction=desc&per_page=${perPage}&page=${page}`
       );

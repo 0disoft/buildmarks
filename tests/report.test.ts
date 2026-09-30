@@ -392,6 +392,65 @@ describe("static report", () => {
     expect(json.error).toBeDefined();
   });
 
+  for (const surface of ["artifacts", "report"] as const) {
+    test(`preserves existing ${surface} and fails when collected evidence is insufficient`, async () => {
+      const directory = await makeTempDirectory();
+      const svgPath = join(directory, "buildmarks.svg");
+      const htmlPath = join(directory, "buildmarks-report.html");
+      const jsonPath = join(directory, "buildmarks-report.json");
+      const paths = surface === "artifacts" ? [svgPath, htmlPath, jsonPath] : [htmlPath, jsonPath];
+      for (const path of paths) {
+        await writeFile(path, `previous:${path}`, "utf8");
+      }
+
+      const options = { fetcher: makeIncompleteGitHubFetch() };
+      const result = surface === "artifacts"
+        ? await renderGitHubArtifacts("example-builder", svgPath, directory, options)
+        : await renderGitHubReportFiles("example-builder", directory, options);
+
+      expect(result.ok).toBe(false);
+      expect(result.preservedExisting).toBe(true);
+      expect(result.error).toContain("attempted=2, failed=1, truncated=0");
+      expect(result.error).not.toContain("broken-toolkit");
+      for (const path of paths) {
+        expect(await readFile(path, "utf8")).toBe(`previous:${path}`);
+      }
+    });
+
+    test(`fails the first ${surface} generation and writes readable fallback files when evidence is insufficient`, async () => {
+      const directory = await makeTempDirectory();
+      const options = { fetcher: makeIncompleteGitHubFetch() };
+      const result = surface === "artifacts"
+        ? await renderGitHubArtifacts("example-builder", join(directory, "buildmarks.svg"), directory, options)
+        : await renderGitHubReportFiles("example-builder", directory, options);
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("Not enough complete repository data");
+      expect(await readFile(result.htmlPath, "utf8")).toContain("No score is shown");
+      expect(JSON.parse(await readFile(result.jsonPath, "utf8")).ok).toBe(false);
+      if ("svgPath" in result) {
+        expect(result.fallback).toBe(true);
+        expect(await readFile(result.svgPath, "utf8")).toContain("No score is shown");
+      }
+    });
+  }
+
+  test("preserves a partially existing artifact set without creating mismatched fallback files", async () => {
+    const directory = await makeTempDirectory();
+    const svgPath = join(directory, "buildmarks.svg");
+    const jsonPath = join(directory, "buildmarks-report.json");
+    await writeFile(jsonPath, "previous-report", "utf8");
+
+    const result = await renderGitHubArtifacts("example-builder", svgPath, directory, {
+      fetcher: makeIncompleteGitHubFetch()
+    });
+
+    expect(result).toMatchObject({ ok: false, fallback: false, preservedExisting: true });
+    expect(await readFile(jsonPath, "utf8")).toBe("previous-report");
+    await expect(readFile(svgPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(result.htmlPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   test("writes scope-neutral fallback artifacts when private-local GitHub collection fails", async () => {
     const directory = await makeTempDirectory();
     const result = await renderGitHubArtifacts("example-builder", join(directory, "buildmarks.svg"), join(directory, "report"), {
@@ -415,6 +474,19 @@ async function makeTempDirectory(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "buildmarks-report-"));
   tempDirectories.push(directory);
   return directory;
+}
+
+function makeIncompleteGitHubFetch(): GitHubCollectorFetch {
+  const baseFetch = makeGitHubFetch([
+    githubRepositoryResponse("usable-toolkit"),
+    githubRepositoryResponse("broken-toolkit")
+  ]);
+  return async (url, init) => {
+    if (new URL(url).pathname === "/repos/example-builder/broken-toolkit/git/trees/main") {
+      return jsonResponse({ tree: "invalid" });
+    }
+    return baseFetch(url, init);
+  };
 }
 
 function makeGitHubFetch(repositories = [githubRepositoryResponse("usable-toolkit")]): GitHubCollectorFetch {

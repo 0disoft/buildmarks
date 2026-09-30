@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
+import { assertSufficientEvidence, hasExistingOutput, InsufficientEvidenceError } from "./collection-outcome";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -26,6 +27,7 @@ export interface RenderGitHubArtifactsResult {
   htmlPath: string;
   jsonPath: string;
   fallback: boolean;
+  preservedExisting?: boolean;
   error?: string;
 }
 
@@ -53,6 +55,7 @@ export async function renderGitHubArtifacts(
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
     const staticReport = createStaticReport(profile, scoringOptions);
+    assertSufficientEvidence(profile, staticReport.profile);
     await writeTextFileAtomically(resolvedSvgPath, renderUserSignalCard(staticReport.profile));
     await writeTextFileAtomically(htmlPath, renderStaticReportHtml(staticReport));
     await writeTextFileAtomically(jsonPath, `${JSON.stringify(staticReport, null, 2)}\n`);
@@ -68,6 +71,19 @@ export async function renderGitHubArtifacts(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown GitHub artifact render failure";
+    if (error instanceof InsufficientEvidenceError && await hasExistingOutput([resolvedSvgPath, htmlPath, jsonPath])) {
+      return {
+        ok: false,
+        username: normalizedUsername,
+        svgPath: resolvedSvgPath,
+        reportDirectory: resolvedReportDirectory,
+        htmlPath,
+        jsonPath,
+        fallback: false,
+        preservedExisting: true,
+        error: message
+      };
+    }
     const fallbackReport = {
       ok: false,
       username: normalizedUsername,
@@ -133,7 +149,8 @@ async function main(args: readonly string[]): Promise<void> {
   });
 
   if (!result.ok) {
-    console.error(`Buildmarks wrote fallback artifacts: ${result.error ?? "unknown artifact render failure"}`);
+    const outcome = result.preservedExisting === true ? "Buildmarks preserved existing artifacts" : "Buildmarks wrote fallback artifacts";
+    console.error(`${outcome}: ${result.error ?? "unknown artifact render failure"}`);
     process.exitCode = 1;
     return;
   }

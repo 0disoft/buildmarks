@@ -1,8 +1,9 @@
-import { access, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
+import { hasExistingOutput, InsufficientEvidenceError } from "./collection-outcome";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -47,8 +48,8 @@ export async function renderGitHubCardFile(
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
     const report = scoreUserProfile(profile, scoringOptions);
     if (report.evidenceStatus === "insufficient") {
-      const message = insufficientEvidenceMessage(profile);
-      if (await pathExists(resolvedOutputPath)) {
+      const message = new InsufficientEvidenceError(profile).message;
+      if (await hasExistingOutput([resolvedOutputPath])) {
         return {
           ok: false,
           username: profile.username,
@@ -126,31 +127,6 @@ async function main(args: readonly string[]): Promise<void> {
     console.error(`Buildmarks private-local warning: ${privateLocalPublicCommitWarning}`);
   }
   console.log(`Buildmarks GitHub SVG written: ${result.outputPath}`);
-}
-
-function insufficientEvidenceMessage(profile: ReturnType<typeof normalizePublicGitHubProfile>): string {
-  const attempted = profile.repositoryCollectionAttemptCount ?? profile.repositories.length;
-  const failed = profile.repositoryCollectionFailureCount ?? 0;
-  const truncated = profile.repositories.filter((repository) => repository.codebaseShape?.treeTruncated === true).length;
-  const summaries = profile.repositoryCollectionFailures ?? [];
-  const detail = summaries.length === 0
-    ? "no safe failure details were recorded"
-    : summaries
-      .map((failure) =>
-        `${failure.code}/${failure.operation}${failure.status === undefined ? "" : `/status-${failure.status}`}=${failure.count}`
-      )
-      .join(", ");
-
-  return `Not enough complete repository data: attempted=${attempted}, failed=${failed}, truncated=${truncated}; ${detail}.`;
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function parseArgs(args: readonly string[]):

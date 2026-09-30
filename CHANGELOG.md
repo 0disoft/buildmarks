@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.2.2 - 2026-10-01
+
+- Fail SVG/report and report-only GitHub generation when collected evidence is insufficient; preserve existing output files instead of replacing them with an unavailable result.
+- Write readable fallback files for an insufficient first generation, with the same privacy-safe failure summary as the card-only command.
+- Keep public repository pagination at a fixed page size so filtering forked and archived repositories cannot duplicate repositories or distort profile scores.
+
 ## v0.2.1 - 2026-07-16
 
 - Keep the actual tier visible when Buildmarks checked at least 85% of the relevant project details and repository collection.

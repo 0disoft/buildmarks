@@ -52,6 +52,10 @@ If one repository detail request fails for a reason other than rate limiting, th
 
 Collected profiles record how many active repositories were attempted. If failed detail requests and truncated trees make up at least half of that set, generated reports mark the result as insufficient and do not present a normal score. A repository with an incomplete recursive tree is excluded from scoring and improvement hints because an unseen file cannot honestly be called missing.
 
+Every GitHub generation command returns a failure when evidence is insufficient. Card-only generation preserves an existing SVG. Combined SVG/report and report-only generation preserve the output set when any destination already exists, without mixing old files with a new unavailable result. A first generation with no existing destinations writes readable fallback files and still returns a failure. Preserved files retain their original generation timestamp; caller workflows can retry the refresh.
+
+Repository-list pagination keeps a fixed page size while filtering forked and archived repositories. The scan limit counts eligible repositories, rather than duplicated rows from changing page boundaries.
+
 ## Live Client Scope
 
 The live collector uses GitHub REST API endpoints for:
