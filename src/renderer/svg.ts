@@ -84,6 +84,7 @@ export function renderUserSignalCard(
   });
   const desc = buildDescription(report, overall);
   return renderProfileCard({
+    signalType: report.signalType,
     theme,
     usernameXml: escapeXml(username),
     titleXml: `Buildmarks project card for ${escapeXml(usernameRaw)}`,

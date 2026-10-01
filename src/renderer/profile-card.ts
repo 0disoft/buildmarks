@@ -1,6 +1,8 @@
-import { dimensionLabels, type SignalDimension } from "../shared/types.js";
+import { dimensionLabels, type SignalDimension, type SignalType } from "../shared/types.js";
+import { getProfileCover, renderCoverArtwork, renderCoverStyles } from "./profile-cover.js";
 
 interface ProfileCardContent {
+  signalType: SignalType;
   theme: "auto" | "dark" | "light";
   usernameXml: string;
   titleXml: string;
@@ -14,6 +16,7 @@ interface ProfileCardContent {
 const font = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 export function renderProfileCard(content: ProfileCardContent): string {
+  const cover = getProfileCover(content.signalType);
   const rows = content.dimensions.map(({ key, score, descriptionXml }, index) => {
     const y = 112 + index * 32;
     return `<g role="img" aria-label="${descriptionXml}">
@@ -35,15 +38,17 @@ export function renderProfileCard(content: ProfileCardContent): string {
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${content.theme}" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
   <title id="title">${content.titleXml}</title>
   <desc id="desc">${content.descriptionXml}</desc>
-  <style>${renderProfileStyles()}</style>
+  <style>${renderCoverStyles(cover)}${renderProfileStyles()}</style>
   <rect width="760" height="420" rx="16" class="surface" />
   <g aria-hidden="true" class="accent"><path d="M32 23h7v17h-7zM43 23h7v17h-7z" /></g>
   <text x="60" y="39" class="brand">Buildmarks</text>
   <text x="728" y="38" class="checked">${content.checkedXml}</text>
   <text x="32" y="75" class="username">${content.usernameXml}</text>
   <path d="M284 98v208" class="divider" aria-hidden="true" />
-  <text x="32" y="133" class="cover-title"><tspan x="32">Project</tspan><tspan x="32" dy="38">Snapshot</tspan></text>
-  ${renderSnapshotEmblem()}
+  <g data-cover="${cover.id}" aria-label="${cover.lines.join(" ")}">
+    <text x="32" y="133" class="cover-title${cover.serif ? " cover-serif" : ""}"><tspan x="32">${cover.lines[0]}</tspan><tspan x="32" dy="38">${cover.lines[1]}</tspan></text>
+    ${renderCoverArtwork(cover)}
+  </g>
   <g aria-label="Project areas with scores out of 100">${rows.join("\n")}</g>
   <text x="32" y="333" class="caption">Highlights</text>
   <g aria-label="Project highlights">${highlights.join("\n")}</g>
@@ -52,27 +57,14 @@ export function renderProfileCard(content: ProfileCardContent): string {
 </svg>`;
 }
 
-function renderSnapshotEmblem(): string {
-  return `<g transform="translate(60 199)" aria-hidden="true">
-    <path d="M0 32V8a8 8 0 0 1 8-8h24M156 32V8a8 8 0 0 0-8-8h-24M0 84v24a8 8 0 0 0 8 8h24M156 84v24a8 8 0 0 1-8 8h-24" fill="none" class="emblem-stroke" stroke-width="12" stroke-linecap="round" />
-    <circle cx="55" cy="39" r="18" class="accent" />
-    <rect x="86" y="23" width="33" height="33" rx="6" class="accent" />
-    <rect x="36" y="70" width="30" height="30" rx="6" class="accent" />
-    <rect x="84" y="74" width="20" height="20" rx="4" class="accent" />
-    <circle cx="124" cy="83" r="10" class="accent" />
-  </g>`;
-}
-
 function renderProfileStyles(): string {
   return `
-    .card { --surface:#edf4ff; --text:#17365d; --muted:#456181; --accent:#2866ac; --track:#d0dff2; --chip:#dfeafa; --line:#bed1e8; }
-    .card-dark { --surface:#193b74; --text:#fff5e4; --muted:#bfd8ef; --accent:#7bc6ff; --track:#102e60; --chip:#244981; --line:#4975a5; }
-    @media (prefers-color-scheme: dark) { .card-auto { --surface:#193b74; --text:#fff5e4; --muted:#bfd8ef; --accent:#7bc6ff; --track:#102e60; --chip:#244981; --line:#4975a5; } }
     text { font-family:${font}; fill:var(--text); }
     .surface { fill:var(--surface); }
     .brand { font-size:20px; font-weight:750; }
     .username { font-size:21px; font-weight:650; }
     .cover-title { font-size:34px; font-weight:800; letter-spacing:-1px; }
+    .cover-serif { font-family:Georgia, "Times New Roman", serif; letter-spacing:-.5px; }
     .metric { font-size:15px; font-weight:600; }
     .value { font-size:15px; font-weight:700; text-anchor:end; font-variant-numeric:tabular-nums; }
     .checked { font-size:12px; font-weight:600; fill:var(--muted); text-anchor:end; }
@@ -81,7 +73,11 @@ function renderProfileStyles(): string {
     .divider { stroke:var(--line); stroke-width:1; }
     .track { fill:var(--track); }
     .bar,.accent { fill:var(--accent); }
+    .secondary { fill:var(--secondary); }
     .emblem-stroke { stroke:var(--accent); }
+    .art-line { stroke:var(--line); fill:none; stroke-width:1; }
+    .art-ink { stroke:var(--text); }
+    .art-page { fill:var(--surface); }
     .chip-bg { fill:var(--chip); }
     .chip { font-size:12px; font-weight:600; }
   `;

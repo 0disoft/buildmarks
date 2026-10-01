@@ -8,6 +8,8 @@ import {
   renderSignalGapsCard,
   renderUserSignalCard,
   signalDimensions,
+  signalTypes,
+  signalTypeDisplayLabels,
   scoreRepository,
   scoreUserProfile
 } from "../src";
@@ -17,6 +19,20 @@ const now = new Date("2026-05-28T00:00:00.000Z");
 const visibleVersion = `v${buildmarksVersion}`;
 
 describe("SVG renderer", () => {
+  test("selects six distinct covers without changing the supplied scores", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const coverIds = new Set<string>();
+    for (const signalType of signalTypes) {
+      const svg = renderUserSignalCard({ ...report, signalType }, { theme: "dark" });
+      const id = svg.match(/data-cover="([^"]+)"/)?.[1];
+      expect(id).toBeDefined();
+      if (id !== undefined) coverIds.add(id);
+      expect(svg).toContain(`aria-label="${signalTypeDisplayLabels[signalType]}"`);
+      expect(svg).toContain('aria-valuenow="59"');
+      expect(svg.match(/role="progressbar"/g)).toHaveLength(6);
+    }
+    expect(coverIds.size).toBe(6);
+  });
   test("uses real vector geometry and score-scaled bars on the shared profile cover", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const svg = renderUserSignalCard(report);
