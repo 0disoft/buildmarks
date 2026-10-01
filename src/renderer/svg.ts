@@ -9,6 +9,7 @@ import {
   type UserSignalReport
 } from "../shared/types.js";
 import { buildmarksVersion } from "../shared/version.js";
+import { renderProfileCard } from "./profile-card.js";
 
 export interface RenderCardOptions {
   theme?: "auto" | "dark" | "light";
@@ -63,8 +64,6 @@ export function renderUserSignalCard(
   const username = fitText(usernameRaw, 34);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
-  const overallTone = scoreTone(overall);
-  const overallLabel = scoreTier(overall);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
   const footerLabel = includesPrivateSignals
     ? `Buildmarks ${brandVersion} · ${privateLocalSignalVisibility.cardLabel} · ${generatedDate}`
@@ -75,37 +74,25 @@ export function renderUserSignalCard(
   );
   const context = buildProfileCardContext(report);
   const visibleDimensions = signalDimensions.filter((dimension) => !context.contextualDimensions.has(dimension));
-  const rows = visibleDimensions.map((dimension, index) =>
-    renderDimensionRow(
-      dimension,
-      safeScore(report.dimensions[dimension]),
-      rowStartY + index * rowGap
-    )
-  );
-  const chips = highlights.map((label, index) => renderEvidenceChip(label, index));
+  const dimensions = visibleDimensions.map((dimension) => {
+    const score = safeScore(report.dimensions[dimension]);
+    return {
+      key: dimension,
+      score,
+      descriptionXml: escapeXml(`${dimensionLabels[dimension]}: ${scoreTier(score)}, ${score} points out of 100`)
+    };
+  });
   const desc = buildDescription(report, overall);
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
-  <title id="title">Buildmarks project card for ${escapeXml(usernameRaw)}</title>
-  <desc id="desc">${escapeXml(desc)}</desc>
-  ${renderDefs()}
-  <style>${renderStyles()}</style>
-  <rect width="${cardWidth}" height="${cardHeight}" class="bg" />
-  <rect x="18" y="18" width="724" height="384" rx="14" class="panel" filter="url(#cardShadow)" />
-  <path d="M24 22 H736" class="top-line" />
-  <text x="36" y="62" class="name">${escapeXml(username)}</text>
-  <text x="${rightEdgeX}" y="62" class="overall overall-${overallTone}">${escapeXml(overallLabel)}</text>
-  <g aria-label="Project areas with scores out of 100">
-${rows.join("")}
-  </g>
-  <text x="36" y="${highlightLabelY}" class="section-label">Highlights</text>
-  <g aria-label="Buildmarks highlights">
-${chips.join("")}
-  </g>
-  <text x="36" y="${footerY}" class="footer">${escapeXml(footerLabel)}</text>
-  <text x="${rightEdgeX}" y="${footerY}" class="footer right">${escapeXml(footerNote)}</text>
-</svg>`;
+  return renderProfileCard({
+    theme,
+    usernameXml: escapeXml(username),
+    titleXml: `Buildmarks project card for ${escapeXml(usernameRaw)}`,
+    descriptionXml: escapeXml(desc),
+    footerXml: escapeXml(footerLabel),
+    checkedXml: escapeXml(footerNote),
+    dimensions,
+    highlightsXml: highlights.map(escapeXml)
+  });
 }
 
 export function renderFallbackCard(message = "Buildmarks couldn't generate this report right now"): string {

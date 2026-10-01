@@ -51,7 +51,7 @@ describe("render-card CLI", () => {
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks v");
     expect(svg).not.toContain("Public Signal Tier");
-    expect(svg).toContain(">Gold II</text>");
+    expect(svg).toContain('class="value">59</text>');
     expect(svg).toContain("Highlights");
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("repos checked");
@@ -453,8 +453,8 @@ describe("render-github-card CLI", () => {
     expect(svg).toContain("example-builder");
     expect(svg).toContain("Buildmarks v");
     expect(svg).not.toContain("Public Signal Tier");
-    expect(svg).toContain(">Gold I</text>");
-    expect(svg).toContain(">Diamond V</text>");
+    expect(svg).toContain('role="progressbar"');
+    expect(svg).toContain('class="value">');
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });

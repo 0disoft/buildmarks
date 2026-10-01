@@ -17,6 +17,17 @@ const now = new Date("2026-05-28T00:00:00.000Z");
 const visibleVersion = `v${buildmarksVersion}`;
 
 describe("SVG renderer", () => {
+  test("uses real vector geometry and score-scaled bars on the shared profile cover", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard(report);
+
+    expect(svg).toContain('viewBox="0 0 760 420"');
+    expect(svg.match(/role="progressbar"/g)).toHaveLength(6);
+    expect(svg).toContain('width="244" height="7"');
+    expect(svg).toContain('aria-valuenow="59"');
+    expect(svg).not.toMatch(/<image|<foreignObject|https?:\/\/(?!www\.w3\.org)/);
+    expect(svg).not.toMatch(/>\s*(?:Gold|Platinum|Diamond)\s+[IVX]+<\/text>/);
+  });
   test("renders a no-score fallback when evidence is insufficient", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const svg = renderUserSignalCard({
@@ -46,15 +57,14 @@ describe("SVG renderer", () => {
     expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public GitHub · 2026-05-28`);
     expect(svg).not.toContain("Public Signal Tier");
     expect(svg).toContain(visibleVersion);
-    expect(svg).toContain("overall overall-");
-    expect(svg).toContain(">Gold I</text>");
+    expect(svg).not.toContain("overall overall-");
+    expect(svg).toContain('class="value">66</text>');
     expect(svg).toContain("100% checked");
     expect(svg).not.toContain("confidence");
     expect(svg).not.toContain("Provisional");
     expect(svg).not.toMatch(/\b(?:coverage|evidence|applicability|assessment|methodology|signals?)\b/i);
-    expect(svg).toContain(">Platinum V</text>");
-    expect(svg).toContain(">Platinum III</text>");
-    expect(svg).toContain(">Diamond II</text>");
+    expect(svg).toContain('class="value">72</text>');
+    expect(svg).toContain('class="value">97</text>');
     expect(svg).toContain("Ease of Use: Gold II, 59 points out of 100");
     expect(svg).toContain("Project Care: Platinum V, 72 points out of 100");
     expect(svg).not.toContain("Collaboration:");
@@ -168,7 +178,7 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("Public Adoption:");
   });
 
-  test("renders low scores as Gold V instead of an insufficient signal label", () => {
+  test("renders available low scores as numbers instead of an insufficient result", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const svg = renderUserSignalCard({
       ...report,
@@ -184,7 +194,7 @@ describe("SVG renderer", () => {
     });
 
     expect(svg).not.toContain("Public Signal Tier");
-    expect(svg).toContain(">Gold V</text>");
+    expect(svg).toContain('class="value">0</text>');
     expect(svg).toContain("Project Readiness: Gold V, 24 points out of 100");
     expect(svg).toContain("Ease of Use: Gold IV, 25 points out of 100");
     expect(svg).toContain("Shipping: Gold II, 55 points out of 100");
@@ -197,7 +207,7 @@ describe("SVG renderer", () => {
     expect(svg).not.toContain("Silver");
   });
 
-  test("keeps the tier visible while calling a thin pass an early look", () => {
+  test("keeps available scores visible while calling a thin pass an early look", () => {
     const report = scoreUserProfile({
       ...(fixture as ProfileInput),
       repositoryCollectionAttemptCount: 10,
@@ -208,7 +218,7 @@ describe("SVG renderer", () => {
     expect(report.resultStatus).toBe("provisional");
     expect(svg).toContain("Early look · 80% checked");
     expect(svg).not.toContain("Provisional");
-    expect(svg).toContain(">Platinum III</text>");
+    expect(svg).toContain('class="value">97</text>');
   });
 
   test("maps high score tier boundaries with the full diamond ladder", () => {
