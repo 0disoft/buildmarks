@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.3.2 - 2026-10-01
+
+- Preserve existing GitHub cards and reports on network failures, rate limits and other failed refreshes.
+- Stage combined output sets before replacement and restore previous files on caught publication failures.
+- Keep request deadlines and batch cancellation active through JSON and text body consumption.
+
 ## v0.3.1 - 2026-10-01
 
 - Describe combined evidence as observed presence without claiming workflow, release-note or documentation content validation.

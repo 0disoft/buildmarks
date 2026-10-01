@@ -72,7 +72,7 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.3.1");
+    expect(metadata.version).toBe("0.3.2");
     expect(sharedVersion).toContain(`buildmarksVersion = "${metadata.version}"`);
     expect(metadata.types).toBe("./dist/index.d.ts");
     expect(metadata.exports).toEqual({
@@ -208,7 +208,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.3.1`");
+    expect(npmPackaging).toContain("Current package version: `0.3.2`");
     expect(npmPackaging).toContain("Workflow filename: `release.yml`");
     expect(npmPackaging).toContain("Environment name: `npm`");
     expect(npmPackaging).toContain("Allowed actions: `npm publish`");

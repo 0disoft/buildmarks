@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
@@ -393,6 +393,40 @@ describe("static report", () => {
   });
 
   for (const surface of ["artifacts", "report"] as const) {
+    test(`preserves existing ${surface} if a later output destination is invalid`, async () => {
+      const directory = await makeTempDirectory();
+      const svgPath = join(directory, "buildmarks.svg");
+      const htmlPath = join(directory, "buildmarks-report.html");
+      const jsonPath = join(directory, "buildmarks-report.json");
+      await writeFile(htmlPath, "previous report");
+      if (surface === "artifacts") await writeFile(svgPath, "previous card");
+      await mkdir(jsonPath);
+      const result = surface === "artifacts"
+        ? await renderGitHubArtifacts("example-builder", svgPath, directory, { fetcher: makeGitHubFetch() })
+        : await renderGitHubReportFiles("example-builder", directory, { fetcher: makeGitHubFetch() });
+      expect(result).toMatchObject({ ok: false, preservedExisting: true });
+      expect(await readFile(htmlPath, "utf8")).toBe("previous report");
+      if (surface === "artifacts") expect(await readFile(svgPath, "utf8")).toBe("previous card");
+    });
+    for (const failure of ["network", "rate-limit"] as const) {
+      test(`preserves existing ${surface} on ${failure} failure`, async () => {
+        const directory = await makeTempDirectory();
+        const svgPath = join(directory, "buildmarks.svg");
+        const paths = [join(directory, "buildmarks-report.html"), join(directory, "buildmarks-report.json")];
+        if (surface === "artifacts") paths.push(svgPath);
+        for (const path of paths) await writeFile(path, `previous:${path}`);
+        const fetcher: GitHubCollectorFetch = async () => {
+          if (failure === "network") throw new TypeError("connection failed");
+          return jsonResponse({}, { status: 429 });
+        };
+        const result = surface === "artifacts"
+          ? await renderGitHubArtifacts("example-builder", svgPath, directory, { fetcher })
+          : await renderGitHubReportFiles("example-builder", directory, { fetcher });
+        expect(result).toMatchObject({ ok: false, preservedExisting: true });
+        expect(result.error).toBeDefined();
+        for (const path of paths) expect(await readFile(path, "utf8")).toBe(`previous:${path}`);
+      });
+    }
     test(`preserves existing ${surface} and fails when collected evidence is insufficient`, async () => {
       const directory = await makeTempDirectory();
       const svgPath = join(directory, "buildmarks.svg");

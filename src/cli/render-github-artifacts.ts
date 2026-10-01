@@ -1,9 +1,9 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
+import { appendWriteFailure, OutputSetRollbackError, resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
-import { assertSufficientEvidence, hasExistingOutput, InsufficientEvidenceError } from "./collection-outcome";
+import { assertSufficientEvidence, hasExistingOutput } from "./collection-outcome";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -56,9 +56,11 @@ export async function renderGitHubArtifacts(
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
     const staticReport = createStaticReport(profile, scoringOptions);
     assertSufficientEvidence(profile, staticReport.profile);
-    await writeTextFileAtomically(resolvedSvgPath, renderUserSignalCard(staticReport.profile));
-    await writeTextFileAtomically(htmlPath, renderStaticReportHtml(staticReport));
-    await writeTextFileAtomically(jsonPath, `${JSON.stringify(staticReport, null, 2)}\n`);
+    await writeTextFilesAsSet([
+      { path: resolvedSvgPath, content: renderUserSignalCard(staticReport.profile) },
+      { path: htmlPath, content: renderStaticReportHtml(staticReport) },
+      { path: jsonPath, content: `${JSON.stringify(staticReport, null, 2)}\n` }
+    ]);
 
     return {
       ok: true,
@@ -71,7 +73,7 @@ export async function renderGitHubArtifacts(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown GitHub artifact render failure";
-    if (error instanceof InsufficientEvidenceError && await hasExistingOutput([resolvedSvgPath, htmlPath, jsonPath])) {
+    if (await hasExistingOutput([resolvedSvgPath, htmlPath, jsonPath])) {
       return {
         ok: false,
         username: normalizedUsername,
@@ -80,7 +82,7 @@ export async function renderGitHubArtifacts(
         htmlPath,
         jsonPath,
         fallback: false,
-        preservedExisting: true,
+        preservedExisting: !(error instanceof OutputSetRollbackError),
         error: message
       };
     }
@@ -101,13 +103,11 @@ export async function renderGitHubArtifacts(
 </body>
 </html>`;
 
-    const fallbackWriteFailures = (
-      await Promise.all([
-        tryWriteTextFile(resolvedSvgPath, renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now")),
-        tryWriteTextFile(htmlPath, fallbackHtml),
-        tryWriteTextFile(jsonPath, `${JSON.stringify(fallbackReport, null, 2)}\n`)
-      ])
-    ).filter((failure): failure is string => failure !== undefined);
+    const fallbackWriteFailure = await tryWriteTextFilesAsSet([
+      { path: resolvedSvgPath, content: renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now") },
+      { path: htmlPath, content: fallbackHtml },
+      { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
+    ]);
 
     return {
       ok: false,
@@ -117,7 +117,7 @@ export async function renderGitHubArtifacts(
       htmlPath,
       jsonPath,
       fallback: true,
-      error: appendWriteFailure(message, "Fallback artifact", fallbackWriteFailures.join("; ") || undefined)
+      error: appendWriteFailure(message, "Fallback artifact", fallbackWriteFailure)
     };
   }
 }
@@ -149,7 +149,8 @@ async function main(args: readonly string[]): Promise<void> {
   });
 
   if (!result.ok) {
-    const outcome = result.preservedExisting === true ? "Buildmarks preserved existing artifacts" : "Buildmarks wrote fallback artifacts";
+    const outcome = result.preservedExisting === true ? "Buildmarks preserved existing artifacts"
+      : result.fallback ? "Buildmarks attempted fallback artifacts" : "Buildmarks output recovery was incomplete";
     console.error(`${outcome}: ${result.error ?? "unknown artifact render failure"}`);
     process.exitCode = 1;
     return;

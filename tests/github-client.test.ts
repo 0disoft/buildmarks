@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fetchWithTimeout } from "../src/collector/request-timeout";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -8,6 +9,60 @@ import {
 } from "../src";
 
 const recentPushedAt = new Date().toISOString();
+
+describe("GitHub response deadlines", () => {
+  for (const bodyKind of ["json", "text"] as const) {
+    test(`aborts a stalled ${bodyKind} body after response headers arrive`, async () => {
+      let signal: AbortSignal | null | undefined;
+      let bodyAborted = false;
+      const fetcher: GitHubCollectorFetch = async (_url, init) => {
+        signal = init.signal;
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            init.signal?.addEventListener("abort", () => {
+              bodyAborted = true;
+              controller.error(new DOMException("body aborted", "AbortError"));
+            }, { once: true });
+          }
+        }));
+      };
+      await expect(fetchWithTimeout(fetcher, "https://api.github.com/test", {
+        headers: {}, timeoutMilliseconds: 20, signal: new AbortController().signal
+      }, (response) => bodyKind === "json" ? response.json() : response.text())).rejects.toMatchObject({ name: "AbortError" });
+      expect(signal?.aborted).toBe(true);
+      expect(bodyAborted).toBe(true);
+    });
+  }
+
+  test("propagates batch cancellation during body consumption", async () => {
+    const batch = new AbortController();
+    const fetcher: GitHubCollectorFetch = async (_url, init) => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        init.signal?.addEventListener("abort", () => controller.error(new DOMException("body aborted", "AbortError")), { once: true });
+      }
+    }));
+    await expect(fetchWithTimeout(fetcher, "https://api.github.com/test", {
+      headers: {}, timeoutMilliseconds: 1_000, signal: batch.signal
+    }, (response) => {
+      const body = response.text();
+      batch.abort();
+      return body;
+    })).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  test("removes deadline and batch hooks after a completed response", async () => {
+    const batch = new AbortController();
+    let signal: AbortSignal | null | undefined;
+    expect(await fetchWithTimeout(async (_url, init) => {
+      signal = init.signal;
+      return new Response("complete");
+    }, "https://api.github.com/test", { headers: {}, timeoutMilliseconds: 20, signal: batch.signal }, (response) => response.text()))
+      .toBe("complete");
+    batch.abort();
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(signal?.aborted).toBe(false);
+  });
+});
 
 describe("live public GitHub collector", () => {
   test("keeps public pagination stable after filtering forks and archived repositories", async () => {
@@ -612,6 +667,7 @@ describe("live public GitHub collector", () => {
       repositories: [makeRepositoryResponse("limited-toolkit"), makeRepositoryResponse("slow-toolkit")]
     });
     let abortedSiblingRequests = 0;
+    let abortedSiblingBodies = 0;
 
     await expect(collectPublicGitHubProfile("example-builder", {
       fetcher: async (url, init) => {
@@ -620,6 +676,16 @@ describe("live public GitHub collector", () => {
           if (init.signal?.aborted) {
             abortedSiblingRequests += 1;
             throw new DOMException("aborted", "AbortError");
+          }
+          if (parsed.pathname.endsWith("/readme")) {
+            return new Response(new ReadableStream<Uint8Array>({
+              start(controller) {
+                init.signal?.addEventListener("abort", () => {
+                  abortedSiblingBodies += 1;
+                  controller.error(new DOMException("body aborted", "AbortError"));
+                }, { once: true });
+              }
+            }));
           }
           return await new Promise<Response>((_resolve, reject) => {
             init.signal?.addEventListener("abort", () => {
@@ -639,6 +705,7 @@ describe("live public GitHub collector", () => {
     })).rejects.toMatchObject({ code: "github_rate_limited" });
 
     expect(abortedSiblingRequests).toBeGreaterThan(0);
+    expect(abortedSiblingBodies).toBeGreaterThan(0);
   });
 
   test("fails closed before exceeding the configured GitHub request budget", async () => {

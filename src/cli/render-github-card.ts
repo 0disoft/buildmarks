@@ -84,6 +84,16 @@ export async function renderGitHubCardFile(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown GitHub render failure";
+    if (await hasExistingOutput([resolvedOutputPath])) {
+      return {
+        ok: false,
+        username: normalizedUsername,
+        outputPath: resolvedOutputPath,
+        fallback: false,
+        preservedExisting: true,
+        error: message
+      };
+    }
     const svg = renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now");
     const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 

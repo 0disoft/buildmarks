@@ -6,7 +6,7 @@ The executable source of truth is `defaultGitHubCollectorPolicy` for public-only
 
 The current adapter is `collectPublicGitHubProfile()` in `src/collector/github-client.ts`.
 
-The current username-to-card CLI is `src/cli/render-github-card.ts`. It uses the same adapter and writes a fallback SVG when collection or rendering fails.
+The current username-to-card CLI is `src/cli/render-github-card.ts`. It uses the same adapter, preserves an existing SVG when refresh fails, and writes a fallback SVG only when no output exists.
 
 ## Collection Boundary
 
@@ -52,7 +52,9 @@ If one repository detail request fails for a reason other than rate limiting, th
 
 Collected profiles record how many active repositories were attempted. If failed detail requests and truncated trees make up at least half of that set, generated reports mark the result as insufficient and do not present a normal score. A repository with an incomplete recursive tree is excluded from scoring and improvement hints because an unseen file cannot honestly be called missing.
 
-Every GitHub generation command returns a failure when evidence is insufficient. Card-only generation preserves an existing SVG. Combined SVG/report and report-only generation preserve the output set when any destination already exists, without mixing old files with a new unavailable result. A first generation with no existing destinations writes readable fallback files and still returns a failure. Preserved files retain their original generation timestamp; caller workflows can retry the refresh.
+Every GitHub generation command returns a failure when evidence is insufficient or collection fails, including network errors, rate limits and request-budget exhaustion. Card-only generation preserves an existing SVG. Combined SVG/report and report-only generation preserve the output set when any destination already exists, without mixing old files with a new unavailable result. A first generation with no existing destinations writes readable fallback files and still returns a failure. Preserved files retain their original generation timestamp; caller workflows can retry the refresh.
+
+Combined and report-only generation render and stage every file before replacing any destination. Existing files are backed up; caught replacement failures restore published files or remove newly created ones. A recovery failure remains an error, does not claim `preservedExisting: true`, and retains the affected backup for manual recovery. Use one writer per output set. Each rename is atomic, but readers can observe a set between renames, and process termination or power loss can interrupt recovery. This is not a filesystem transaction across SVG, HTML and JSON.
 
 Repository-list pagination keeps a fixed page size while filtering forked and archived repositories. The scan limit counts eligible repositories, rather than duplicated rows from changing page boundaries.
 
@@ -102,7 +104,7 @@ GitHub currently documents unauthenticated REST requests as 60 requests per hour
 
 Before a hosted endpoint is added, it must define cache storage, abuse limits, stale-result behavior, and a way to avoid repeated uncached repository-content scans for the same profile.
 
-The live client uses a short timeout and retries a transient GitHub response once before reporting the request as failed.
+The live client keeps a 10-second deadline active for each attempt, including fetching headers and reading JSON or text bodies. A deadline or batch cancellation aborts the fetch signal and rejects the pending read. The client retries a transient response or transport/read failure once; malformed JSON and non-transient HTTP failures are not retried. Deadline timers and batch listeners are removed after consumption.
 
 The request budget is enforced immediately before each HTTP attempt. Exhaustion is fatal for the profile rather than being hidden as an omitted repository. Fatal rate-limit and budget errors stop new repository work and abort in-flight sibling requests; an aborted request is not retried.
 

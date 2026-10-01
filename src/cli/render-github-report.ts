@@ -1,9 +1,9 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
+import { appendWriteFailure, OutputSetRollbackError, resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
-import { assertSufficientEvidence, hasExistingOutput, InsufficientEvidenceError } from "./collection-outcome";
+import { assertSufficientEvidence, hasExistingOutput } from "./collection-outcome";
 import {
   collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
@@ -51,8 +51,10 @@ export async function renderGitHubReportFiles(
     assertSufficientEvidence(profile, report.profile);
     const html = renderStaticReportHtml(report);
 
-    await writeTextFileAtomically(htmlPath, html);
-    await writeTextFileAtomically(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
+    await writeTextFilesAsSet([
+      { path: htmlPath, content: html },
+      { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
+    ]);
 
     return {
       ok: true,
@@ -63,14 +65,14 @@ export async function renderGitHubReportFiles(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown GitHub report render failure";
-    if (error instanceof InsufficientEvidenceError && await hasExistingOutput([htmlPath, jsonPath])) {
+    if (await hasExistingOutput([htmlPath, jsonPath])) {
       return {
         ok: false,
         username: normalizedUsername,
         outputDirectory: resolvedOutputDirectory,
         htmlPath,
         jsonPath,
-        preservedExisting: true,
+        preservedExisting: !(error instanceof OutputSetRollbackError),
         error: message
       };
     }
@@ -91,12 +93,10 @@ export async function renderGitHubReportFiles(
 </body>
 </html>`;
 
-    const fallbackWriteFailures = (
-      await Promise.all([
-        tryWriteTextFile(htmlPath, fallbackHtml),
-        tryWriteTextFile(jsonPath, `${JSON.stringify(fallbackReport, null, 2)}\n`)
-      ])
-    ).filter((failure): failure is string => failure !== undefined);
+    const fallbackWriteFailure = await tryWriteTextFilesAsSet([
+      { path: htmlPath, content: fallbackHtml },
+      { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
+    ]);
 
     return {
       ok: false,
@@ -104,7 +104,7 @@ export async function renderGitHubReportFiles(
       outputDirectory: resolvedOutputDirectory,
       htmlPath,
       jsonPath,
-      error: appendWriteFailure(message, "Fallback report", fallbackWriteFailures.join("; ") || undefined)
+      error: appendWriteFailure(message, "Fallback report", fallbackWriteFailure)
     };
   }
 }
@@ -127,7 +127,8 @@ async function main(args: readonly string[]): Promise<void> {
   });
 
   if (!result.ok) {
-    const outcome = result.preservedExisting === true ? "Buildmarks preserved the existing GitHub report" : "Buildmarks wrote fallback GitHub report";
+    const outcome = result.preservedExisting === true ? "Buildmarks preserved the existing GitHub report"
+      : result.preservedExisting === false ? "Buildmarks output recovery was incomplete" : "Buildmarks attempted fallback GitHub report";
     console.error(`${outcome}: ${result.error ?? "unknown report render failure"}`);
     process.exitCode = 1;
     return;

@@ -1,5 +1,6 @@
 import { collectTreePathSignals, summarizeCodebaseShape, type GitHubTreeEntry } from "./repository-tree-signals.js";
 import { GitHubCollectorError } from "./github-errors.js";
+import { fetchWithTimeout } from "./request-timeout.js";
 export { GitHubCollectorError, type GitHubCollectorErrorCode } from "./github-errors.js";
 
 import type {
@@ -371,29 +372,33 @@ class GitHubRestClient {
   }
 
   async fetchJson<T>(path: string, options: { allowMissing?: boolean } = {}): Promise<T | null> {
-    const response = await this.request(path, { accept: githubJsonAccept });
-    if (isMissingResponse(response) && options.allowMissing === true) {
-      return null;
-    }
+    return this.request(path, { accept: githubJsonAccept }, async (response) => {
+      if (isMissingResponse(response) && options.allowMissing === true) {
+        await response.body?.cancel();
+        return null;
+      }
 
-    await assertOkResponse(response, path);
-    return (await response.json()) as T;
+      await assertOkResponse(response, path);
+      return (await response.json()) as T;
+    });
   }
 
   async fetchText(
     path: string,
     options: { accept?: string; allowMissing?: boolean } = {}
   ): Promise<string | null> {
-    const response = await this.request(path, { accept: options.accept ?? githubJsonAccept });
-    if (isMissingResponse(response) && options.allowMissing === true) {
-      return null;
-    }
+    return this.request(path, { accept: options.accept ?? githubJsonAccept }, async (response) => {
+      if (isMissingResponse(response) && options.allowMissing === true) {
+        await response.body?.cancel();
+        return null;
+      }
 
-    await assertOkResponse(response, path);
-    return response.text();
+      await assertOkResponse(response, path);
+      return response.text();
+    });
   }
 
-  private async request(path: string, options: { accept: string }): Promise<Response> {
+  private async request<T>(path: string, options: { accept: string }, consume: (response: Response) => Promise<T>): Promise<T> {
     const headers: Record<string, string> = {
       Accept: options.accept,
       "X-GitHub-Api-Version": githubApiVersion
@@ -409,19 +414,25 @@ class GitHubRestClient {
     for (let attempt = 0; attempt <= githubRequestRetryCount; attempt += 1) {
       try {
         this.consumeRequestBudget(path);
-        const response = await fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
+        const result = await fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
           headers,
           timeoutMilliseconds: githubRequestTimeoutMilliseconds,
           signal: this.batchAbortController.signal
+        }, async (response): Promise<{ retry: true } | { retry: false; value: T }> => {
+          if (shouldRetryResponse(response) && attempt < githubRequestRetryCount) {
+            await response.body?.cancel();
+            return { retry: true };
+          }
+          return { retry: false, value: await consume(response) };
         });
 
-        if (!shouldRetryResponse(response) || attempt === githubRequestRetryCount) {
-          return response;
+        if (!result.retry) {
+          return result.value;
         }
 
         await sleep(retryDelayMilliseconds(attempt));
       } catch (error) {
-        if (error instanceof GitHubCollectorError && error.code === "github_request_budget_exhausted") {
+        if (error instanceof GitHubCollectorError || error instanceof SyntaxError) {
           throw error;
         }
         lastError = error;
@@ -435,7 +446,7 @@ class GitHubRestClient {
 
     throw new GitHubCollectorError(
       "github_request_failed",
-      `GitHub API request failed before a response was received while requesting ${path}: ${errorMessage(lastError)}`
+      `GitHub API request failed before its response was fully read while requesting ${path}: ${errorMessage(lastError)}`
     );
   }
 
@@ -816,31 +827,6 @@ function isRateLimitResponse(response: Response): boolean {
 
 function isMissingResponse(response: Response): boolean {
   return response.status === 404 || response.status === 409;
-}
-
-async function fetchWithTimeout(
-  fetcher: GitHubCollectorFetch,
-  url: string,
-  options: { headers: Record<string, string>; timeoutMilliseconds: number; signal: AbortSignal }
-): Promise<Response> {
-  const controller = new AbortController();
-  const abortFromBatch = () => controller.abort();
-  if (options.signal.aborted) {
-    controller.abort();
-  } else {
-    options.signal.addEventListener("abort", abortFromBatch, { once: true });
-  }
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMilliseconds);
-
-  try {
-    return await fetcher(url, {
-      headers: options.headers,
-      signal: controller.signal
-    });
-  } finally {
-    clearTimeout(timeout);
-    options.signal.removeEventListener("abort", abortFromBatch);
-  }
 }
 
 function shouldRetryResponse(response: Response): boolean {

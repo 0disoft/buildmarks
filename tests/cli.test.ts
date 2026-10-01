@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
@@ -8,7 +8,7 @@ import { renderGapsCardFile } from "../src/cli/render-gaps-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
 import { parseCommonGitHubCliOptions, parsePositiveDecimalIntegerOption } from "../src/cli/options";
 import { renderRepoCardFile } from "../src/cli/render-repo-card";
-import { writeTextFileAtomically } from "../src/cli/write-output";
+import { writeTextFileAtomically, writeTextFilesAsSet } from "../src/cli/write-output";
 import { defaultGitHubCollectorPolicy, privateLocalSignalVisibility, type GitHubCollectorFetch, type ProfileInput } from "../src";
 
 const tempDirectories: string[] = [];
@@ -18,6 +18,32 @@ afterEach(async () => {
 });
 
 describe("render-card CLI", () => {
+  for (const existing of [true, false]) {
+    test(`rolls back a failed second output replacement with existing=${existing}`, async () => {
+      const directory = await makeTempDirectory();
+      const paths = [join(directory, "card.svg"), join(directory, "report.html")];
+      if (existing) for (const path of paths) await writeFile(path, `previous:${path}`);
+      let replacements = 0;
+      await expect(writeTextFilesAsSet(paths.map((path) => ({ path, content: "new" })), async (from, to) => {
+        replacements += 1;
+        if (replacements === 2) throw new Error("injected publication failure");
+        await rename(from, to);
+      })).rejects.toThrow("injected publication failure");
+      if (existing) for (const path of paths) expect(await readFile(path, "utf8")).toBe(`previous:${path}`);
+      expect((await readdir(directory)).sort()).toEqual(existing ? ["card.svg", "report.html"] : []);
+    });
+  }
+  test("prepares every output before replacing existing files", async () => {
+    const directory = await makeTempDirectory();
+    const first = join(directory, "card.svg");
+    await writeFile(first, "previous");
+    await expect(writeTextFilesAsSet([
+      { path: first, content: "new" },
+      { path: join(directory, "missing", "report.html"), content: "new" }
+    ])).rejects.toBeDefined();
+    expect(await readFile(first, "utf8")).toBe("previous");
+    expect(await readdir(directory)).toEqual(["card.svg"]);
+  });
   test("atomically replaces text outputs without leaving temporary files", async () => {
     const directory = await makeTempDirectory();
     const outputPath = join(directory, "artifact.svg");
@@ -499,6 +525,17 @@ describe("render-github-card CLI", () => {
     expect(result.error).toBeDefined();
     expect(svg).toContain("Buildmarks couldn&apos;t refresh this GitHub report right now");
     expect(svg).toContain("No score is shown");
+  });
+
+  test("preserves an existing SVG on a fatal GitHub request failure", async () => {
+    const directory = await makeTempDirectory();
+    const outputPath = join(directory, "card.svg");
+    await writeFile(outputPath, "previous card");
+    const result = await renderGitHubCardFile("example-builder", outputPath, {
+      fetcher: async () => jsonResponse({}, { status: 429 })
+    });
+    expect(result).toMatchObject({ ok: false, fallback: false, preservedExisting: true });
+    expect(await readFile(outputPath, "utf8")).toBe("previous card");
   });
 
   test("preserves an existing SVG when repository evidence is insufficient", async () => {
