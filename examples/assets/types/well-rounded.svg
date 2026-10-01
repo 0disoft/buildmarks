@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
+  <title id="title">Buildmarks project card for example-builder · Sample data</title>
+  <desc id="desc">Buildmarks reviewed 0 repositories and found 0 project practices. The overall result is Platinum V, 74 out of 100. Maintainability Platinum V, 72 out of 100, Project Readiness Platinum I, 88 out of 100, Ease of Use Gold I, 68 out of 100, Shipping Platinum IV, 78 out of 100, Consistency Platinum V, 71 out of 100, Project Care Gold I, 65 out of 100. This card is based on public GitHub repositories only. Buildmarks is not a developer ranking.</desc>
+  <style>.card { --surface:#f1edfa;--text:#30224b;--muted:#685880;--accent:#7251ae;--secondary:#575cbe;--track:#dcd2ee;--chip:#e5dcf4;--line:#cfc1e4; }
+    .card-dark { --surface:#221c36;--text:#fff3e7;--muted:#c8bade;--accent:#bbabff;--secondary:#8d91f9;--track:#453958;--chip:#362b4b;--line:#65547d; }
+    @media (prefers-color-scheme: dark) { .card-auto { --surface:#221c36;--text:#fff3e7;--muted:#c8bade;--accent:#bbabff;--secondary:#8d91f9;--track:#453958;--chip:#362b4b;--line:#65547d; } }
+    text { font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill:var(--text); }
+    .surface { fill:var(--surface); }
+    .brand { font-size:20px; font-weight:750; }
+    .username { font-size:20px; font-weight:650; }
+    .cover-title { font-size:40px; font-weight:800; letter-spacing:-1px; }
+    .cover-serif { font-family:Georgia, "Times New Roman", serif; letter-spacing:-.5px; }
+    .metric { font-size:15px; font-weight:600; }
+    .value { font-size:15px; font-weight:700; text-anchor:end; font-variant-numeric:tabular-nums; }
+    .missing { font-size:12px; font-weight:500; fill:var(--muted); }
+    .missing-track { stroke:var(--line); stroke-width:2; stroke-dasharray:3 5; }
+    .checked { font-size:12px; font-weight:600; fill:var(--muted); text-anchor:end; }
+    .caption { font-size:12px; font-weight:600; fill:var(--muted); }
+    .footer { font-size:12px; font-weight:500; fill:var(--muted); }
+    .divider { stroke:var(--line); stroke-width:1; }
+    .track { fill:var(--track); }
+    .bar,.accent { fill:var(--accent); }
+    .secondary { fill:var(--secondary); }
+    .emblem-stroke { stroke:var(--accent); }
+    .art-line { stroke:var(--line); fill:none; stroke-width:1; }
+    .art-ink { stroke:var(--text); }
+    .art-page { fill:#fff4e5; }
+    .art-page + .art-ink { stroke:#203044; }
+    .chip-bg { fill:var(--chip); }
+    .chip { font-size:12px; font-weight:600; }
+  </style>
+  <rect width="760" height="420" rx="16" class="surface" />
+  <g aria-hidden="true" class="accent"><path d="M32 23h7v17h-7zM43 23h7v17h-7z" /></g>
+  <text x="60" y="39" class="brand">Buildmarks</text>
+  <text x="728" y="38" class="checked">Some details couldn&apos;t be checked</text>
+  <text x="32" y="75" class="username">example-builder · Sample data</text>
+  <path d="M284 98v224" class="divider" aria-hidden="true" />
+  <g data-cover="well-rounded" aria-label="Well Rounded">
+    <text x="32" y="129" class="cover-title"><tspan x="32">Well</tspan><tspan x="32" dy="44">Rounded</tspan></text>
+    <g transform="translate(52 191) scale(.8)" aria-hidden="true"><path d="M93 5q5-3 10 0l20 12q5 3 5 9v23l-30 17-30-17V26q0-6 5-9Z" transform="rotate(0 98 77)" class="accent" /><path d="M93 5q5-3 10 0l20 12q5 3 5 9v23l-30 17-30-17V26q0-6 5-9Z" transform="rotate(60 98 77)" class="secondary" /><path d="M93 5q5-3 10 0l20 12q5 3 5 9v23l-30 17-30-17V26q0-6 5-9Z" transform="rotate(120 98 77)" class="accent" /><path d="M93 5q5-3 10 0l20 12q5 3 5 9v23l-30 17-30-17V26q0-6 5-9Z" transform="rotate(180 98 77)" class="secondary" /><path d="M93 5q5-3 10 0l20 12q5 3 5 9v23l-30 17-30-17V26q0-6 5-9Z" transform="rotate(240 98 77)" class="accent" /><path d="M93 5q5-3 10 0l20 12q5 3 5 9v23l-30 17-30-17V26q0-6 5-9Z" transform="rotate(300 98 77)" class="secondary" /></g>
+  </g>
+  <g aria-label="Project areas with scores out of 100"><g role="img" aria-label="Maintainability: Platinum V, 72 points out of 100">
+      <text x="314" y="112" class="metric">Maintainability</text>
+      <text x="728" y="112" class="value">72</text>
+      <rect x="314" y="122" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
+      <rect x="314" y="122" width="298" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Maintainability score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="72" />
+    </g>
+<g role="img" aria-label="Project Readiness: Platinum I, 88 points out of 100">
+      <text x="314" y="148" class="metric">Project Readiness</text>
+      <text x="728" y="148" class="value">88</text>
+      <rect x="314" y="158" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
+      <rect x="314" y="158" width="364" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Project Readiness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="88" />
+    </g>
+<g role="img" aria-label="Ease of Use: Gold I, 68 points out of 100">
+      <text x="314" y="184" class="metric">Ease of Use</text>
+      <text x="728" y="184" class="value">68</text>
+      <rect x="314" y="194" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
+      <rect x="314" y="194" width="282" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Ease of Use score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="68" />
+    </g>
+<g role="img" aria-label="Shipping: Platinum IV, 78 points out of 100">
+      <text x="314" y="220" class="metric">Shipping</text>
+      <text x="728" y="220" class="value">78</text>
+      <rect x="314" y="230" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
+      <rect x="314" y="230" width="323" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Shipping score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="78" />
+    </g>
+<g role="img" aria-label="Consistency: Platinum V, 71 points out of 100">
+      <text x="314" y="256" class="metric">Consistency</text>
+      <text x="728" y="256" class="value">71</text>
+      <rect x="314" y="266" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
+      <rect x="314" y="266" width="294" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="71" />
+    </g>
+<g role="img" aria-label="Project Care: Gold I, 65 points out of 100">
+      <text x="314" y="292" class="metric">Project Care</text>
+      <text x="728" y="292" class="value">65</text>
+      <rect x="314" y="302" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
+      <rect x="314" y="302" width="269" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Project Care score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65" />
+    </g></g>
+
+  <g aria-label="Project highlights"></g>
+  <path d="M32 383h696" class="divider" aria-hidden="true" />
+  <text x="32" y="403" class="footer">Buildmarks v0.3.0 · Public GitHub · 2026-05-28</text>
+</svg>

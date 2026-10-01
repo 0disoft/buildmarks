@@ -36,6 +36,16 @@ assets/buildmarks-report/buildmarks-report.json
 
 No hosted Buildmarks backend is required. Your profile repository stores the static SVG and inspectable report files.
 
+## Profile Card Designs
+
+Profile cards automatically select one of six vector covers from the existing project type. The data layout stays consistent, with numeric area scores, up to three highlights, the checked percentage and public/private scope. Missing details are shown as `Not checked`, not zero scores.
+
+![Buildmarks profile card example](examples/assets/example-card.svg)
+
+Use the full card width when possible; around 600–760 pixels keeps the details readable. The report carries the detailed findings when the README column is narrower. Light, dark and automatic themes use the same cover geometry.
+
+See [the six type examples and card design guide](docs/card-design.md). These are project descriptions, not ranks, and the cover choice does not change scoring.
+
 ## Status
 
 Buildmarks is in v0 foundation stage. The repository currently includes fixture-based scoring, static SVG renderers, a fallback SVG path, a public-only GitHub collector, local CLI card generation, a composite GitHub Action, profile README examples, documentation for the scoring philosophy, and Bun tests.

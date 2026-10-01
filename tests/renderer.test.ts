@@ -19,6 +19,41 @@ const now = new Date("2026-05-28T00:00:00.000Z");
 const visibleVersion = `v${buildmarksVersion}`;
 
 describe("SVG renderer", () => {
+  test("labels unobserved and irrelevant profile areas without giving them zero-score bars", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard({
+      ...report,
+      unavailableDimensions: ["shipping"],
+      notApplicableDimensions: ["consistency"]
+    });
+    expect(svg).toContain("Shipping: not checked");
+    expect(svg).toContain("Consistency: doesn&apos;t apply");
+    expect(svg).toContain(">Not checked</text>");
+    expect(svg).toContain(">Doesn't apply</text>");
+    expect(svg).not.toContain('aria-label="Shipping score"');
+    expect(svg).not.toContain('aria-label="Consistency score"');
+    expect(svg.match(/role="progressbar"/g)).toHaveLength(4);
+  });
+
+  test("withholds scores when every profile area is unavailable", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard({ ...report, unavailableDimensions: [...signalDimensions] }, { theme: "dark" });
+    expect(svg).toContain("No score is shown");
+    expect(svg).not.toContain('role="progressbar"');
+    expect(svg).not.toContain("data-cover=");
+    expect(svg).toContain('class="card card-dark"');
+  });
+
+  test("uses the default cover for untrusted runtime type values", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    for (const signalType of ["__proto__", 'unknown\" onload=\"alert(1)']) {
+      Reflect.set(report, "signalType", signalType);
+      const svg = renderUserSignalCard(report);
+      expect(svg).toContain('data-cover="project-snapshot"');
+      expect(svg).not.toContain("onload=");
+      expect(svg).not.toContain("__proto__");
+    }
+  });
   test("selects six distinct covers without changing the supplied scores", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const coverIds = new Set<string>();

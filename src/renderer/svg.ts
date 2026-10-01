@@ -1,7 +1,6 @@
 import {
   dimensionLabels,
   privateLocalSignalVisibility,
-  signalTypeDisplayLabels,
   signalDimensions,
   type RepoSignal,
   type SignalDimension,
@@ -9,7 +8,7 @@ import {
   type UserSignalReport
 } from "../shared/types.js";
 import { buildmarksVersion } from "../shared/version.js";
-import { renderProfileCard } from "./profile-card.js";
+import { renderProfileCard, type ProfileCardRow } from "./profile-card.js";
 
 export interface RenderCardOptions {
   theme?: "auto" | "dark" | "light";
@@ -52,8 +51,8 @@ export function renderUserSignalCard(
   report: UserSignalReport,
   options: RenderCardOptions = {}
 ): string {
-  if (report.evidenceStatus === "insufficient") {
-    return renderFallbackCard("Buildmarks needs more project information before it can show a score");
+  if (report.evidenceStatus === "insufficient" || report.resultStatus === "unavailable") {
+    return renderFallbackCard("Buildmarks needs more project information before it can show a score", options);
   }
 
   const theme = normalizeTheme(options.theme);
@@ -73,16 +72,31 @@ export function renderUserSignalCard(
     report.resultStatus === "provisional"
   );
   const context = buildProfileCardContext(report);
-  const visibleDimensions = signalDimensions.filter((dimension) => !context.contextualDimensions.has(dimension));
-  const dimensions = visibleDimensions.map((dimension) => {
+  const dimensions: ProfileCardRow[] = signalDimensions.map((dimension) => {
+    if (context.contextualDimensions.has(dimension)) {
+      const status = report.notApplicableDimensions?.includes(dimension)
+        || report.dimensionAssessments?.[dimension]?.applicability === "not-applicable"
+        ? "not-applicable" : "unavailable";
+      return {
+        key: dimension,
+        status,
+        descriptionXml: escapeXml(`${dimensionLabels[dimension]}: ${status === "not-applicable" ? "doesn't apply" : "not checked"}`)
+      };
+    }
     const score = safeScore(report.dimensions[dimension]);
     return {
       key: dimension,
+      status: "scored",
       score,
       descriptionXml: escapeXml(`${dimensionLabels[dimension]}: ${scoreTier(score)}, ${score} points out of 100`)
     };
   });
-  const desc = buildDescription(report, overall);
+  if (!dimensions.some((row) => row.status === "scored")) {
+    return renderFallbackCard("Buildmarks needs more project information before it can show a score", options);
+  }
+  const contextDescriptions = dimensions.filter((row) => row.status !== "scored")
+    .map((row) => `${dimensionLabels[row.key]} ${row.status === "not-applicable" ? "doesn't apply" : "couldn't be checked"}`);
+  const desc = [buildDescription(report, overall), ...contextDescriptions].join(". ");
   return renderProfileCard({
     signalType: report.signalType,
     theme,
@@ -96,12 +110,15 @@ export function renderUserSignalCard(
   });
 }
 
-export function renderFallbackCard(message = "Buildmarks couldn't generate this report right now"): string {
+export function renderFallbackCard(
+  message = "Buildmarks couldn't generate this report right now",
+  options: RenderCardOptions = {}
+): string {
   const safeMessage = fitText(message, 76);
   const descriptionMessage = finishSentence(message);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-${normalizeTheme(options.theme)}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
   <title id="title">Buildmarks fallback card</title>
   <desc id="desc">${escapeXml(descriptionMessage)} No score is shown. Buildmarks is not a developer ranking.</desc>
   ${renderDefs()}
@@ -457,6 +474,14 @@ function buildProfileCardContext(report: UserSignalReport): ProfileCardContext {
     ...(report.unavailableDimensions ?? []),
     ...(report.notApplicableDimensions ?? [])
   ]);
+
+  for (const dimension of signalDimensions) {
+    const assessment = report.dimensionAssessments?.[dimension];
+    if (assessment?.applicability === "unavailable" || assessment?.applicability === "not-applicable"
+      || assessment?.score === null || !Number.isFinite(report.dimensions[dimension])) {
+      contextualDimensions.add(dimension);
+    }
+  }
 
   return { contextualDimensions };
 }

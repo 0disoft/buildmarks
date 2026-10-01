@@ -6,6 +6,14 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.3.0 - 2026-10-01
+
+- Give profile cards six vector covers based on the existing project type, with matching light, dark and automatic themes.
+- Show numeric project-area scores and correctly scaled bars in a shared layout; keep tier descriptions in reports and accessible SVG descriptions.
+- Label unobserved and irrelevant profile areas as `Not checked` and `Doesn't apply` without turning them into zero scores.
+- Preserve data scope, checked percentage, early-result notices, readable no-score fallbacks and XML-safe text.
+- Include six explicitly marked sample type cards and document their generation and display size. Scoring rules and report schemas are unchanged.
+
 ## v0.2.2 - 2026-10-01
 
 - Fail SVG/report and report-only GitHub generation when collected evidence is insufficient; preserve existing output files instead of replacing them with an unavailable result.

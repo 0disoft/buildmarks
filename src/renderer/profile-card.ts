@@ -9,16 +9,31 @@ interface ProfileCardContent {
   descriptionXml: string;
   footerXml: string;
   checkedXml: string;
-  dimensions: { key: SignalDimension; score: number; descriptionXml: string }[];
+  dimensions: ProfileCardRow[];
   highlightsXml: string[];
 }
+
+export type ProfileCardRow = {
+  key: SignalDimension;
+  descriptionXml: string;
+} & ({ status: "scored"; score: number } | { status: "unavailable" | "not-applicable" });
 
 const font = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 export function renderProfileCard(content: ProfileCardContent): string {
   const cover = getProfileCover(content.signalType);
-  const rows = content.dimensions.map(({ key, score, descriptionXml }, index) => {
-    const y = 112 + index * 32;
+  const rows = content.dimensions.map((row, index) => {
+    const { key, descriptionXml } = row;
+    const y = 112 + index * 36;
+    if (row.status !== "scored") {
+      const label = row.status === "not-applicable" ? "Doesn't apply" : "Not checked";
+      return `<g role="img" aria-label="${descriptionXml}">
+        <text x="314" y="${y}" class="metric">${dimensionLabels[key]}</text>
+        <text x="728" y="${y}" class="value missing">${label}</text>
+        <path d="M314 ${y + 14}h414" class="missing-track" aria-hidden="true" />
+      </g>`;
+    }
+    const { score } = row;
     return `<g role="img" aria-label="${descriptionXml}">
       <text x="314" y="${y}" class="metric">${dimensionLabels[key]}</text>
       <text x="728" y="${y}" class="value">${score}</text>
@@ -44,13 +59,13 @@ export function renderProfileCard(content: ProfileCardContent): string {
   <text x="60" y="39" class="brand">Buildmarks</text>
   <text x="728" y="38" class="checked">${content.checkedXml}</text>
   <text x="32" y="75" class="username">${content.usernameXml}</text>
-  <path d="M284 98v208" class="divider" aria-hidden="true" />
+  <path d="M284 98v224" class="divider" aria-hidden="true" />
   <g data-cover="${cover.id}" aria-label="${cover.lines.join(" ")}">
-    <text x="32" y="133" class="cover-title${cover.serif ? " cover-serif" : ""}"><tspan x="32">${cover.lines[0]}</tspan><tspan x="32" dy="38">${cover.lines[1]}</tspan></text>
+    <text x="32" y="129" class="cover-title${cover.serif ? " cover-serif" : ""}"><tspan x="32">${cover.lines[0]}</tspan><tspan x="32" dy="44">${cover.lines[1]}</tspan></text>
     ${renderCoverArtwork(cover)}
   </g>
   <g aria-label="Project areas with scores out of 100">${rows.join("\n")}</g>
-  <text x="32" y="333" class="caption">Highlights</text>
+${highlights.length > 0 ? '  <text x="32" y="333" class="caption">Highlights</text>' : ""}
   <g aria-label="Project highlights">${highlights.join("\n")}</g>
   <path d="M32 383h696" class="divider" aria-hidden="true" />
   <text x="32" y="403" class="footer">${content.footerXml}</text>
@@ -62,11 +77,13 @@ function renderProfileStyles(): string {
     text { font-family:${font}; fill:var(--text); }
     .surface { fill:var(--surface); }
     .brand { font-size:20px; font-weight:750; }
-    .username { font-size:21px; font-weight:650; }
-    .cover-title { font-size:34px; font-weight:800; letter-spacing:-1px; }
+    .username { font-size:20px; font-weight:650; }
+    .cover-title { font-size:40px; font-weight:800; letter-spacing:-1px; }
     .cover-serif { font-family:Georgia, "Times New Roman", serif; letter-spacing:-.5px; }
     .metric { font-size:15px; font-weight:600; }
     .value { font-size:15px; font-weight:700; text-anchor:end; font-variant-numeric:tabular-nums; }
+    .missing { font-size:12px; font-weight:500; fill:var(--muted); }
+    .missing-track { stroke:var(--line); stroke-width:2; stroke-dasharray:3 5; }
     .checked { font-size:12px; font-weight:600; fill:var(--muted); text-anchor:end; }
     .caption { font-size:12px; font-weight:600; fill:var(--muted); }
     .footer { font-size:12px; font-weight:500; fill:var(--muted); }
@@ -77,7 +94,8 @@ function renderProfileStyles(): string {
     .emblem-stroke { stroke:var(--accent); }
     .art-line { stroke:var(--line); fill:none; stroke-width:1; }
     .art-ink { stroke:var(--text); }
-    .art-page { fill:var(--surface); }
+    .art-page { fill:#fff4e5; }
+    .art-page + .art-ink { stroke:#203044; }
     .chip-bg { fill:var(--chip); }
     .chip { font-size:12px; font-weight:600; }
   `;
