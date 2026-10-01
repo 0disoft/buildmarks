@@ -9,6 +9,22 @@ import {
 } from "../shared/types.js";
 import { buildmarksVersion } from "../shared/version.js";
 import { renderProfileCard, type ProfileCardRow } from "./profile-card.js";
+import { methodologyCriteria, type CriterionCheck } from "../scoring/methodology-v2.js";
+
+const highlightLabels: Record<CriterionCheck, string> = {
+  readme: "Docs", license: "License", "usage-guide": "Docs", ci: "CI", tests: "Tests",
+  changelog: "Change history", contributing: "Contributing", "code-of-conduct": "Conduct",
+  "security-policy": "Security", releases: "Releases", "docs-or-demo": "Demo",
+  "package-artifact": "Package", "test-surface": "Test Files", "compact-source-shape": "Small Files",
+  examples: "Examples", "recent-activity": "Recent activity", "established-history": "Project history",
+  "tests-backed-by-ci": "Tests + CI", "tests-backed-by-files": "Test Files",
+  "release-notes-match-shipping": "Release + notes", "release-backed-by-package": "Release + package",
+  "docs-backed-by-examples": "Docs + examples", "readme-backed-by-usage": "Docs",
+  "usage-backed-by-docs": "Docs", "install-backed-by-examples": "Examples",
+  "sustained-history": "Project history", "community-guardrails": "Community guides",
+  "ownership-paths": "Contact guides"
+};
+const criterionHighlights = new Map(methodologyCriteria.map((criterion) => [criterion.id, highlightLabels[criterion.check]]));
 
 export interface RenderCardOptions {
   theme?: "auto" | "dark" | "light";
@@ -57,7 +73,7 @@ export function renderUserSignalCard(
 
   const theme = normalizeTheme(options.theme);
   const highlights = [...new Set(
-    (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item.label))
+    (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item))
   )].slice(0, 4);
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
@@ -196,7 +212,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
     renderDimensionRow(dimension, safeScore(report.dimensions[dimension].score), rowStartY + index * rowGap)
   );
   const highlights = [...new Set(
-    (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item.label))
+    (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item))
   )].slice(0, 4);
   const chips = highlights.map((label, index) => renderEvidenceChip(label, index));
   const desc = buildRepositoryDescription(report, overall);
@@ -253,55 +269,10 @@ function renderEvidenceChip(label: string, index: number): string {
     </g>`;
 }
 
-function evidenceToHighlight(label: string): string {
-  const normalized = label.toLowerCase();
-
-  if (normalized.includes("test file")) {
-    return "Test Files";
-  }
-  if (normalized.includes("test")) {
-    return "Tests";
-  }
-  if (normalized.includes("ci") || normalized.includes("workflow")) {
-    return "CI";
-  }
-  if (normalized.includes("changelog") || normalized.includes("release notes")) {
-    return "Changelog";
-  }
-  if (normalized.includes("release") || normalized.includes("tag")) {
-    return "Releases";
-  }
-  if (normalized.includes("readme") || normalized.includes("usage")) {
-    return "Docs";
-  }
-  if (normalized.includes("license")) {
-    return "License";
-  }
-  if (normalized.includes("package") || normalized.includes("installable")) {
-    return "Package";
-  }
-  if (normalized.includes("security")) {
-    return "Security";
-  }
-  if (normalized.includes("contribution")) {
-    return "Contributing";
-  }
-  if (normalized.includes("code of conduct")) {
-    return "Conduct";
-  }
-  if (normalized.includes("demo") || normalized.includes("documentation")) {
-    return "Demo";
-  }
-  if (normalized.includes("compact")) {
-    return "Small Files";
-  }
-  if (normalized.includes("example") || normalized.includes("fixture")) {
-    return "Examples";
-  }
-
-  return fitText(label.replace(/\bfound\b/gi, "").trim(), 16);
+function evidenceToHighlight(evidence: { criterionId?: string; label: string }): string {
+  const highlight = evidence.criterionId === undefined ? undefined : criterionHighlights.get(evidence.criterionId);
+  return highlight ?? fitText(evidence.label, 16);
 }
-
 function renderGapRow(repository: string, dimension: SignalDimension, missing: string[], y: number): string {
   const label = fitText(repository, 24);
   const missingText = fitText(missing.join(", "), 78);

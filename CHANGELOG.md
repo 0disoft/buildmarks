@@ -6,6 +6,12 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.3.1 - 2026-10-01
+
+- Describe combined evidence as observed presence without claiming workflow, release-note or documentation content validation.
+- Classify SVG highlights by stable criterion IDs so wording changes do not change their categories.
+- Synchronize the scoring and package guides with the current card and package behavior.
+
 ## v0.3.0 - 2026-10-01
 
 - Give profile cards six vector covers based on the existing project type, with matching light, dark and automatic themes.

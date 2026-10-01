@@ -16,6 +16,15 @@ const now = new Date("2026-05-28T00:00:00.000Z");
 const sourceRepository = (fixture as ProfileInput).repositories[0]!;
 
 describe("scoring methodology v2", () => {
+  test("describes combined presence checks without claiming content validation", () => {
+    const scored = scoreRepository(repositoryWith({ hasTests: true, hasCi: true, hasReleases: true, hasChangelog: true }), { now });
+    expect(scored.evidenceLedger.find((item) => item.criterionId === "maintainability.tests-ci")?.label)
+      .toBe("Tests and an automation workflow both found");
+    for (const dimension of ["maintainability", "shipping", "consistency", "stewardship"]) {
+      expect(scored.evidenceLedger.find((item) => item.criterionId === `${dimension}.release-notes`)?.label)
+        .toBe("Release or tag and change history both found");
+    }
+  });
   test("keeps report format and scoring method versions separate", () => {
     const report = createStaticReport(fixture as ProfileInput, { now });
 

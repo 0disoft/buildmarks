@@ -29,15 +29,15 @@ Checks that do not make sense for a project are left out. Checks that could not 
 
 A project area needs at least half of its relevant details checked before it receives a score. Unknown details do not become zeroes.
 
-The profile card shows its normal tier when Buildmarks checked at least 85% of the relevant project details and at least 85% of the repositories it tried to read. A thinner pass is labeled as an early look. If half or more of the attempted repositories could not be read, Buildmarks shows no score.
+The profile card shows numeric area scores and its project type when Buildmarks checked at least 85% of the relevant project details and at least 85% of the repositories it tried to read. A thinner pass is labeled as an early look. Tier descriptions remain in reports and accessible SVG descriptions. If half or more of the attempted repositories could not be read, Buildmarks shows no score.
 
 The checked percentage appears on the card so readers can see how much Buildmarks actually reviewed without a second label trying to interpret the number for them.
 
 ## How Points Add Up
 
-Project habits that back each other up are worth more than isolated files. Tests backed by CI say more than either item alone. A release backed by an installable package, change notes that line up with shipped versions, and documentation backed by examples work the same way.
+Combinations of observed project details are worth more than isolated files. These checks confirm that tests and a workflow, a release or tag and a project manifest, a release or tag and a changelog, or documentation and examples are both present.
 
-A project area supported only by standalone files can reach at most 40. The cap is lifted when another project detail shows that the practice is real rather than decorative.
+A project area supported only by standalone files can reach at most 40. The cap is lifted when a combined check passes. The internal `corroborated` basis describes co-occurrence: it does not prove that CI runs the tests, release versions match changelog entries, packages install, demos work, or examples agree with documentation. Buildmarks does not inspect those contents in these checks.
 
 The repository total uses these weights:
 

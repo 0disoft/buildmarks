@@ -19,6 +19,15 @@ const now = new Date("2026-05-28T00:00:00.000Z");
 const visibleVersion = `v${buildmarksVersion}`;
 
 describe("SVG renderer", () => {
+  test("classifies highlights by criterion ID even when evidence wording changes", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const evidence = (report.evidenceLedger ?? report.evidence).map((item) => ({ ...item, label: "Localized explanation" }));
+    const svg = renderUserSignalCard({ ...report, evidenceLedger: evidence });
+    expect(svg).toContain(">Tests</text>");
+    expect(svg).toContain(">CI</text>");
+    expect(svg).toContain(">Change history</text>");
+    expect(svg).not.toContain(">Localized expla");
+  });
   test("labels unobserved and irrelevant profile areas without giving them zero-score bars", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const svg = renderUserSignalCard({
