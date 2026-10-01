@@ -8,17 +8,17 @@ export interface CardProject {
 }
 
 const criteria = new Map(methodologyCriteria.map((criterion) => [criterion.id, criterion]));
-const facts: Partial<Record<CriterionCheck, { group: string; label: string }>> = {
-  "tests-backed-by-ci": { group: "tests", label: "Tests + workflow" },
+const facts: Partial<Record<CriterionCheck, { group: string; label: string; includes?: readonly string[] }>> = {
+  "tests-backed-by-ci": { group: "tests", label: "Tests + workflow", includes: ["automation"] },
   "tests-backed-by-files": { group: "tests", label: "Test files found" },
   tests: { group: "tests", label: "Tests found" },
   ci: { group: "automation", label: "Workflow found" },
   "release-notes-match-shipping": { group: "shipping", label: "Release + changelog" },
-  "release-backed-by-package": { group: "shipping", label: "Release + manifest" },
+  "release-backed-by-package": { group: "shipping", label: "Release + manifest", includes: ["package"] },
   releases: { group: "shipping", label: "Release or tag found" },
   "readme-backed-by-usage": { group: "docs", label: "README + usage" },
   "usage-backed-by-docs": { group: "docs", label: "Usage + docs" },
-  "docs-backed-by-examples": { group: "docs", label: "Docs + examples" },
+  "docs-backed-by-examples": { group: "docs", label: "Docs + examples", includes: ["examples"] },
   "install-backed-by-examples": { group: "examples", label: "Manifest + examples" },
   "usage-guide": { group: "docs", label: "Usage guide found" },
   readme: { group: "docs", label: "README found" },
@@ -53,13 +53,17 @@ export function selectCardProjects(repositories: readonly RepoSignal[], signalTy
     }).sort((left, right) => Number(right.preferred) - Number(left.preferred)
       || Number(right.combined) - Number(left.combined) || compareText(left.id, right.id))
       .filter((detail) => {
-        if (seen.has(detail.group)) return false;
-        seen.add(detail.group);
+        const groups = [detail.group, ...(detail.includes ?? [])];
+        if (groups.some((group) => seen.has(group))) return false;
+        groups.forEach((group) => seen.add(group));
         return true;
       });
     if (details.length === 0) return [];
     return [{ repository, details, key: `${repository.owner}/${repository.name}`.toLowerCase() }];
   }).sort((left, right) => Number(right.details.some((detail) => detail.preferred)) - Number(left.details.some((detail) => detail.preferred))
+    || Math.min(right.details.filter((detail) => detail.preferred && detail.combined).length, 2)
+      - Math.min(left.details.filter((detail) => detail.preferred && detail.combined).length, 2)
+    || Math.min(right.details.filter((detail) => detail.combined).length, 2) - Math.min(left.details.filter((detail) => detail.combined).length, 2)
     || Math.min(right.details.length, 2) - Math.min(left.details.length, 2) || compareText(left.key, right.key));
   const unique = candidates.filter((candidate, index) => candidates.findIndex((other) => other.key === candidate.key) === index);
   const first = unique[0];

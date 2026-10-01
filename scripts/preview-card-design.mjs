@@ -24,7 +24,12 @@ const states = [
   { name: "wide-unicode-name", svg: renderUserSignalCard({ ...report, username: "名".repeat(100) }) },
   { name: "private-local", svg: renderUserSignalCard({ ...report, signalVisibility: privateLocalSignalVisibility }) },
   { name: "missing-areas", svg: renderUserSignalCard({ ...report, unavailableDimensions: ["shipping"], notApplicableDimensions: ["consistency"], resultStatus: "provisional", coverage: { observed: 8, expected: 10, ratio: .8 } }) },
-  { name: "insufficient", svg: renderUserSignalCard({ ...report, evidenceStatus: "insufficient" }) }
+  { name: "insufficient", svg: renderUserSignalCard({ ...report, evidenceStatus: "insufficient" }) },
+  { name: "empty-projects", svg: renderUserSignalCard({ ...report, topRepos: [] }) },
+  { name: "long-project", svg: renderUserSignalCard({ ...report, topRepos: report.topRepos.map((repo) => ({ ...repo, owner: "W".repeat(50), name: "名".repeat(50) })) }) },
+  { name: "detailed", svg: renderUserSignalCard(report, { layout: "detailed" }) },
+  { name: "detailed-missing", svg: renderUserSignalCard({ ...report, unavailableDimensions: ["shipping"] }, { layout: "detailed" }) },
+  { name: "detailed-insufficient", svg: renderUserSignalCard({ ...report, evidenceStatus: "insufficient" }, { layout: "detailed" }) }
 ];
 
 const browser = await chromium.launch({ channel: "msedge", headless: true, timeout: 20_000 });
@@ -76,17 +81,21 @@ try {
           const box = node.getBBox();
           return { text: node.textContent, x: box.x, y: box.y, right: box.x + box.width, bottom: box.y + box.height };
         });
-        const clipped = textBounds.filter((box) => box.x < 16 || box.y < 0 || box.right > 744 || box.bottom > 418);
+        const { width, height } = svg.viewBox.baseVal;
+        const clipped = textBounds.filter((box) => box.x < 16 || box.y < 0 || box.right > width - 16 || box.bottom > height - 2);
         const overlaps = textBounds.flatMap((first, index) => textBounds.slice(index + 1)
           .filter((second) => first.x < second.right && first.right > second.x && first.y < second.bottom && first.bottom > second.y)
           .map((second) => [first.text, second.text]));
         const surface = svg.querySelector(".surface, .bg");
-        return { clipped, overlaps, background: getComputedStyle(surface).fill };
+        const compact = svg.dataset.layout === "compact";
+        const minimumTextSizeAt360 = compact ? Math.min(...[...svg.querySelectorAll("text")].map((node) => parseFloat(getComputedStyle(node).fontSize))) * 360 / width : null;
+        return { clipped, overlaps, minimumTextSizeAt360, background: getComputedStyle(surface).fill };
       });
       assert.deepEqual(metrics.clipped, [], `${entry.name} (${scheme}) has clipped text`);
       assert.deepEqual(metrics.overlaps, [], `${entry.name} (${scheme}) has overlapping text`);
+      if (metrics.minimumTextSizeAt360 !== null) assert.ok(metrics.minimumTextSizeAt360 >= 12, `${entry.name} has text below 12px at 360px width`);
       results.push({ name: entry.name, scheme, ...validation, ...metrics });
-      if (scheme === "dark") await page.screenshot({ path: resolve(output, `${entry.name}.png`) });
+      if (scheme === "dark") await page.locator("svg").screenshot({ path: resolve(output, `${entry.name}.png`) });
     }
   }
 
@@ -104,11 +113,11 @@ try {
     await page.evaluate(() => Promise.all([...document.images].map((image) => image.decode())));
     await page.screenshot({ path: resolve(output, `gallery-${scheme}.png`), fullPage: true });
   }
-  await page.setViewportSize({ width: 360, height: 420 });
+  await page.setViewportSize({ width: 360, height: 600 });
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.setContent(galleryHtml([gallery[0]]));
+  await page.setContent(`<style>body{margin:0}img{display:block;width:360px;height:auto}</style><img alt="compact card at 360 pixels" src="data:image/svg+xml;base64,${Buffer.from(gallery[0].svg).toString("base64")}">`);
   await page.evaluate(() => Promise.all([...document.images].map((image) => image.decode())));
-  await page.screenshot({ path: resolve(output, "narrow.png"), fullPage: true });
+  await page.locator("img").screenshot({ path: resolve(output, "narrow.png") });
   assert.deepEqual(errors, [], "Browser errors during card preview");
   await writeFile(resolve(output, "validation.json"), JSON.stringify({ renderer: "Edge / Playwright", results, browserErrors: errors }, null, 2) + "\n");
   console.log(JSON.stringify({ checked: results.length, output, browserErrors: errors.length }));

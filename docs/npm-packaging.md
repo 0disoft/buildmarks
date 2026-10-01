@@ -5,7 +5,7 @@ Buildmarks is published to npm as a library. For a profile README that only need
 ## Current Status
 
 - npm package name: `buildmarks`
-- Current package version: `0.3.2`
+- Current package version: `0.4.0`
 - Do not add a package `bin` entry yet.
 - Export the library from `dist/index.js` with TypeScript declarations at `dist/index.d.ts`.
 - Keep the package contents dry-run checkable with `npm pack --dry-run`.

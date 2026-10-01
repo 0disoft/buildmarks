@@ -33,6 +33,10 @@ await Promise.all([
     renderUserSignalCard(profileReport)
   ),
   writeTextFileAtomically(
+    resolve("examples/assets/example-detailed-card.svg"),
+    renderUserSignalCard(profileReport, { layout: "detailed" })
+  ),
+  writeTextFileAtomically(
     resolve("examples/assets/example-gaps-card.svg"),
     renderSignalGapsCard(gapsReport)
   ),
@@ -56,12 +60,12 @@ for (const example of typeExamples) {
   const signalType = classifySignalType(example.dimensions);
   if (signalType !== example.type) throw new Error(`Example ${example.file} no longer matches its type.`);
   const report: UserSignalReport = {
-    username: "example-builder · Sample data",
+    username: "Sample data · example-builder",
     generatedAt: now.toISOString(),
     signalType,
     dimensions: example.dimensions,
     overall: Math.round(Object.values(example.dimensions).reduce((total, value) => total + value, 0) / 6),
-    topRepos: [],
+    topRepos: profileReport.topRepos.map((repository, index) => ({ ...repository, owner: "example", name: index === 0 ? "sample-toolkit" : "sample-project" })),
     evidence: [],
     limitations: ["Design example with invented scores; not a real project assessment."]
   };

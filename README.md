@@ -38,11 +38,11 @@ No hosted Buildmarks backend is required. Your profile repository stores the sta
 
 ## Profile Card Designs
 
-Profile cards automatically select one of six vector covers from the existing project type. The data layout stays consistent, with numeric area scores, up to three highlights, the checked percentage and public/private scope. Missing details are shown as `Not checked`, not zero scores.
+Profile cards automatically select one of six vector covers from the existing project type. The default compact card shows up to two representative projects and three observed details, alongside the checked percentage, data scope and generation date. Full area scores stay in the report.
 
 ![Buildmarks profile card example](examples/assets/example-card.svg)
 
-Use the full card width when possible; around 600–760 pixels keeps the details readable. The report carries the detailed findings when the README column is narrower. Light, dark and automatic themes use the same cover geometry.
+The compact card is 420 pixels wide and is designed to remain readable at 360 pixels. Light, dark and automatic themes share the cover geometry. Select `renderUserSignalCard(report, { layout: "detailed" })`, CLI `--layout detailed`, or Action input `card-layout: detailed` to keep the previous 760 × 420 card with six numeric area scores.
 
 See [the six type examples and card design guide](docs/card-design.md). These are project descriptions, not ranks, and the cover choice does not change scoring.
 
@@ -260,12 +260,13 @@ The default repository activity window is 365 days based on each repository's pu
 | --- | --- | --- |
 | `username` | required | Non-empty GitHub username to analyze. |
 | `output` | `assets/buildmarks.svg` | Non-empty SVG artifact path in the caller repository. |
+| `card-layout` | `compact` | Choose `compact` for representative projects or `detailed` for six numeric area scores. |
 | `generate-report` | `"true"` | Must be exactly `"true"` or `"false"`. |
 | `report-output` | `assets/buildmarks-report` | Non-empty HTML and JSON report directory. |
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Opts into owner-supplied private-local collection with redacted private repository names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
-| `max-repositories-scored` | `12` | Positive integer repository display limit, capped at 24. Despite the legacy input name, all successfully evaluated repositories contribute to the profile calculation. |
+| `max-repositories-scored` | `12` | Positive integer report display limit, capped at 24. Compact cards select up to two projects from this sample. Despite the legacy input name, all successfully evaluated repositories contribute to the profile calculation. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
 | `max-api-requests` | `160` | Positive integer GitHub REST request budget for one profile collection, capped at 500. Retries spend budget. |
 

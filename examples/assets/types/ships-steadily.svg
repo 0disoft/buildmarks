@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
-  <title id="title">Buildmarks project card for example-builder · Sample data</title>
-  <desc id="desc">Buildmarks reviewed 0 repositories and found 0 project practices. The overall result is Platinum V, 73 out of 100. Maintainability Gold I, 64 out of 100, Project Readiness Gold I, 69 out of 100, Ease of Use Gold I, 67 out of 100, Shipping Platinum III, 84 out of 100, Consistency Diamond IV, 92 out of 100, Project Care Gold I, 61 out of 100. This card is based on public GitHub repositories only. Buildmarks is not a developer ranking.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" data-layout="compact" role="img" width="420" height="336" viewBox="0 0 420 336" aria-labelledby="title desc">
+  <title id="title">Buildmarks project card for Sample data · example-builder</title>
+  <desc id="desc">Buildmarks reviewed 2 repositories and found 30 project practices. The overall result is Platinum V, 73 out of 100. Maintainability Gold I, 64 out of 100, Project Readiness Gold I, 69 out of 100, Ease of Use Gold I, 67 out of 100, Shipping Platinum III, 84 out of 100, Consistency Diamond IV, 92 out of 100, Project Care Gold I, 61 out of 100. This card is based on public GitHub repositories only. Buildmarks is not a developer ranking. Representative projects: example/sample-toolkit: Release + changelog; Docs or demo reference. example/sample-project: License found</desc>
   <style>.card { --surface:#e9f5f6;--text:#123944;--muted:#416772;--accent:#14717a;--secondary:#5c7622;--track:#c8e2e5;--chip:#d9ecee;--line:#b5d7db; }
     .card-dark { --surface:#0d2831;--text:#fff5e4;--muted:#aecdd3;--accent:#65dbdf;--secondary:#daf787;--track:#20515e;--chip:#153e49;--line:#41737c; }
     @media (prefers-color-scheme: dark) { .card-auto { --surface:#0d2831;--text:#fff5e4;--muted:#aecdd3;--accent:#65dbdf;--secondary:#daf787;--track:#20515e;--chip:#153e49;--line:#41737c; } }
@@ -29,16 +29,21 @@
     .art-page + .art-ink { stroke:#203044; }
     .chip-bg { fill:var(--chip); }
     .chip { font-size:12px; font-weight:600; }
+
+    .brand { font-size:16px; }
+    .username { font-size:19px; }
+    .cover-title { font-size:29px; letter-spacing:-.5px; }
+    .checked,.footer { font-size:14px; }
+    .project { font-size:16px; font-weight:650; }
+    .facts { font-size:14px; fill:var(--muted); }
   </style>
-  <rect width="760" height="420" rx="16" class="surface" />
-  <g aria-hidden="true" class="accent"><path d="M32 23h7v17h-7zM43 23h7v17h-7z" /></g>
-  <text x="60" y="39" class="brand">Buildmarks</text>
-  <text x="728" y="38" class="checked">Some details couldn&apos;t be checked</text>
-  <text x="32" y="75" class="username">example-builder · Sample data</text>
-  <path d="M284 98v224" class="divider" aria-hidden="true" />
+  <rect width="420" height="336" rx="16" class="surface" />
+  <text x="22" y="32" class="brand">Buildmarks</text>
+  <text x="398" y="32" class="checked">Some details couldn&apos;t be checked</text>
+  <text x="22" y="63" class="username">Sample data · example-bui…</text>
   <g data-cover="ships-steadily" aria-label="Ships Steadily">
-    <text x="32" y="129" class="cover-title"><tspan x="32">Ships</tspan><tspan x="32" dy="44">Steadily</tspan></text>
-    <g transform="translate(52 191) scale(.8)" aria-hidden="true"><g transform="translate(0 0)">
+    <text x="22" y="104" class="cover-title"><tspan x="22">Ships</tspan><tspan x="22" dy="32">Steadily</tspan></text>
+    <g transform="translate(298 77) scale(.42)" aria-hidden="true"><g transform="translate(0 0)">
         <path d="M0 63C35 63 41 38 83 38S138 10 201 10" class="emblem-stroke" fill="none" stroke-width="12" stroke-linecap="round" />
         <g class="art-ink" fill="none" stroke-width="3"><circle cx="62" cy="42" r="7" /><circle cx="125" cy="29" r="7" /></g>
         <circle cx="201" cy="10" r="10" class="secondary" />
@@ -52,44 +57,19 @@
         <circle cx="201" cy="10" r="10" class="secondary" />
       </g></g>
   </g>
-  <g aria-label="Project areas with scores out of 100"><g role="img" aria-label="Maintainability: Gold I, 64 points out of 100">
-      <text x="314" y="112" class="metric">Maintainability</text>
-      <text x="728" y="112" class="value">64</text>
-      <rect x="314" y="122" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
-      <rect x="314" y="122" width="265" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Maintainability score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="64" />
+  <path d="M22 149h376" class="divider" aria-hidden="true" />
+  <g aria-label="Representative projects and observed details">
+    <g role="img" aria-label="example/sample-toolkit: Release + changelog; Docs or demo reference">
+      <text x="22" y="176" class="project">sample-toolkit · example</text>
+      <text x="22" y="199" class="facts">Release + changelog · Docs or demo reference</text>
     </g>
-<g role="img" aria-label="Project Readiness: Gold I, 69 points out of 100">
-      <text x="314" y="148" class="metric">Project Readiness</text>
-      <text x="728" y="148" class="value">69</text>
-      <rect x="314" y="158" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
-      <rect x="314" y="158" width="286" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Project Readiness score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="69" />
+<g role="img" aria-label="example/sample-project: License found">
+      <text x="22" y="232" class="project">sample-project · example</text>
+      <text x="22" y="255" class="facts">License found</text>
     </g>
-<g role="img" aria-label="Ease of Use: Gold I, 67 points out of 100">
-      <text x="314" y="184" class="metric">Ease of Use</text>
-      <text x="728" y="184" class="value">67</text>
-      <rect x="314" y="194" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
-      <rect x="314" y="194" width="277" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Ease of Use score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="67" />
-    </g>
-<g role="img" aria-label="Shipping: Platinum III, 84 points out of 100">
-      <text x="314" y="220" class="metric">Shipping</text>
-      <text x="728" y="220" class="value">84</text>
-      <rect x="314" y="230" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
-      <rect x="314" y="230" width="348" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Shipping score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="84" />
-    </g>
-<g role="img" aria-label="Consistency: Diamond IV, 92 points out of 100">
-      <text x="314" y="256" class="metric">Consistency</text>
-      <text x="728" y="256" class="value">92</text>
-      <rect x="314" y="266" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
-      <rect x="314" y="266" width="381" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Consistency score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="92" />
-    </g>
-<g role="img" aria-label="Project Care: Gold I, 61 points out of 100">
-      <text x="314" y="292" class="metric">Project Care</text>
-      <text x="728" y="292" class="value">61</text>
-      <rect x="314" y="302" width="414" height="7" rx="3.5" class="track" aria-hidden="true" />
-      <rect x="314" y="302" width="253" height="7" rx="3.5" class="bar" role="progressbar" aria-label="Project Care score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="61" />
-    </g></g>
+  </g>
+  <path d="M22 272h376" class="divider" aria-hidden="true" />
+  <text x="22" y="296" class="footer">Public GitHub projects · 2 reviewed</text>
+  <text x="22" y="319" class="footer">Generated 2026-05-28 · v0.4.0</text>
 
-  <g aria-label="Project highlights"></g>
-  <path d="M32 383h696" class="divider" aria-hidden="true" />
-  <text x="32" y="403" class="footer">Buildmarks v0.3.2 · Public GitHub · 2026-05-28</text>
 </svg>

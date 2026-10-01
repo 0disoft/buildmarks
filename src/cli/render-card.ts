@@ -1,6 +1,7 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
+import { parseCardLayoutOptions } from "./card-options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { isSupportedCardLabel } from "../shared/types";
 import {
@@ -55,7 +56,7 @@ export async function renderCardFile(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown render failure";
-    const svg = renderFallbackCard("Buildmarks couldn't generate this report right now");
+    const svg = renderFallbackCard("Buildmarks couldn't generate this report right now", options);
     const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
@@ -73,12 +74,12 @@ async function main(args: readonly string[]): Promise<void> {
 
   if (parsed.ok === false) {
     console.error(parsed.message);
-    console.error("Usage: bun src/cli/render-card.ts <profile.json> <output.svg>");
+    console.error("Usage: bun src/cli/render-card.ts <profile.json> <output.svg> [--layout compact|detailed]");
     process.exitCode = 2;
     return;
   }
 
-  const result = await renderCardFile(parsed.inputPath, parsed.outputPath);
+  const result = await renderCardFile(parsed.inputPath, parsed.outputPath, { layout: parsed.layout });
 
   if (!result.ok) {
     console.error(`Buildmarks wrote fallback SVG: ${result.error ?? "unknown render failure"}`);
@@ -90,9 +91,12 @@ async function main(args: readonly string[]): Promise<void> {
 }
 
 function parseArgs(args: readonly string[]):
-  | { ok: true; inputPath: string; outputPath: string }
+  | { ok: true; inputPath: string; outputPath: string; layout: "compact" | "detailed" }
   | { ok: false; message: string } {
   const positional: string[] = [];
+  const card = parseCardLayoutOptions(args);
+  if (!card.ok) return card;
+  args = card.args;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -118,7 +122,7 @@ function parseArgs(args: readonly string[]):
     return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
   }
 
-  return { ok: true, inputPath, outputPath };
+  return { ok: true, inputPath, outputPath, layout: card.layout };
 }
 
 if (import.meta.main) {

@@ -6,6 +6,14 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.4.0 - 2026-10-01
+
+- Make a readable 420-pixel profile card the default, showing two representative projects and up to three observed details.
+- Select display examples by type-relevant criteria and project-kind diversity without changing scoring or report schemas.
+- Preserve six vector covers, themes, checked percentage, generation date, early-result notices and private scope disclosures.
+- Keep the previous six-area card through renderer layout options, CLI --layout detailed and Action card-layout input.
+- Replace private representative names with numbered labels and retain honest empty and unavailable states.
+
 ## v0.3.2 - 2026-10-01
 
 - Preserve existing GitHub cards and reports on network failures, rate limits and other failed refreshes.

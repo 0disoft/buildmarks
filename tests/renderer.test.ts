@@ -17,12 +17,71 @@ import type { ProfileInput } from "../src";
 
 const now = new Date("2026-05-28T00:00:00.000Z");
 const visibleVersion = `v${buildmarksVersion}`;
+const renderDetailedProfileCard = (report: Parameters<typeof renderUserSignalCard>[0], options: Parameters<typeof renderUserSignalCard>[1] = {}) =>
+  renderUserSignalCard(report, { layout: "detailed", ...options });
 
 describe("SVG renderer", () => {
+  test("defaults to readable project examples without visible scores or tiers", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const before = JSON.stringify(report);
+    const svg = renderUserSignalCard(report);
+    expect(svg).toContain('data-layout="compact"');
+    expect(svg).toContain('viewBox="0 0 420 336"');
+    expect(svg).toContain('aria-label="Representative projects and observed details"');
+    expect(svg).toContain('class="project"');
+    expect(svg).toContain('class="project">usable-toolkit</text>');
+    expect(svg).toContain('aria-label="example-builder/usable-toolkit:');
+    expect(svg).toContain('class="facts"');
+    expect(svg).not.toContain('role="progressbar"');
+    expect(svg).not.toContain('class="value"');
+    expect(svg).not.toMatch(/>\s*(?:Gold|Platinum|Diamond)\s+[IVX]+<\/text>/);
+    expect(svg).toContain("100% checked");
+    expect(svg).toContain("Public GitHub projects");
+    expect(svg).toContain(`Generated 2026-05-28 · v${buildmarksVersion}`);
+    expect(JSON.stringify(report)).toBe(before);
+  });
+  test("retains all six type covers on compact cards", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const ids = new Set<string>();
+    for (const signalType of signalTypes) {
+      const svg = renderUserSignalCard({ ...report, signalType });
+      const id = svg.match(/data-cover="([^"]+)"/)?.[1];
+      if (id !== undefined) ids.add(id);
+      expect(svg).toContain(`aria-label="${signalTypeDisplayLabels[signalType]}"`);
+    }
+    expect(ids.size).toBe(6);
+  });
+  test("shows an honest empty state and early-result notice without invented project facts", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const svg = renderUserSignalCard({ ...report, topRepos: [], resultStatus: "provisional" });
+    expect(svg).toContain("No repository details to show.");
+    expect(svg).toContain("Early look");
+    expect(svg).not.toContain('class="project"');
+  });
+  test("escapes project names and replaces private identifiers on compact cards", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const projects = report.topRepos.map((repo) => ({ ...repo, owner: "owner", name: "<project>" }));
+    expect(renderUserSignalCard({ ...report, topRepos: projects })).toContain("owner/&lt;project&gt;");
+    const privateProjects = projects.map((repo) => ({ ...repo, name: "secret-project", signalVisibility: {
+      scope: "public-and-owner-supplied-private" as const, privateRepositoriesIncluded: true, privateRepositoryNamesRedacted: true,
+      independentlyVerifiable: false, cardLabel: "Public + Private Projects", reportVisibility: "private-local" as const
+    } }));
+    const svg = renderUserSignalCard({ ...report, topRepos: privateProjects });
+    expect(svg).toContain("Private project 1");
+    expect(svg).toContain("Public + Private Projects");
+    expect(svg).toContain("Private projects supplied by owner");
+    expect(svg).not.toContain("secret-project");
+  });
+  test("uses compact fallbacks and normalizes invalid runtime layout values", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    expect(renderUserSignalCard({ ...report, evidenceStatus: "insufficient" }, { theme: "dark" })).toContain('viewBox="0 0 420 200"');
+    expect(renderUserSignalCard(report, { layout: 'invalid" onload="alert(1)' as "compact" })).toContain('data-layout="compact"');
+    expect(renderUserSignalCard(report, { layout: 'invalid" onload="alert(1)' as "compact" })).not.toContain("onload=");
+  });
   test("classifies highlights by criterion ID even when evidence wording changes", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const evidence = (report.evidenceLedger ?? report.evidence).map((item) => ({ ...item, label: "Localized explanation" }));
-    const svg = renderUserSignalCard({ ...report, evidenceLedger: evidence });
+    const svg = renderDetailedProfileCard({ ...report, evidenceLedger: evidence });
     expect(svg).toContain(">Tests</text>");
     expect(svg).toContain(">CI</text>");
     expect(svg).toContain(">Change history</text>");
@@ -30,7 +89,7 @@ describe("SVG renderer", () => {
   });
   test("labels unobserved and irrelevant profile areas without giving them zero-score bars", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard({
+    const svg = renderDetailedProfileCard({
       ...report,
       unavailableDimensions: ["shipping"],
       notApplicableDimensions: ["consistency"]
@@ -46,7 +105,7 @@ describe("SVG renderer", () => {
 
   test("withholds scores when every profile area is unavailable", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard({ ...report, unavailableDimensions: [...signalDimensions] }, { theme: "dark" });
+    const svg = renderDetailedProfileCard({ ...report, unavailableDimensions: [...signalDimensions] }, { theme: "dark" });
     expect(svg).toContain("No score is shown");
     expect(svg).not.toContain('role="progressbar"');
     expect(svg).not.toContain("data-cover=");
@@ -57,7 +116,7 @@ describe("SVG renderer", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     for (const signalType of ["__proto__", 'unknown\" onload=\"alert(1)']) {
       Reflect.set(report, "signalType", signalType);
-      const svg = renderUserSignalCard(report);
+      const svg = renderDetailedProfileCard(report);
       expect(svg).toContain('data-cover="project-snapshot"');
       expect(svg).not.toContain("onload=");
       expect(svg).not.toContain("__proto__");
@@ -67,7 +126,7 @@ describe("SVG renderer", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const coverIds = new Set<string>();
     for (const signalType of signalTypes) {
-      const svg = renderUserSignalCard({ ...report, signalType }, { theme: "dark" });
+      const svg = renderDetailedProfileCard({ ...report, signalType }, { theme: "dark" });
       const id = svg.match(/data-cover="([^"]+)"/)?.[1];
       expect(id).toBeDefined();
       if (id !== undefined) coverIds.add(id);
@@ -79,7 +138,7 @@ describe("SVG renderer", () => {
   });
   test("uses real vector geometry and score-scaled bars on the shared profile cover", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(svg).toContain('viewBox="0 0 760 420"');
     expect(svg.match(/role="progressbar"/g)).toHaveLength(6);
@@ -90,7 +149,7 @@ describe("SVG renderer", () => {
   });
   test("renders a no-score fallback when evidence is insufficient", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard({
+    const svg = renderDetailedProfileCard({
       ...report,
       evidenceStatus: "insufficient",
       unavailableDimensions: [...signalDimensions]
@@ -108,7 +167,7 @@ describe("SVG renderer", () => {
       },
       { now }
     );
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(svg).toContain("<svg");
     expect(svg).toContain("Buildmarks");
@@ -155,7 +214,7 @@ describe("SVG renderer", () => {
 
   test("does not render an embedded report link on profile cards", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(svg).not.toContain("<a href=");
     expect(svg).not.toContain("View report");
@@ -164,7 +223,7 @@ describe("SVG renderer", () => {
 
   test("falls back to the auto theme for invalid runtime theme values", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard(report, {
+    const svg = renderDetailedProfileCard(report, {
       theme: "dark\" onload=\"alert(1)" as "auto"
     });
 
@@ -180,7 +239,7 @@ describe("SVG renderer", () => {
       },
       { now }
     );
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(svg).toContain("badname");
     expect(svg).not.toContain("\u0001");
@@ -209,7 +268,7 @@ describe("SVG renderer", () => {
       },
       { now }
     );
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(svg).not.toContain("Owner-supplied GitHub activity");
     expect(svg).toContain(`Buildmarks v${buildmarksVersion} · Public + Private Projects · 2026-05-28`);
@@ -227,7 +286,7 @@ describe("SVG renderer", () => {
 
   test("does not render context-dependent collaboration or adoption rows", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(svg).not.toContain("Collaboration Context");
     expect(svg).not.toContain(">Collaboration</text>");
@@ -240,7 +299,7 @@ describe("SVG renderer", () => {
 
   test("renders available low scores as numbers instead of an insufficient result", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard({
+    const svg = renderDetailedProfileCard({
       ...report,
       overall: 0,
       dimensions: {
@@ -273,7 +332,7 @@ describe("SVG renderer", () => {
       repositoryCollectionAttemptCount: 10,
       repositoryCollectionFailureCount: 2
     }, { now });
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(report.resultStatus).toBe("provisional");
     expect(svg).toContain("Early look · 80% checked");
@@ -283,7 +342,7 @@ describe("SVG renderer", () => {
 
   test("maps high score tier boundaries with the full diamond ladder", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard({
+    const svg = renderDetailedProfileCard({
       ...report,
       overall: 90,
       dimensions: {
@@ -313,13 +372,13 @@ describe("SVG renderer", () => {
       },
       { now }
     );
-    const svg = renderUserSignalCard(report);
+    const svg = renderDetailedProfileCard(report);
 
     expect(svg).not.toContain("last 6 months");
   });
 
   test("renders a fallback card for failed generation", () => {
-    const svg = renderFallbackCard("GitHub API limit reached.");
+    const svg = renderFallbackCard("GitHub API limit reached.", { layout: "detailed" });
 
     expect(svg).toContain("width=\"760\" height=\"420\"");
     expect(svg).toContain("GitHub API limit reached");
@@ -338,7 +397,7 @@ describe("SVG renderer", () => {
       },
       { now }
     );
-    const svg = renderUserSignalCard({
+    const svg = renderDetailedProfileCard({
       ...report,
       generatedAt: undefined as unknown as string
     });
@@ -351,7 +410,7 @@ describe("SVG renderer", () => {
 
   test("falls back when generated date is not a valid date string", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
-    const svg = renderUserSignalCard({
+    const svg = renderDetailedProfileCard({
       ...report,
       generatedAt: "INVALID_DATE_STRING"
     });

@@ -7,6 +7,7 @@ import { parseProfileInput, renderCardFile } from "../src/cli/render-card";
 import { renderGapsCardFile } from "../src/cli/render-gaps-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
 import { parseCommonGitHubCliOptions, parsePositiveDecimalIntegerOption } from "../src/cli/options";
+import { parseCardLayoutOptions } from "../src/cli/card-options";
 import { renderRepoCardFile } from "../src/cli/render-repo-card";
 import { writeTextFileAtomically, writeTextFilesAsSet } from "../src/cli/write-output";
 import { defaultGitHubCollectorPolicy, privateLocalSignalVisibility, type GitHubCollectorFetch, type ProfileInput } from "../src";
@@ -18,6 +19,22 @@ afterEach(async () => {
 });
 
 describe("render-card CLI", () => {
+  test("selects detailed layout through local CLI arguments", async () => {
+    const directory = await makeTempDirectory();
+    const output = join(directory, "detailed.svg");
+    const child = Bun.spawn(["bun", "src/cli/render-card.ts", "fixtures/example-public-profile.json", output, "--layout", "detailed"], { stdout: "pipe", stderr: "pipe" });
+    expect(await child.exited).toBe(0);
+    expect(await readFile(output, "utf8")).toContain('viewBox="0 0 760 420"');
+    const compact = await renderCardFile("fixtures/example-public-profile.json", join(directory, "compact.svg"));
+    expect(await readFile(compact.outputPath, "utf8")).toContain('data-layout="compact"');
+  });
+  test("parses layout separately and rejects missing, invalid and duplicate values", () => {
+    expect(parseCardLayoutOptions(["user", "output.svg", "--layout", "detailed", "--token", "read-token"]))
+      .toEqual({ ok: true, args: ["user", "output.svg", "--token", "read-token"], layout: "detailed" });
+    for (const args of [["--layout"], ["--layout", "--token"], ["--layout", "large"], ["--layout", "compact", "--layout", "detailed"]]) {
+      expect(parseCardLayoutOptions(args).ok).toBe(false);
+    }
+  });
   for (const existing of [true, false]) {
     test(`rolls back a failed second output replacement with existing=${existing}`, async () => {
       const directory = await makeTempDirectory();
@@ -75,10 +92,12 @@ describe("render-card CLI", () => {
     expect(result.fallback).toBe(false);
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Buildmarks v");
+    expect(svg).toContain('data-layout="compact"');
+    expect(svg).toContain("Generated ");
     expect(svg).not.toContain("Public Signal Tier");
-    expect(svg).toContain('class="value">59</text>');
-    expect(svg).toContain("Highlights");
+    expect(svg).not.toContain('class="value">');
+    expect(svg).toContain('class="project"');
+    expect(svg).toContain("Tests + workflow");
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("repos checked");
     expect(svg).not.toContain(">24 marks</text>");
@@ -477,10 +496,11 @@ describe("render-github-card CLI", () => {
     expect(result.username).toBe("example-builder");
     expect(svg).toContain("Buildmarks");
     expect(svg).toContain("example-builder");
-    expect(svg).toContain("Buildmarks v");
+    expect(svg).toContain('data-layout="compact"');
+    expect(svg).toContain("Generated ");
     expect(svg).not.toContain("Public Signal Tier");
-    expect(svg).toContain('role="progressbar"');
-    expect(svg).toContain('class="value">');
+    expect(svg).not.toContain('role="progressbar"');
+    expect(svg).toContain('class="project"');
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("<text x=\"36\" y=\"390\" class=\"footer\">Not a ranking");
   });

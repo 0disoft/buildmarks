@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { parseCardLayoutOptions } from "./card-options";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, OutputSetRollbackError, resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
@@ -12,10 +13,11 @@ import {
   renderFallbackCard,
   renderStaticReportHtml,
   renderUserSignalCard,
-  type CollectPublicGitHubProfileOptions
+  type CollectPublicGitHubProfileOptions,
+  type RenderCardOptions
 } from "../index";
 
-export interface RenderGitHubArtifactsOptions extends CollectPublicGitHubProfileOptions {
+export interface RenderGitHubArtifactsOptions extends CollectPublicGitHubProfileOptions, RenderCardOptions {
   privateLocal?: boolean;
 }
 
@@ -57,7 +59,7 @@ export async function renderGitHubArtifacts(
     const staticReport = createStaticReport(profile, scoringOptions);
     assertSufficientEvidence(profile, staticReport.profile);
     await writeTextFilesAsSet([
-      { path: resolvedSvgPath, content: renderUserSignalCard(staticReport.profile) },
+      { path: resolvedSvgPath, content: renderUserSignalCard(staticReport.profile, options) },
       { path: htmlPath, content: renderStaticReportHtml(staticReport) },
       { path: jsonPath, content: `${JSON.stringify(staticReport, null, 2)}\n` }
     ]);
@@ -104,7 +106,7 @@ export async function renderGitHubArtifacts(
 </html>`;
 
     const fallbackWriteFailure = await tryWriteTextFilesAsSet([
-      { path: resolvedSvgPath, content: renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now") },
+      { path: resolvedSvgPath, content: renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now", options) },
       { path: htmlPath, content: fallbackHtml },
       { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
     ]);
@@ -136,13 +138,14 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-artifacts.ts <github-username> <output.svg> <report-output-directory> [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>] [--max-api-requests <n>]"
+      "Usage: bun src/cli/render-github-artifacts.ts <github-username> <output.svg> <report-output-directory> [--layout compact|detailed] [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>] [--max-api-requests <n>]"
     );
     process.exitCode = 2;
     return;
   }
 
   const result = await renderGitHubArtifacts(parsed.username, parsed.svgOutputPath, parsed.reportOutputDirectory, {
+    layout: parsed.layout,
     privateLocal: parsed.privateLocal,
     ...(parsed.token === undefined ? {} : { token: parsed.token }),
     policy: buildGitHubCollectorPolicyFromCli(parsed)
@@ -176,9 +179,12 @@ function parseArgs(args: readonly string[]):
       activityWindowDays: number;
       maxApiRequests: number;
       privateLocal: boolean;
+      layout: "compact" | "detailed";
     }
   | { ok: false; message: string } {
-  const common = parseCommonGitHubCliOptions(args);
+  const card = parseCardLayoutOptions(args);
+  if (!card.ok) return card;
+  const common = parseCommonGitHubCliOptions(card.args);
   if (common.ok === false) {
     return common;
   }
@@ -198,7 +204,7 @@ function parseArgs(args: readonly string[]):
     return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
   }
 
-  return { ok: true, username, svgOutputPath, reportOutputDirectory, ...options };
+  return { ok: true, username, svgOutputPath, reportOutputDirectory, ...options, layout: card.layout };
 }
 
 if (import.meta.main) {

@@ -30,12 +30,17 @@ describe("compact card project selection", () => {
     expect(selectCardProjects([...repos].reverse(), "Maintainer-Builder")).toEqual(selected);
   });
   test("deduplicates repeated criteria, categories and repositories without mutating the report", () => {
-    const repo = repository("a", ["maintainability.tests-ci", "maintainability.tests", "maintainability.tests-ci", "completeness.license"]);
+    const repo = repository("a", ["maintainability.tests-ci", "maintainability.tests", "maintainability.ci", "maintainability.tests-ci", "completeness.license"]);
     const before = JSON.stringify(repo);
     const selected = selectCardProjects([repo, repo], "Maintainer-Builder");
     expect(selected).toHaveLength(1);
     expect(selected[0]?.facts).toEqual(["Tests + workflow", "License found"]);
     expect(JSON.stringify(repo)).toBe(before);
+  });
+  test("prefers related combined checks over a pair of standalone files", () => {
+    const isolated = repository("a", ["usability.readme", "completeness.license"]);
+    const combined = repository("z", ["usability.docs-examples", "usability.package"]);
+    expect(selectCardProjects([isolated, combined], "Productized Builder")[0]?.name).toBe("example/z");
   });
   test("does not invent facts from unknown IDs, negative evidence or unavailable assessments", () => {
     const unknown = repository("unknown", ["new.unknown"]);

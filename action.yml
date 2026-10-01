@@ -12,6 +12,10 @@ inputs:
     description: SVG output path, relative to the caller repository.
     required: false
     default: assets/buildmarks.svg
+  card-layout:
+    description: Profile SVG layout, compact or detailed.
+    required: false
+    default: compact
   generate-report:
     description: Whether to generate an HTML page and JSON file next to the SVG.
     required: false
@@ -33,7 +37,7 @@ inputs:
     required: false
     default: "30"
   max-repositories-scored:
-    description: Maximum repositories to show on the card; all successfully reviewed repositories still contribute to the calculation.
+    description: Maximum repositories included in the report display sample; compact cards show up to two representatives. All reviewed repositories still contribute to the calculation.
     required: false
     default: "12"
   activity-window-days:
@@ -53,6 +57,7 @@ runs:
       env:
         BUILDMARKS_USERNAME: ${{ inputs.username }}
         BUILDMARKS_OUTPUT: ${{ inputs.output }}
+        BUILDMARKS_CARD_LAYOUT: ${{ inputs.card-layout }}
         BUILDMARKS_GENERATE_REPORT: ${{ inputs.generate-report }}
         BUILDMARKS_REPORT_OUTPUT: ${{ inputs.report-output }}
         BUILDMARKS_TOKEN: ${{ inputs.token }}
@@ -84,6 +89,14 @@ runs:
             ;;
           *)
             echo "::error title=Invalid generate-report::Expected generate-report to be exactly 'true' or 'false'."
+            exit 1
+            ;;
+        esac
+
+        case "$BUILDMARKS_CARD_LAYOUT" in
+          compact|detailed) ;;
+          *)
+            echo "::error title=Invalid card-layout::Expected card-layout to be compact or detailed."
             exit 1
             ;;
         esac
@@ -154,6 +167,7 @@ runs:
       env:
         BUILDMARKS_USERNAME: ${{ inputs.username }}
         BUILDMARKS_OUTPUT: ${{ inputs.output }}
+        BUILDMARKS_CARD_LAYOUT: ${{ inputs.card-layout }}
         BUILDMARKS_REPORT_OUTPUT: ${{ inputs.report-output }}
         BUILDMARKS_TOKEN: ${{ inputs.token }}
         BUILDMARKS_PRIVATE_LOCAL: ${{ inputs.private-local }}
@@ -168,6 +182,8 @@ runs:
           "$BUILDMARKS_USERNAME"
           "$BUILDMARKS_OUTPUT"
           "$BUILDMARKS_REPORT_OUTPUT"
+          "--layout"
+          "$BUILDMARKS_CARD_LAYOUT"
           "--max-repositories-scanned"
           "$BUILDMARKS_MAX_REPOSITORIES_SCANNED"
           "--max-repositories-scored"
@@ -198,6 +214,7 @@ runs:
       env:
         BUILDMARKS_USERNAME: ${{ inputs.username }}
         BUILDMARKS_OUTPUT: ${{ inputs.output }}
+        BUILDMARKS_CARD_LAYOUT: ${{ inputs.card-layout }}
         BUILDMARKS_TOKEN: ${{ inputs.token }}
         BUILDMARKS_PRIVATE_LOCAL: ${{ inputs.private-local }}
         BUILDMARKS_MAX_REPOSITORIES_SCANNED: ${{ inputs.max-repositories-scanned }}
@@ -210,6 +227,8 @@ runs:
         args=(
           "$BUILDMARKS_USERNAME"
           "$BUILDMARKS_OUTPUT"
+          "--layout"
+          "$BUILDMARKS_CARD_LAYOUT"
           "--max-repositories-scanned"
           "$BUILDMARKS_MAX_REPOSITORIES_SCANNED"
           "--max-repositories-scored"

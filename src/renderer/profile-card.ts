@@ -72,7 +72,7 @@ ${highlights.length > 0 ? '  <text x="32" y="333" class="caption">Highlights</te
 </svg>`;
 }
 
-function renderProfileStyles(): string {
+export function renderProfileStyles(): string {
   return `
     text { font-family:${font}; fill:var(--text); }
     .surface { fill:var(--surface); }

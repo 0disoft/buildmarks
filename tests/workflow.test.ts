@@ -72,7 +72,7 @@ describe("profile README workflow example", () => {
     const sharedVersion = await readFile("src/shared/version.ts", "utf8");
 
     expect(metadata.license).toBe("0BSD");
-    expect(metadata.version).toBe("0.3.2");
+    expect(metadata.version).toBe("0.4.0");
     expect(sharedVersion).toContain(`buildmarksVersion = "${metadata.version}"`);
     expect(metadata.types).toBe("./dist/index.d.ts");
     expect(metadata.exports).toEqual({
@@ -208,7 +208,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("npm pack --dry-run");
     expect(npmPackaging).toContain("Buildmarks is published to npm as a library");
     expect(npmPackaging).toContain("npm package name: `buildmarks`");
-    expect(npmPackaging).toContain("Current package version: `0.3.2`");
+    expect(npmPackaging).toContain("Current package version: `0.4.0`");
     expect(npmPackaging).toContain("Workflow filename: `release.yml`");
     expect(npmPackaging).toContain("Environment name: `npm`");
     expect(npmPackaging).toContain("Allowed actions: `npm publish`");
@@ -271,6 +271,7 @@ describe("profile README workflow example", () => {
     for (const input of [
       "username",
       "output",
+      "card-layout",
       "generate-report",
       "report-output",
       "token",
@@ -370,6 +371,9 @@ describe("profile README workflow example", () => {
     expect(action).toContain("Invalid report-output");
     expect(action).toContain("Expected report-output to be a non-empty report directory.");
     expect(action).toContain("Expected generate-report to be exactly 'true' or 'false'.");
+    expect(action).toContain("Expected card-layout to be compact or detailed.");
+    expect(action.match(/BUILDMARKS_CARD_LAYOUT: \$\{\{ inputs.card-layout \}\}/g)).toHaveLength(3);
+    expect(action.match(/"--layout"/g)).toHaveLength(2);
     expect(action).toContain("Invalid max-repositories-scanned");
     expect(action).toContain("Invalid max-repositories-scored");
     expect(action).toContain("Invalid repository limits");

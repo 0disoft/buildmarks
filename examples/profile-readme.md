@@ -24,6 +24,8 @@ assets/buildmarks-report/buildmarks-report.json
 
 This is the recommended backend-free path. GitHub serves the checked-in SVG and report directly from your profile repository, so profile views do not trigger fresh API requests.
 
+The default 420-pixel card shows up to two projects and three observed details. To retain the six-area card, set `card-layout: detailed` in the Action, pass `--layout detailed` to card generation, or use `renderUserSignalCard(report, { layout: "detailed" })`. Keep the full report beside either layout.
+
 ## Static Checked-In Card
 
 Generate a local SVG card from a profile fixture:
@@ -106,12 +108,13 @@ Action inputs:
 | --- | --- | --- |
 | `username` | required | Non-empty GitHub username to analyze. |
 | `output` | `assets/buildmarks.svg` | Non-empty SVG artifact path in the caller repository. |
+| `card-layout` | `compact` | Choose `compact` for representative projects or `detailed` for six numeric area scores. |
 | `generate-report` | `"true"` | Must be exactly `"true"` or `"false"`. |
 | `report-output` | `assets/buildmarks-report` | Non-empty HTML and JSON report directory. |
 | `token` | empty | Optional token. Public-only mode does not need private scopes; private-local mode requires an explicit owner-provided read token. |
 | `private-local` | `"false"` | Must be exactly `"true"` or `"false"`. Includes owner-supplied private repositories and hides their names. |
 | `max-repositories-scanned` | `30` | Positive integer public repository scan limit, capped at 100 and must be greater than or equal to `max-repositories-scored`. |
-| `max-repositories-scored` | `12` | Positive integer repository display limit, capped at 24. Despite the legacy input name, all successfully evaluated repositories contribute to the profile calculation. |
+| `max-repositories-scored` | `12` | Positive integer report display limit, capped at 24. Compact cards select up to two projects from this sample. Despite the legacy input name, all successfully evaluated repositories contribute to the profile calculation. |
 | `activity-window-days` | `365` | Positive integer recent-activity window based on public `pushed_at`, capped at 3650. |
 | `max-api-requests` | `160` | Positive integer GitHub REST request budget for one profile collection, capped at 500. Retries spend budget. |
 

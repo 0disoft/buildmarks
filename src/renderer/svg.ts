@@ -10,6 +10,8 @@ import {
 import { buildmarksVersion } from "../shared/version.js";
 import { renderProfileCard, type ProfileCardRow } from "./profile-card.js";
 import { methodologyCriteria, type CriterionCheck } from "../scoring/methodology-v2.js";
+import { selectCardProjects } from "./card-projects.js";
+import { renderCompactCard, renderCompactFallback } from "./compact-card.js";
 
 const highlightLabels: Record<CriterionCheck, string> = {
   readme: "Docs", license: "License", "usage-guide": "Docs", ci: "CI", tests: "Tests",
@@ -28,6 +30,8 @@ const criterionHighlights = new Map(methodologyCriteria.map((criterion) => [crit
 
 export interface RenderCardOptions {
   theme?: "auto" | "dark" | "light";
+  /** Profile and fallback layout; repository and suggestion cards keep their own layout. */
+  layout?: "compact" | "detailed";
 }
 
 const cardWidth = 760;
@@ -113,6 +117,33 @@ export function renderUserSignalCard(
   const contextDescriptions = dimensions.filter((row) => row.status !== "scored")
     .map((row) => `${dimensionLabels[row.key]} ${row.status === "not-applicable" ? "doesn't apply" : "couldn't be checked"}`);
   const desc = [buildDescription(report, overall), ...contextDescriptions].join(". ");
+  if (options.layout !== "detailed") {
+    const projects = selectCardProjects(report.topRepos, report.signalType);
+    const includesPrivate = includesPrivateSignals || projects.some((project) => project.private);
+    const reviewed = report.selection?.evaluatedCount ?? report.topRepos.length;
+    const scope = includesPrivate ? privateLocalSignalVisibility.cardLabel : "Public GitHub projects";
+    const projectDescriptions = projects.map((project) => `${project.name}: ${project.facts.join("; ")}`).join(". ");
+    const compactDescription = includesPrivate && !includesPrivateSignals
+      ? [buildDescription({ ...report, signalVisibility: privateLocalSignalVisibility }, overall), ...contextDescriptions].join(". ") : desc;
+    return renderCompactCard({
+      signalType: report.signalType, theme,
+      usernameXml: escapeXml(fitCompactText(usernameRaw, 26)),
+      titleXml: `Buildmarks project card for ${escapeXml(usernameRaw)}`,
+      descriptionXml: escapeXml(`${compactDescription}${projectDescriptions ? ` Representative projects: ${projectDescriptions}` : ""}`),
+      checkedXml: escapeXml(footerNote),
+      scopeXml: escapeXml(`${scope} · ${reviewed} reviewed`),
+      generatedXml: escapeXml(`Generated ${generatedDate} · ${brandVersion}`),
+      includesPrivate,
+      projects: projects.map((project) => {
+        const separator = project.name.indexOf("/");
+        const owner = separator < 0 ? "" : project.name.slice(0, separator);
+        const name = separator < 0 ? project.name : project.name.slice(separator + 1);
+        const display = owner === "" || owner.toLowerCase() === usernameRaw.trim().toLowerCase() ? name : `${name} · ${owner}`;
+        return { nameXml: escapeXml(fitCompactText(display, 32)), factsXml: escapeXml(project.facts.join(" · ")),
+          descriptionXml: escapeXml(`${project.name}: ${project.facts.join("; ")}`) };
+      })
+    });
+  }
   return renderProfileCard({
     signalType: report.signalType,
     theme,
@@ -132,6 +163,10 @@ export function renderFallbackCard(
 ): string {
   const safeMessage = fitText(message, 76);
   const descriptionMessage = finishSentence(message);
+
+  if (options.layout !== "detailed") {
+    return renderCompactFallback(escapeXml(fitCompactText(message, 34)), escapeXml(descriptionMessage), normalizeTheme(options.theme));
+  }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${normalizeTheme(options.theme)}" role="img" width="${cardWidth}" height="${cardHeight}" viewBox="0 0 ${cardWidth} ${cardHeight}" aria-labelledby="title desc">
@@ -560,6 +595,18 @@ function fitText(value: string, maxLength: number): string {
   }
 
   return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+function fitCompactText(value: string, maxUnits: number): string {
+  let units = 0;
+  let result = "";
+  for (const character of value) {
+    const width = /[\p{Mark}\u200d\ufe0f]/u.test(character) ? 0 : /[MW@]/u.test(character) ? 1.5 : /[^\u0000-\u00ff]/u.test(character) ? 2 : 1;
+    if (units + width > maxUnits - 1) return `${result}…`;
+    units += width;
+    result += character;
+  }
+  return result;
 }
 
 function formatDate(value: unknown): string {

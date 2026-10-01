@@ -64,7 +64,7 @@ export function renderCoverStyles(cover: ProfileCover): string {
     @media (prefers-color-scheme: dark) { .card-auto { ${palette(cover.dark)} } }`;
 }
 
-export function renderCoverArtwork(cover: ProfileCover): string {
+export function renderCoverArtwork(cover: ProfileCover, transform = "translate(52 191) scale(.8)"): string {
   let shapes: string;
   switch (cover.id) {
     case "built-to-last":
@@ -112,5 +112,5 @@ export function renderCoverArtwork(cover: ProfileCover): string {
       <rect x="98" y="94" width="23" height="23" rx="4" class="secondary" />
       <circle cx="148" cy="105" r="12" class="accent" />`;
   }
-  return `<g transform="translate(52 191) scale(.8)" aria-hidden="true">${shapes}</g>`;
+  return `<g transform="${transform}" aria-hidden="true">${shapes}</g>`;
 }

@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { parseCardLayoutOptions } from "./card-options";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
@@ -62,7 +63,7 @@ export async function renderGitHubCardFile(
 
       const writeError = await tryWriteTextFile(
         resolvedOutputPath,
-        renderFallbackCard("Not enough complete repository data to calculate a reliable score")
+        renderFallbackCard("Not enough complete repository data to calculate a reliable score", options)
       );
       return {
         ok: false,
@@ -94,7 +95,7 @@ export async function renderGitHubCardFile(
         error: message
       };
     }
-    const svg = renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now");
+    const svg = renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now", options);
     const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
 
     return {
@@ -112,13 +113,14 @@ async function main(args: readonly string[]): Promise<void> {
   if (parsed.ok === false) {
     console.error(parsed.message);
     console.error(
-      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>] [--max-api-requests <n>]"
+      "Usage: bun src/cli/render-github-card.ts <github-username> <output.svg> [--layout compact|detailed] [--token <token>] [--private-local] [--max-repositories-scanned <n>] [--max-repositories-scored <n>] [--activity-window-days <n>] [--max-api-requests <n>]"
     );
     process.exitCode = 2;
     return;
   }
 
   const result = await renderGitHubCardFile(parsed.username, parsed.outputPath, {
+    layout: parsed.layout,
     privateLocal: parsed.privateLocal,
     ...(parsed.token === undefined ? {} : { token: parsed.token }),
     policy: buildGitHubCollectorPolicyFromCli(parsed)
@@ -150,9 +152,12 @@ function parseArgs(args: readonly string[]):
       activityWindowDays: number;
       maxApiRequests: number;
       privateLocal: boolean;
+      layout: "compact" | "detailed";
     }
   | { ok: false; message: string } {
-  const common = parseCommonGitHubCliOptions(args);
+  const card = parseCardLayoutOptions(args);
+  if (!card.ok) return card;
+  const common = parseCommonGitHubCliOptions(card.args);
   if (common.ok === false) {
     return common;
   }
@@ -169,7 +174,7 @@ function parseArgs(args: readonly string[]):
     return { ok: false, message: `Unexpected positional argument: ${extra[0]}` };
   }
 
-  return { ok: true, username, outputPath, ...options };
+  return { ok: true, username, outputPath, ...options, layout: card.layout };
 }
 
 function resolveRequiredGitHubUsername(username: string): string {

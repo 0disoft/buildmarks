@@ -375,6 +375,17 @@ describe("static report", () => {
     expect(svg).not.toContain("report #1");
   });
 
+  test("supports detailed cards alongside the same complete report contract", async () => {
+    const directory = await makeTempDirectory();
+    const result = await renderGitHubArtifacts("example-builder", join(directory, "card.svg"), directory, {
+      fetcher: makeGitHubFetch(), layout: "detailed"
+    });
+    expect(result.ok).toBe(true);
+    expect(await readFile(result.svgPath, "utf8")).toContain('viewBox="0 0 760 420"');
+    const json = JSON.parse(await readFile(result.jsonPath, "utf8")) as { profile: { dimensions: Record<string, number> } };
+    expect(Object.keys(json.profile.dimensions)).toHaveLength(6);
+  });
+
   test("writes fallback report files when public GitHub collection fails", async () => {
     const directory = await makeTempDirectory();
     const result = await renderGitHubReportFiles("example-builder", directory, {

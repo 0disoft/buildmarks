@@ -29,7 +29,7 @@ Checks that do not make sense for a project are left out. Checks that could not 
 
 A project area needs at least half of its relevant details checked before it receives a score. Unknown details do not become zeroes.
 
-The profile card shows numeric area scores and its project type when Buildmarks checked at least 85% of the relevant project details and at least 85% of the repositories it tried to read. A thinner pass is labeled as an early look. Tier descriptions remain in reports and accessible SVG descriptions. If half or more of the attempted repositories could not be read, Buildmarks shows no score.
+The default profile card shows its project type and representative repository details. Area scores remain in reports and the optional detailed card; tier descriptions remain in reports and accessible SVG descriptions. A pass checking fewer than 85% of relevant details or attempted repositories is labeled as an early look. If half or more of the attempted repositories could not be read, Buildmarks shows an unavailable card.
 
 The checked percentage appears on the card so readers can see how much Buildmarks actually reviewed without a second label trying to interpret the number for them.
 
@@ -54,7 +54,9 @@ Project areas that do not fit the repository are left out of the total.
 
 Forked and archived repositories are left out by default. Every remaining repository with a complete enough Git tree contributes to the profile score.
 
-The card may show fewer repositories than were used. Buildmarks first tries to show a strong example from each project kind, then fills the remaining slots by score. The default display limit is 12. The JSON records how many repositories were eligible, attempted, missed, checked, and shown.
+The report may show fewer repositories than were used. Buildmarks first tries to show a strong example from each project kind, then fills the remaining slots by score. The default report display limit is 12. The JSON records how many repositories were eligible, attempted, missed, checked, and shown.
+
+Compact cards select up to two representatives from that report display sample. Selection prefers recognized positive criteria related to the profile type, then combined checks and candidates with two distinct detail categories, with repository identity as a stable tie-breaker. The second project prefers a different project kind. Repeated criteria and categories are merged, and at most three details appear across the card. This display selection does not change scoring or the report sample. Unavailable repositories and unrecognized criteria do not become invented highlights. Private project names are replaced with numbered labels.
 
 ## What Buildmarks Can Find
 

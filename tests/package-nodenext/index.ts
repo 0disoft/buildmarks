@@ -1,6 +1,7 @@
 import {
   buildmarksVersion,
   scoreUserProfile,
+  renderUserSignalCard,
   scoringMethodologyVersion,
   type ProfileInput,
   type UserSignalReportV2
@@ -13,3 +14,5 @@ const profile: ProfileInput = {
 
 const report: UserSignalReportV2 = scoreUserProfile(profile);
 console.log(buildmarksVersion, scoringMethodologyVersion, report.evidenceStatus);
+renderUserSignalCard(report, { layout: "compact", theme: "dark" });
+renderUserSignalCard(report, { layout: "detailed" });
