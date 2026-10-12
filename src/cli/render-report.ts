@@ -5,7 +5,7 @@ import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { parseProfileInput } from "./profile-input";
 import { isMainModule } from "./main";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
+import { appendWriteFailure, OutputSetRollbackError, resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
 
 export interface RenderReportFileResult {
   ok: boolean;
@@ -34,8 +34,10 @@ export async function renderReportFiles(
     const report = createStaticReport(profile);
     const html = renderStaticReportHtml(report);
 
-    await writeTextFileAtomically(htmlPath, html);
-    await writeTextFileAtomically(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
+    await writeTextFilesAsSet([
+      { path: htmlPath, content: html },
+      { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
+    ]);
 
     return {
       ok: true,
@@ -46,6 +48,9 @@ export async function renderReportFiles(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown report render failure";
+    if (error instanceof OutputSetRollbackError) {
+      return { ok: false, inputPath: resolvedInputPath, outputDirectory: resolvedOutputDirectory, htmlPath, jsonPath, error: message };
+    }
     const fallbackReport = {
       ok: false,
       error: message,
@@ -62,12 +67,10 @@ export async function renderReportFiles(
 </body>
 </html>`;
 
-    const fallbackWriteFailures = (
-      await Promise.all([
-        tryWriteTextFile(htmlPath, fallbackHtml),
-        tryWriteTextFile(jsonPath, `${JSON.stringify(fallbackReport, null, 2)}\n`)
-      ])
-    ).filter((failure): failure is string => failure !== undefined);
+    const fallbackWriteFailure = await tryWriteTextFilesAsSet([
+      { path: htmlPath, content: fallbackHtml },
+      { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
+    ]);
 
     return {
       ok: false,
@@ -75,7 +78,7 @@ export async function renderReportFiles(
       outputDirectory: resolvedOutputDirectory,
       htmlPath,
       jsonPath,
-      error: appendWriteFailure(message, "Fallback report", fallbackWriteFailures.join("; ") || undefined)
+      error: appendWriteFailure(message, "Fallback report", fallbackWriteFailure)
     };
   }
 }
@@ -92,7 +95,7 @@ async function main(args: readonly string[]): Promise<void> {
   const result = await renderReportFiles(parsed.inputPath, parsed.outputDirectory);
 
   if (!result.ok) {
-    console.error(`Buildmarks wrote fallback report: ${result.error ?? "unknown report render failure"}`);
+    console.error(`Buildmarks report generation failed: ${result.error ?? "unknown report render failure"}`);
     process.exitCode = 1;
     return;
   }
