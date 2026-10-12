@@ -2,6 +2,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { parseCardLayoutOptions } from "./card-options";
+import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { isSupportedCardLabel } from "../shared/types";
 import {
@@ -37,6 +38,7 @@ export async function renderCardFile(
 ): Promise<RenderCardFileResult> {
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
+  await assertInputNotReplaced(resolvedInputPath, [resolvedOutputPath]);
 
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
@@ -126,7 +128,7 @@ function parseArgs(args: readonly string[]):
 }
 
 if (import.meta.main) {
-  await main(process.argv.slice(2));
+  await runLocalRenderCli(main, process.argv.slice(2));
 }
 
 export function parseProfileInput(value: unknown): ProfileInput {

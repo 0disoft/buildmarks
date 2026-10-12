@@ -2,6 +2,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createStaticReport, renderStaticReportHtml } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
+import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { parseProfileInput } from "./render-card";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
@@ -22,6 +23,7 @@ export async function renderReportFiles(
   const resolvedOutputDirectory = resolveRequiredPath(outputDirectory, "Output report directory");
   const htmlPath = join(resolvedOutputDirectory, "buildmarks-report.html");
   const jsonPath = join(resolvedOutputDirectory, "buildmarks-report.json");
+  await assertInputNotReplaced(resolvedInputPath, [htmlPath, jsonPath]);
 
   await mkdir(resolvedOutputDirectory, { recursive: true });
 
@@ -123,5 +125,5 @@ function parseArgs(args: readonly string[]):
 }
 
 if (import.meta.main) {
-  await main(process.argv.slice(2));
+  await runLocalRenderCli(main, process.argv.slice(2));
 }

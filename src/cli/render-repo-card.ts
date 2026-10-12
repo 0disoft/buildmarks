@@ -7,6 +7,7 @@ import {
   type RepositoryInput
 } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
+import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { parseProfileInput } from "./render-card";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
@@ -26,6 +27,7 @@ export async function renderRepoCardFile(
 ): Promise<RenderRepoCardFileResult> {
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
+  await assertInputNotReplaced(resolvedInputPath, [resolvedOutputPath]);
 
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
@@ -129,5 +131,5 @@ function findRepository(repositories: readonly RepositoryInput[], repositoryRef:
 }
 
 if (import.meta.main) {
-  await main(process.argv.slice(2));
+  await runLocalRenderCli(main, process.argv.slice(2));
 }

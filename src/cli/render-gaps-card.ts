@@ -2,6 +2,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { analyzeSignalGaps, renderFallbackCard, renderSignalGapsCard } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
+import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { parseProfileInput } from "./render-card";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
@@ -19,6 +20,7 @@ export async function renderGapsCardFile(
 ): Promise<RenderGapsCardFileResult> {
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
+  await assertInputNotReplaced(resolvedInputPath, [resolvedOutputPath]);
 
   await mkdir(dirname(resolvedOutputPath), { recursive: true });
 
@@ -96,5 +98,5 @@ function parseArgs(args: readonly string[]):
 }
 
 if (import.meta.main) {
-  await main(process.argv.slice(2));
+  await runLocalRenderCli(main, process.argv.slice(2));
 }
