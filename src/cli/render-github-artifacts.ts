@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import { isMainModule } from "./main";
 import { dirname, join } from "node:path";
 import { parseCardLayoutOptions } from "./card-options";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
@@ -207,6 +208,6 @@ function parseArgs(args: readonly string[]):
   return { ok: true, username, svgOutputPath, reportOutputDirectory, ...options, layout: card.layout };
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   await main(process.argv.slice(2));
 }

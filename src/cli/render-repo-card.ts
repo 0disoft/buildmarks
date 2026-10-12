@@ -8,7 +8,8 @@ import {
 } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
-import { parseProfileInput } from "./render-card";
+import { parseProfileInput } from "./profile-input";
+import { isMainModule } from "./main";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
 export interface RenderRepoCardFileResult {
@@ -130,6 +131,6 @@ function findRepository(repositories: readonly RepositoryInput[], repositoryRef:
   }) ?? null;
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   await runLocalRenderCli(main, process.argv.slice(2));
 }

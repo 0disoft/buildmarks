@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import { isMainModule } from "./main";
 import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
 import { appendWriteFailure, OutputSetRollbackError, resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
@@ -184,6 +185,6 @@ function resolveRequiredGitHubUsername(username: string): string {
 }
 
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   await main(process.argv.slice(2));
 }

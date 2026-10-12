@@ -3,7 +3,8 @@ import { dirname } from "node:path";
 import { analyzeSignalGaps, renderFallbackCard, renderSignalGapsCard } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
-import { parseProfileInput } from "./render-card";
+import { parseProfileInput } from "./profile-input";
+import { isMainModule } from "./main";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
 export interface RenderGapsCardFileResult {
@@ -97,6 +98,6 @@ function parseArgs(args: readonly string[]):
   return { ok: true, inputPath, outputPath };
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   await runLocalRenderCli(main, process.argv.slice(2));
 }

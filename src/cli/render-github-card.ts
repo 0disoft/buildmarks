@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import { isMainModule } from "./main";
 import { dirname } from "node:path";
 import { parseCardLayoutOptions } from "./card-options";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
@@ -186,6 +187,6 @@ function resolveRequiredGitHubUsername(username: string): string {
   return normalizedUsername;
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   await main(process.argv.slice(2));
 }
