@@ -370,6 +370,8 @@ npm pack --dry-run
 
 The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.
 
+`bun run check` also builds the shipped Node CLI entry points and runs each bundle with a real Node.js binary, so a Node.js runtime on `PATH` is required for the full suite. Those checks confirm that each local renderer bundle runs only its own command and that importing a bundle does not execute a CLI. `bun run typecheck` only type-checks; it does not re-run the execution tests.
+
 Repository CI runs dependency installation from the lockfile, core tests, TypeScript typecheck, build, sample SVG, sample report, and npm package dry-run checks on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.
 
 ## Contributing and Security
@@ -395,6 +397,8 @@ bun src/cli/render-card.ts path/to/profile.json out/profile-card.svg
 ```
 
 If the input cannot be read or parsed, the CLI writes a fallback SVG instead of leaving a broken image behind.
+
+Before writing, each local renderer checks its output paths against the profile input. When a destination resolves to the same file as the profile JSON, including through a normalized relative path, a directory junction, or a hard link, the command stops with exit code 2, keeps the input bytes, and reports that the output would replace the profile input. It writes no SVG, HTML, JSON, or fallback file in that case, so choose a fresh output path and run it again. The same preflight covers the project suggestions card, repository card, and static report commands. Reports check both destinations and prepare both files before replacement, then attempt to restore replaced files on a caught write failure.
 
 ## API-Free Example
 
