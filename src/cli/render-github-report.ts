@@ -58,8 +58,8 @@ export async function renderGitHubReportFiles(
       paths: [htmlPath, jsonPath],
       unknownErrorMessage: "unknown GitHub report render failure",
       fallbackLabel: "Fallback report",
-      writeFallback: message => tryWriteTextFilesAsSet(
-        fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath), options
+      writeFallback: (message, lockedOptions) => tryWriteTextFilesAsSet(
+        fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath), lockedOptions
       )
     }, options);
     return { ok: false, username: normalizedUsername, ...destinations, ...failure };

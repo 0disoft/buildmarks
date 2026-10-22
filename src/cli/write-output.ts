@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { canonicalFilePath, resolveFileSystem, type OutputFileSystem, type OutputFileHandle, type WriteOutputOptions } from "./file-system.js";
 import { throwIfCancelled } from "../shared/cancellation.js";
+import { isOutputLockError, withOutputLocks } from "./output-lock.js";
 export type { WriteOutputOptions } from "./file-system.js";
 
 export function resolveRequiredPath(path: string, label: string): string {
@@ -20,6 +21,7 @@ export async function tryWriteTextFile(path: string, content: string, options: W
     await writeTextFileAtomically(path, content, options);
     return undefined;
   } catch (error) {
+    if (isOutputLockError(error)) throw error;
     throwIfCancelled(options.signal);
     return error instanceof Error ? error.message : "unknown file write failure";
   }
@@ -47,6 +49,10 @@ async function stageTextFile(path: string, content: string, fs: OutputFileSystem
 
 export async function writeTextFileAtomically(path: string, content: string, options: WriteOutputOptions = {}): Promise<void> {
   throwIfCancelled(options.signal);
+  return withOutputLocks([path], options, lockedOptions => writeSingleTextFile(path, content, lockedOptions));
+}
+
+async function writeSingleTextFile(path: string, content: string, options: WriteOutputOptions): Promise<void> {
   const fs = resolveFileSystem(options.fileSystem);
   const temporaryPath = join(dirname(path), `.${basename(path)}.${process.pid}.${(options.randomId ?? randomUUID)()}.tmp`);
   await stageTextFile(temporaryPath, content, fs, options.signal);
@@ -79,7 +85,7 @@ interface OutputEntry {
   retainBackup: boolean;
 }
 
-/** Stage a single-writer output set before publishing; restore it on caught failures. */
+/** Lock and stage an output set before publishing; restore it on caught failures. */
 export async function writeTextFilesAsSet(
   outputs: readonly { path: string; content: string }[],
   replace?: typeof rename,
@@ -90,6 +96,14 @@ export async function writeTextFilesAsSet(
   const paths = outputs.map((output) => resolve(output.path));
   if (new Set(paths).size !== paths.length) throw new Error("Output destinations must be distinct.");
   await assertDistinctOutputIdentities(paths, fs);
+  return withOutputLocks(paths, options, lockedOptions => writeLockedOutputSet(outputs, paths, replace, lockedOptions));
+}
+
+async function writeLockedOutputSet(
+  outputs: readonly { path: string; content: string }[], paths: readonly string[],
+  replace: typeof rename | undefined, options: WriteOutputOptions
+): Promise<void> {
+  const fs = resolveFileSystem(options.fileSystem);
   const entries = outputs.map((output, index) =>
     planOutputEntry(output.content, paths[index], process.pid, (options.randomId ?? randomUUID)())
   );
@@ -178,6 +192,7 @@ export async function tryWriteTextFilesAsSet(outputs: readonly { path: string; c
     await writeTextFilesAsSet(outputs, undefined, options);
     return undefined;
   } catch (error) {
+    if (isOutputLockError(error)) throw error;
     if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
     return error instanceof Error ? error.message : "unknown output set write failure";
   }

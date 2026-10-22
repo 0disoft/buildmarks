@@ -1,3 +1,4 @@
+import { isOutputLockError } from "./output-lock.js";
 import { readProfileSource, resolveFileSystem } from "./file-system";
 import { throwIfCancelled } from "../shared/cancellation";
 import { join } from "node:path";
@@ -54,6 +55,7 @@ export async function renderReportFiles(
       jsonPath
     };
   } catch (error) {
+    if (isOutputLockError(error)) throw error;
     if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown report render failure";
     if (error instanceof OutputSetRollbackError) {

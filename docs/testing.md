@@ -41,13 +41,14 @@ await writeTextFilesAsSet(outputs, undefined, options);
 
 The existing second `replace` argument to `writeTextFilesAsSet` is preserved. An injected filesystem can separately fail backup creation, staging, publication and recovery.
 
-Writers remove only temporary and backup files they successfully created. Cancellation before publication cleans owned staging files and preserves existing outputs. Once replacement starts, publication and recovery finish without cancellation checks; a successfully published output set remains a success. If recovery fails, its diagnostic and retained backup are preserved even when the caller also cancels. Output sets require one writer. Caught-failure recovery does not make multiple renames atomic or protect against process termination or power loss.
+Writers remove only temporary and backup files they successfully created. Cancellation before publication cleans owned staging files and preserves existing outputs. Once replacement starts, publication and recovery finish without cancellation checks; a successfully published output set remains a success. If recovery fails, its diagnostic and retained backup are preserved even when the caller also cancels. Exclusive per-destination lock files exclude overlapping writers across cooperating processes, including fallback existence checks and writes. Conflicts throw `OutputBusyError` without fallback output; cleanup failures throw `OutputLockReleaseError` with the original cause. Caught-failure recovery does not make multiple renames atomic or protect against process termination or power loss. See [collector operations](github-collector-operations.md) for leftover-lock recovery and shared-storage requirements.
 
 ## Regression coverage
 
 - `scoring-boundaries.test.ts`: unrounded coverage thresholds, partial invalid metrics, count consistency, collection availability and owner-qualified selection.
 - `evaluation-time.test.ts`: snapshot replay, explicit time overrides, shared report time and millisecond activity boundaries.
-- `collector-runtime.test.ts`: manual deadlines, external cancellation, request budgets and rate-limit handling without live GitHub calls.
+- `collector-runtime.test.ts`: manual deadlines, unread-body cleanup, late responses, sibling cancellation and settlement, request budgets and rate-limit handling without live GitHub calls.
 - `output-runtime.test.ts`: memory filesystem rendering, exclusive-name collisions, write failures, publication rollback and cancellation.
+- `output-concurrency.test.ts`: overlapping output sets, fallback races, partial lock acquisition, cleanup failures, directory aliases and a separate writer process.
 
 The existing input-alias and bundled Node CLI tests continue to exercise real filesystem and runtime integration.

@@ -4,6 +4,7 @@ import { throwIfCancelled } from "../shared/cancellation.js";
 import { hasExistingOutput } from "./collection-outcome.js";
 import type { RenderFileOptions } from "./file-system.js";
 import { appendWriteFailure, OutputSetRollbackError } from "./write-output.js";
+import { isOutputLockError, withOutputLocks } from "./output-lock.js";
 
 export const githubRefreshFailureMessage = "Buildmarks couldn't refresh this GitHub report right now";
 
@@ -26,7 +27,7 @@ interface GitHubOutputRecovery {
   paths: readonly string[];
   unknownErrorMessage: string;
   fallbackLabel: string;
-  writeFallback(message: string): Promise<string | undefined>;
+  writeFallback(message: string, lockedOptions: RenderFileOptions): Promise<string | undefined>;
 }
 
 type GitHubOutputFailure =
@@ -36,13 +37,19 @@ type GitHubOutputFailure =
 export async function recoverGitHubOutput(
   error: unknown, recovery: GitHubOutputRecovery, options: RenderFileOptions
 ): Promise<GitHubOutputFailure> {
+  if (isOutputLockError(error)) throw error;
   if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
   const message = error instanceof Error ? error.message : recovery.unknownErrorMessage;
-  if (await hasExistingOutput(recovery.paths, options)) {
-    return { fallback: false, preservedExisting: !(error instanceof OutputSetRollbackError), error: message };
+  if (error instanceof OutputSetRollbackError) {
+    return { fallback: false, preservedExisting: false, error: message };
   }
-  const writeError = await recovery.writeFallback(message);
-  return { fallback: true, error: appendWriteFailure(message, recovery.fallbackLabel, writeError) };
+  return withOutputLocks(recovery.paths, options, async lockedOptions => {
+    if (await hasExistingOutput(recovery.paths, lockedOptions)) {
+      return { fallback: false, preservedExisting: true, error: message };
+    }
+    const writeError = await recovery.writeFallback(message, lockedOptions);
+    return { fallback: true, error: appendWriteFailure(message, recovery.fallbackLabel, writeError) };
+  });
 }
 
 export function fallbackReportOutputs(username: string, error: string, htmlPath: string, jsonPath: string) {

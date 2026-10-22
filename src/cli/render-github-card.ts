@@ -1,4 +1,5 @@
 import { throwIfCancelled } from "../shared/cancellation";
+import { isOutputLockError } from "./output-lock.js";
 import { resolveFileSystem, type RenderFileOptions } from "./file-system";
 import { isMainModule } from "./main";
 import { dirname } from "node:path";
@@ -56,6 +57,7 @@ export async function renderGitHubCardFile(
     await writeTextFileAtomically(resolvedOutputPath, renderUserSignalCard(report, options), options);
     return { ok: true, username: profile.username, outputPath: resolvedOutputPath, fallback: false };
   } catch (error) {
+    if (isOutputLockError(error)) throw error;
     throwIfCancelled(options.signal);
     const failure = await recoverGitHubCard(error, resolvedOutputPath, githubRefreshFailureMessage, options);
     return { ok: false, username: normalizedUsername, outputPath: resolvedOutputPath, ...failure };
@@ -67,7 +69,7 @@ function recoverGitHubCard(error: unknown, path: string, fallbackMessage: string
     paths: [path],
     unknownErrorMessage: "unknown GitHub render failure",
     fallbackLabel: "Fallback SVG",
-    writeFallback: () => tryWriteTextFile(path, renderFallbackCard(fallbackMessage, options), options)
+    writeFallback: (_message, lockedOptions) => tryWriteTextFile(path, renderFallbackCard(fallbackMessage, options), lockedOptions)
   }, options);
 }
 

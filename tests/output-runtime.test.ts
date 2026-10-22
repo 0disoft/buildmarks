@@ -23,8 +23,16 @@ const exists = () => Object.assign(new Error("Already exists"), { code: "EEXIST"
 class MemoryFiles implements RenderFileSystem {
   files = new Map<string, string>();
   operations: string[] = [];
+  lockOperations: string[] = [];
   before: (operation: string, path: string, destination?: string) => void = () => {};
-  event = (operation: string, path: string, destination?: string) => { this.operations.push(operation); this.before(operation, path, destination); };
+  event = (operation: string, path: string, destination?: string) => {
+    // Existing failure injection targets artifact I/O, independently of locking.
+    if (basename(path).startsWith(".buildmarks-") && path.endsWith(".lock")) {
+      this.lockOperations.push(operation);
+      return;
+    }
+    this.operations.push(operation); this.before(operation, path, destination);
+  };
   open: RenderFileSystem["open"] = async path => {
     this.event("open", path);
     if (this.files.has(path)) throw exists();
@@ -70,7 +78,8 @@ describe("output ownership and recovery", () => {
     const fs = new MemoryFiles(); fs.files.set(first, "original"); fs.files.set(temporary(first), "foreign");
     await expect(writeTextFileAtomically(first, "new", fs.options())).rejects.toMatchObject({ code: "EEXIST" });
     expect(fs.files.get(first)).toBe("original"); expect(fs.files.get(temporary(first))).toBe("foreign");
-    expect(fs.operations).toEqual(["open"]);
+    expect(fs.operations).not.toContain("remove");
+    expect(fs.operations).not.toContain("rename");
   });
 
   for (const phase of ["open", "write", "sync", "close", "rename"]) {

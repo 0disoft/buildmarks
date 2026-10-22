@@ -1,3 +1,4 @@
+import { isOutputLockError } from "./output-lock.js";
 import { readProfileSource, resolveFileSystem } from "./file-system";
 import { throwIfCancelled } from "../shared/cancellation";
 import { dirname } from "node:path";
@@ -47,6 +48,7 @@ export async function renderGapsCardFile(
       fallback: false
     };
   } catch (error) {
+    if (isOutputLockError(error)) throw error;
     throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown gaps render failure";
     const svg = renderFallbackCard("Buildmarks couldn't generate project suggestions right now");

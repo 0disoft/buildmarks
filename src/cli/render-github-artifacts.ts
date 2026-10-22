@@ -69,10 +69,10 @@ export async function renderGitHubArtifacts(
       paths: [resolvedSvgPath, htmlPath, jsonPath],
       unknownErrorMessage: "unknown GitHub artifact render failure",
       fallbackLabel: "Fallback artifact",
-      writeFallback: message => tryWriteTextFilesAsSet([
+      writeFallback: (message, lockedOptions) => tryWriteTextFilesAsSet([
         { path: resolvedSvgPath, content: renderFallbackCard(githubRefreshFailureMessage, options) },
         ...fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath)
-      ], options)
+      ], lockedOptions)
     }, options);
     return { ok: false, username: normalizedUsername, ...destinations, ...failure };
   }
