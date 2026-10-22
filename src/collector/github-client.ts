@@ -8,6 +8,7 @@ import { cancellationError, isAbortError, runAbortable, throwIfCancelled } from 
 import { isTransientReadError, readWithRetry } from "./read-retry.js";
 import { redactErrorCause } from "./github-errors.js";
 import { resolveEvaluationTime } from "../shared/evaluation-time.js";
+import { defaultGitHubRequestLimiter, type GitHubRequestLimiter } from "./request-limiter.js";
 export { GitHubCollectorError, type GitHubCollectorErrorCode } from "./github-errors.js";
 
 import type {
@@ -48,6 +49,8 @@ export interface CollectPublicGitHubProfileOptions {
   timeoutMilliseconds?: number;
   /** Optional wall-clock limit shared by pagination, detail reads and retry waits. */
   collectionTimeoutMilliseconds?: number;
+  /** Reuse across calls; the default instance is shared within this module's process. */
+  requestLimiter?: GitHubRequestLimiter;
   runtime?: Partial<GitHubCollectorRuntime>;
 }
 
@@ -159,6 +162,7 @@ class GitHubRestClient {
   private readonly runtime: GitHubCollectorRuntime;
   private readonly timeoutMilliseconds: number;
   private readonly callerSignal: AbortSignal | undefined;
+  private readonly requestLimiter: GitHubRequestLimiter;
   private cancelCollectionTimeout = () => {};
   private readonly abortFromCaller = () => this.batchAbortController.abort(cancellationError(this.callerSignal!));
 
@@ -169,6 +173,7 @@ class GitHubRestClient {
     options: CollectPublicGitHubProfileOptions
   ) {
     this.runtime = resolveCollectorRuntime(options.runtime);
+    this.requestLimiter = options.requestLimiter ?? defaultGitHubRequestLimiter;
     this.timeoutMilliseconds = options.timeoutMilliseconds ?? githubRequestTimeoutMilliseconds;
     if (!Number.isSafeInteger(this.timeoutMilliseconds) || this.timeoutMilliseconds <= 0 || this.timeoutMilliseconds > githubRequestPolicy.maximumTimerMilliseconds) {
       throw new GitHubCollectorError("invalid_policy", `Request timeout must be a positive integer at most ${githubRequestPolicy.maximumTimerMilliseconds} milliseconds.`);
@@ -438,14 +443,19 @@ class GitHubRestClient {
     throwIfCancelled(this.callerSignal);
     this.batchAbortController.signal.throwIfAborted();
     signal.throwIfAborted();
-    this.consumeRequestBudget(path);
-    return fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
-      headers,
-      timeoutMilliseconds: this.timeoutMilliseconds,
-      signal,
-      scheduleTimeout: this.runtime.scheduleTimeout,
-      ...(this.runtime.onCleanupError === undefined ? {} : { onCleanupError: this.runtime.onCleanupError })
-    }, response => consumeRequestAttempt(response, path, attempt, consume));
+    const release = await this.requestLimiter.acquire(signal);
+    try {
+      this.assertActive();
+      signal.throwIfAborted();
+      this.consumeRequestBudget(path);
+      return await fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
+        headers,
+        timeoutMilliseconds: this.timeoutMilliseconds,
+        signal,
+        scheduleTimeout: this.runtime.scheduleTimeout,
+        ...(this.runtime.onCleanupError === undefined ? {} : { onCleanupError: this.runtime.onCleanupError })
+      }, response => consumeRequestAttempt(response, path, attempt, consume));
+    } finally { release(); }
   }
 
   private async waitForRetry(attempt: number, signal: AbortSignal): Promise<void> {
@@ -751,7 +761,7 @@ function compareRepositoryCollectionFailures(
 
 function shouldAbortRepositoryBatch(error: unknown): boolean {
   return isAbortError(error) || error instanceof GitHubCollectorError &&
-    (error.code === "github_rate_limited" || error.code === "github_request_budget_exhausted" || error.code === "github_collection_timeout");
+    (error.code === "github_rate_limited" || error.code === "github_request_budget_exhausted" || error.code === "github_collection_timeout" || error.code === "github_request_queue_full");
 }
 
 function isRepositoryCollectionCandidate(repository: GitHubRepositoryResponse): boolean {

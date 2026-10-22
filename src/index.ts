@@ -51,6 +51,7 @@ export {
 } from "./shared/types.js";
 export { buildmarksVersion } from "./shared/version.js";
 export type { GitHubCollectorRuntime, TimeoutScheduler } from "./collector/runtime.js";
+export { createGitHubRequestLimiter, type GitHubRequestLimiter } from "./collector/request-limiter.js";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile.js";
 export {
   collectOwnerSuppliedGitHubProfile,

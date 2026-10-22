@@ -4,5 +4,7 @@ export const githubRequestPolicy = Object.freeze({
   retryCount: 1,
   retryBaseDelayMilliseconds: 150,
   retryStepDelayMilliseconds: 250,
-  maximumPageSize: 100
+  maximumPageSize: 100,
+  maximumConcurrentRequests: 15,
+  maximumQueuedRequests: 160
 } as const);

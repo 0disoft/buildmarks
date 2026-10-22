@@ -312,11 +312,13 @@ describe("deterministic response deadlines", () => {
 
   test("a per-attempt timeout can recover within the shared total deadline", async () => {
     const clock = new ManualClock(); let requests = 0;
+    let ready!: () => void; const started = new Promise<void>(resolve => { ready = resolve; });
     const operation = collectPublicGitHubProfile("probe", {
       collectionTimeoutMilliseconds: 1000, timeoutMilliseconds: 100,
       runtime: { scheduleTimeout: clock.schedule, sleep: async () => {} },
-      fetcher: async () => { requests++; return requests === 1 ? new Promise(() => {}) : json([]); }
+      fetcher: async () => { requests++; ready(); return requests === 1 ? new Promise(() => {}) : json([]); }
     });
+    await started;
     clock.advance(100);
     expect((await operation).repositories).toHaveLength(0);
     expect(requests).toBe(2); expect(clock.tasks.size).toBe(0);
