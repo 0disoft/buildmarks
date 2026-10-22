@@ -33,12 +33,12 @@ export function renderCompactCard(content: CompactCardContent): string {
     const x = 24 + index * 190;
     return `<g role="img" aria-label="${project.descriptionXml}">
       <title>${project.descriptionXml}</title>
-      <g transform="translate(${x} 231)" class="small-icon">${repositoryIcon}</g>
-      <text x="${x + 24}" y="244" class="project">${project.nameXml}</text>
+      <g transform="translate(${x} 223)" class="small-icon">${repositoryIcon}</g>
+      <text x="${x + 24}" y="236" class="project">${project.nameXml}</text>
     </g>`;
   });
   const tagline = wrapCardText(content.persona?.description ?? "", 32, 4)
-    .map((line, index) => `<tspan x="24"${index > 0 ? ' dy="18"' : ""}>${escapeCopy(line)}</tspan>`).join("");
+    .map((line, index) => `<tspan x="24"${index > 0 ? ' dy="16"' : ""}>${escapeCopy(line)}</tspan>`).join("");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${content.theme}" data-layout="compact" role="img" width="${compactCardSize.width}" height="${height}" viewBox="0 0 ${compactCardSize.width} ${height}" aria-labelledby="title desc">
   <title id="title">${content.titleXml}</title>
@@ -49,34 +49,33 @@ export function renderCompactCard(content: CompactCardContent): string {
   <text x="49" y="33" class="brand">Buildmarks</text>
   <text x="24" y="58" class="username">${content.usernameXml}</text>
   <g aria-label="${content.scoreXml}">
-    <text x="396" y="42" class="profile-score">${score}</text>
-    <text x="396" y="72" class="score-unit">/ 100</text>
+    <text x="396" y="42"><tspan class="profile-score">${score}</tspan><tspan x="396" y="60" class="score-unit">/ 100</tspan></text>
   </g>
   <g data-cover="${cover.id}" aria-label="${escapeCopy(cover.lines.join(" "))}">
     <text x="24" y="100" class="cover-title"><tspan x="24">${escapeCopy(cover.lines[0])}</tspan><tspan x="24" dy="34">${escapeCopy(cover.lines[1])}</tspan></text>
     ${renderPersonaEmblem(content.persona?.id)}
   </g>
   <text x="24" y="156" class="tagline">${tagline}</text>
-  <path d="M24 218h372" class="divider" aria-hidden="true" />
+  <path d="M24 210h372" class="divider" aria-hidden="true" />
   <g aria-label="Representative projects and observed details">
-    ${projects.length > 0 ? projects.join("\n") : '<text x="24" y="244" class="project muted">No projects to display</text>'}
+    ${projects.length > 0 ? projects.join("\n") : '<text x="24" y="236" class="project muted">No projects to display</text>'}
   </g>
   <g role="img" aria-label="${content.scopeXml}">
     <title>${content.scopeXml}</title>
-    <g transform="translate(24 262)" class="small-icon">${content.includesPrivate ? lockIcon : repositoryIcon}</g>
-    <text x="48" y="275" class="footer">${count} ${count === 1 ? "repo" : "repos"}</text>
+    <g transform="translate(24 254)" class="small-icon">${content.includesPrivate ? lockIcon : repositoryIcon}</g>
+    <text x="48" y="267" class="footer">${count} ${count === 1 ? "repo" : "repos"}</text>
   </g>
   <g role="img" aria-label="${content.checkedXml}">
     <title>${content.checkedXml}</title>
-    <g transform="translate(154 262)" class="small-icon">${checkIcon}</g>
-    <text x="178" y="275" class="footer">${checkedLabel}</text>
+    <g transform="translate(154 254)" class="small-icon">${checkIcon}</g>
+    <text x="178" y="267" class="footer">${checkedLabel}</text>
   </g>
   <g role="img" aria-label="${content.generatedXml}">
     <title>${content.generatedXml}</title>
-    <g transform="translate(276 262)" class="small-icon">${calendarIcon}</g>
-    <text x="300" y="275" class="footer">${date}</text>
+    <g transform="translate(276 254)" class="small-icon">${calendarIcon}</g>
+    <text x="300" y="267" class="footer">${date}</text>
   </g>
-  ${content.includesPrivate ? '<text x="24" y="300" class="footer">Public + Private Projects · Owner-supplied</text>' : ""}
+  ${content.includesPrivate ? '<text x="24" y="292" class="footer">Public + Private Projects · Owner-supplied</text>' : ""}
 </svg>`.replace(/[ \t]+$/gm, "");
 }
 

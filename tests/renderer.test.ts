@@ -25,14 +25,14 @@ describe("SVG renderer", () => {
     const before = JSON.stringify(report);
     const svg = renderUserSignalCard(report);
     expect(svg).toContain('data-layout="compact"');
-    expect(svg).toContain('viewBox="0 0 420 288"');
+    expect(svg).toContain('viewBox="0 0 420 280"');
     expect(svg).toContain('aria-label="Representative projects and observed details"');
     expect(svg).toContain('class="project"');
     expect(svg).toContain('class="project">usable-toolkit</text>');
     expect(svg).toContain('aria-label="example-builder/usable-toolkit:');
     expect(svg).toContain('class="small-icon"');
     expect(svg).not.toContain('class="facts"');
-    expect(svg).toContain('class="profile-score">82</text>');
+    expect(svg).toContain('class="profile-score">82</tspan>');
     expect(svg).toContain('aria-label="Rocket Courier"');
     expect(svg).toContain('class="tagline"');
     expect(svg).not.toContain('role="progressbar"');
@@ -74,7 +74,7 @@ describe("SVG renderer", () => {
     expect(svg).toContain("Private project 1");
     expect(svg).toContain("Public + Private Projects");
     expect(svg).toContain("Public + Private Projects · Owner-supplied");
-    expect(svg).toContain('viewBox="0 0 420 312"');
+    expect(svg).toContain('viewBox="0 0 420 304"');
     expect(svg).not.toContain("secret-project");
   });
   test("uses compact fallbacks and normalizes invalid runtime layout values", () => {

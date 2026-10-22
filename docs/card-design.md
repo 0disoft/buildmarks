@@ -1,6 +1,6 @@
 # Profile Card Design
 
-The default profile card uses a 420 × 288 layout: a large overall score, persona title and distinct vector emblem, a short character description, then up to two project names. Small repository, check and calendar icons accompany the project count, checked percentage and generation date. Private-local cards add a visible owner-supplied notice and use 420 × 312. Text is at least 14 pixels at native size, approximately 12 pixels when embedded at 360 pixels. Each of the 30 personas and Balanced Builder has its own emblem. Six accent palettes support light, dark and automatic themes. There are no external images, fonts, scripts or embedded raster assets.
+The default profile card uses a 420 × 280 layout: a large overall score, persona title and distinct vector emblem, a short character description, then up to two project names. Small repository, check and calendar icons accompany the project count, checked percentage and generation date. Private-local cards add a visible owner-supplied notice and use 420 × 304. Text is at least 14 pixels at native size, approximately 12 pixels when embedded at 360 pixels. Each of the 30 personas and Balanced Builder has its own emblem. Six accent palettes support light, dark and automatic themes. There are no external images, fonts, scripts or embedded raster assets.
 
 The previous 760 × 420 card remains available as `layout: "detailed"`. It shows all six area scores and profile highlights. Reports always retain the full scored areas and criterion ledger regardless of card layout.
 

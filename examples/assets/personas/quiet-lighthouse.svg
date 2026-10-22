@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" data-layout="compact" role="img" width="420" height="288" viewBox="0 0 420 288" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" data-layout="compact" role="img" width="420" height="280" viewBox="0 0 420 280" aria-labelledby="title desc">
   <title id="title">Buildmarks project card for Sample data · example-builder</title>
   <desc id="desc">Quiet Lighthouse. The light keeps a steady watch. A welcome sign would bring more helpers up the path. Buildmarks reviewed 2 repositories and found 30 project practices. The overall result is Gold I, 69 out of 100. Maintainability Platinum V, 70 out of 100, Project Readiness Platinum V, 70 out of 100, Ease of Use Platinum V, 70 out of 100, Shipping Platinum V, 70 out of 100, Consistency Diamond IV, 92 out of 100, Project Care Gold III, 42 out of 100. This card is based on public GitHub repositories only. Buildmarks is not a developer ranking. Representative projects: example-builder/usable-toolkit: Release + changelog; Tests + workflow. example-builder/small-experiment: License found</desc>
   <style>.card { --surface:#f1edfa;--text:#30224b;--muted:#685880;--accent:#7251ae;--secondary:#575cbe;--track:#dcd2ee;--chip:#e5dcf4;--line:#cfc1e4; }
@@ -48,13 +48,12 @@
     .muted{fill:var(--muted);font-weight:400;}
     .small-icon{fill:none;stroke:var(--muted);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
   </style>
-  <rect x=".5" y=".5" width="419" height="287" rx="20" class="surface" />
+  <rect x=".5" y=".5" width="419" height="279" rx="20" class="surface" />
   <g transform="translate(24 20)" class="brand-mark" aria-hidden="true"><path d="M0 0h7v7H0zM10 0h7v7h-7zM0 10h7v7H0zM10 10h7v7h-7z"/></g>
   <text x="49" y="33" class="brand">Buildmarks</text>
   <text x="24" y="58" class="username">Sample data · example-bui…</text>
   <g aria-label="69/100">
-    <text x="396" y="42" class="profile-score">69</text>
-    <text x="396" y="72" class="score-unit">/ 100</text>
+    <text x="396" y="42"><tspan class="profile-score">69</tspan><tspan x="396" y="60" class="score-unit">/ 100</tspan></text>
   </g>
   <g data-cover="well-rounded" aria-label="Quiet Lighthouse">
     <text x="24" y="100" class="cover-title"><tspan x="24">Quiet</tspan><tspan x="24" dy="34">Lighthouse</tspan></text>
@@ -66,34 +65,34 @@
     <path d="M57 34h14" class="emblem-light"/>
   </g>
   </g>
-  <text x="24" y="156" class="tagline"><tspan x="24">The light keeps a steady watch.</tspan><tspan x="24" dy="18">A welcome sign would bring more</tspan><tspan x="24" dy="18">helpers up the path.</tspan></text>
-  <path d="M24 218h372" class="divider" aria-hidden="true" />
+  <text x="24" y="156" class="tagline"><tspan x="24">The light keeps a steady watch.</tspan><tspan x="24" dy="16">A welcome sign would bring more</tspan><tspan x="24" dy="16">helpers up the path.</tspan></text>
+  <path d="M24 210h372" class="divider" aria-hidden="true" />
   <g aria-label="Representative projects and observed details">
     <g role="img" aria-label="example-builder/usable-toolkit: Release + changelog; Tests + workflow">
       <title>example-builder/usable-toolkit: Release + changelog; Tests + workflow</title>
-      <g transform="translate(24 231)" class="small-icon"><rect x="2" y="1" width="12" height="14" rx="2"/><path d="M5 1v10l3-2 3 2V1M2 12h12"/></g>
-      <text x="48" y="244" class="project">usable-toolkit</text>
+      <g transform="translate(24 223)" class="small-icon"><rect x="2" y="1" width="12" height="14" rx="2"/><path d="M5 1v10l3-2 3 2V1M2 12h12"/></g>
+      <text x="48" y="236" class="project">usable-toolkit</text>
     </g>
 <g role="img" aria-label="example-builder/small-experiment: License found">
       <title>example-builder/small-experiment: License found</title>
-      <g transform="translate(214 231)" class="small-icon"><rect x="2" y="1" width="12" height="14" rx="2"/><path d="M5 1v10l3-2 3 2V1M2 12h12"/></g>
-      <text x="238" y="244" class="project">small-experiment</text>
+      <g transform="translate(214 223)" class="small-icon"><rect x="2" y="1" width="12" height="14" rx="2"/><path d="M5 1v10l3-2 3 2V1M2 12h12"/></g>
+      <text x="238" y="236" class="project">small-experiment</text>
     </g>
   </g>
   <g role="img" aria-label="Public GitHub projects · 2 reviewed">
     <title>Public GitHub projects · 2 reviewed</title>
-    <g transform="translate(24 262)" class="small-icon"><rect x="2" y="1" width="12" height="14" rx="2"/><path d="M5 1v10l3-2 3 2V1M2 12h12"/></g>
-    <text x="48" y="275" class="footer">2 repos</text>
+    <g transform="translate(24 254)" class="small-icon"><rect x="2" y="1" width="12" height="14" rx="2"/><path d="M5 1v10l3-2 3 2V1M2 12h12"/></g>
+    <text x="48" y="267" class="footer">2 repos</text>
   </g>
   <g role="img" aria-label="100% checked">
     <title>100% checked</title>
-    <g transform="translate(154 262)" class="small-icon"><circle cx="8" cy="8" r="6.5"/><path d="m5 8 2 2 4-4"/></g>
-    <text x="178" y="275" class="footer">100%</text>
+    <g transform="translate(154 254)" class="small-icon"><circle cx="8" cy="8" r="6.5"/><path d="m5 8 2 2 4-4"/></g>
+    <text x="178" y="267" class="footer">100%</text>
   </g>
   <g role="img" aria-label="Generated 2026-05-28 · v0.5.0">
     <title>Generated 2026-05-28 · v0.5.0</title>
-    <g transform="translate(276 262)" class="small-icon"><rect x="1" y="3" width="14" height="12" rx="2"/><path d="M4 1v4m8-4v4M1 7h14"/></g>
-    <text x="300" y="275" class="footer">2026-05-28</text>
+    <g transform="translate(276 254)" class="small-icon"><rect x="1" y="3" width="14" height="12" rx="2"/><path d="M4 1v4m8-4v4M1 7h14"/></g>
+    <text x="300" y="267" class="footer">2026-05-28</text>
   </g>
 
 </svg>
