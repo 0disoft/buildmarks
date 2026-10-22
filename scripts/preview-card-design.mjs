@@ -22,6 +22,9 @@ const fixture = JSON.parse(await readFile(resolve("fixtures/example-public-profi
 const report = scoreUserProfile(fixture, { now: new Date(fixture.generatedAt) });
 const states = [
   { name: "fixture", svg: renderUserSignalCard(report) },
+  { name: "repository-total", svg: renderUserSignalCard({ ...report, totalOwnedRepositoryCount: 138 }) },
+  { name: "large-repository-total", svg: renderUserSignalCard({ ...report, totalOwnedRepositoryCount: Number.MAX_SAFE_INTEGER,
+    selection: { ...report.selection, evaluatedCount: 100 } }) },
   { name: "long-name", svg: renderUserSignalCard({ ...report, username: "W".repeat(100) }) },
   { name: "wide-unicode-name", svg: renderUserSignalCard({ ...report, username: "名".repeat(100) }) },
   { name: "private-local", svg: renderUserSignalCard({ ...report, signalVisibility: privateLocalSignalVisibility }) },

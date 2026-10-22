@@ -18,6 +18,7 @@ interface CompactCardContent {
   generatedXml: string;
   includesPrivate: boolean;
   reviewedCount: number;
+  totalOwnedRepositoryCount?: number;
   projects: { nameXml: string; descriptionXml: string }[];
 }
 
@@ -29,6 +30,10 @@ export function renderCompactCard(content: CompactCardContent): string {
   const checkedLabel = content.checkedXml.includes("Early look") ? `~${checked}` : checked;
   const date = content.generatedXml.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? "Undated";
   const count = Number.isSafeInteger(content.reviewedCount) && content.reviewedCount >= 0 ? content.reviewedCount : 0;
+  const total = content.totalOwnedRepositoryCount;
+  const hasTotal = typeof total === "number" && Number.isSafeInteger(total) && total >= count;
+  const countLabel = hasTotal ? `${formatCount(count)} of ${formatCount(total)}` : `${formatCount(count)} ${count === 1 ? "repo" : "repos"}`;
+  const countDescription = hasTotal ? `${content.scopeXml}; ${total} total owned repositories (public + private)` : content.scopeXml;
   const projects = content.projects.slice(0, 2).map((project, index) => {
     const x = 24 + index * 190;
     return `<g role="img" aria-label="${project.descriptionXml}">
@@ -60,10 +65,10 @@ export function renderCompactCard(content: CompactCardContent): string {
   <g aria-label="Representative projects and observed details">
     ${projects.length > 0 ? projects.join("\n") : '<text x="24" y="236" class="project muted">No projects to display</text>'}
   </g>
-  <g role="img" aria-label="${content.scopeXml}">
-    <title>${content.scopeXml}</title>
+  <g role="img" aria-label="${countDescription}">
+    <title>${countDescription}</title>
     <g transform="translate(24 254)" class="small-icon">${content.includesPrivate ? lockIcon : repositoryIcon}</g>
-    <text x="48" y="267" class="footer">${count} ${count === 1 ? "repo" : "repos"}</text>
+    <text x="48" y="267" class="footer">${countLabel}</text>
   </g>
   <g role="img" aria-label="${content.checkedXml}">
     <title>${content.checkedXml}</title>
@@ -83,6 +88,10 @@ const repositoryIcon = '<rect x="2" y="1" width="12" height="14" rx="2"/><path d
 const checkIcon = '<circle cx="8" cy="8" r="6.5"/><path d="m5 8 2 2 4-4"/>';
 const calendarIcon = '<rect x="1" y="3" width="14" height="12" rx="2"/><path d="M4 1v4m8-4v4M1 7h14"/>';
 const lockIcon = '<rect x="2" y="7" width="12" height="8" rx="2"/><path d="M5 7V4a3 3 0 0 1 6 0v3"/>';
+
+function formatCount(count: number): string {
+  return count < 10_000 ? String(count) : new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(count);
+}
 
 function renderCompactStyles(): string {
   const dark = '--surface:#101718;--text:#f1f6f2;--muted:#94a19a;--line:#2a3632;';

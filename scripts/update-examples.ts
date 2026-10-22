@@ -63,6 +63,7 @@ for (const example of typeExamples) {
   if (signalType !== example.type) throw new Error(`Example ${example.file} no longer matches its type.`);
   const report: UserSignalReport = {
     username: "Sample data · example-builder",
+    totalOwnedRepositoryCount: 138,
     generatedAt: now.toISOString(),
     signalType,
     dimensions: example.dimensions,
@@ -86,7 +87,7 @@ for (const persona of [...personaDefinitions, { id: "balanced-builder" }]) {
         : "lowest" in persona && dimension === persona.lowest ? 42 : 70])
   ) as Record<SignalDimension, number>;
   const report: UserSignalReport = {
-    ...profileReport, username: "Sample data · example-builder", dimensions,
+    ...profileReport, username: "Sample data · example-builder", totalOwnedRepositoryCount: 138, dimensions,
     dimensionAssessments: Object.fromEntries(Object.entries(profileReport.dimensionAssessments).map(([key, value]) =>
       [key, { ...value, score: dimensions[key as SignalDimension], applicability: "applicable" }])) as NonNullable<UserSignalReport["dimensionAssessments"]>,
     overall: Math.round(Object.values(dimensions).reduce((total, value) => total + value, 0) / 6)

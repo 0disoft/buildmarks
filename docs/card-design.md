@@ -39,6 +39,8 @@ Private representatives always use numbered labels such as `Private project 1`, 
 
 ## Scores and Missing Details
 
+The repository counter shows analyzed repositories out of the account's total owned public and private repositories, such as `2 of 138`, when `totalOwnedRepositoryCount` is available. The total includes forks, archives and repositories outside the analysis window. It does not affect scoring or mean private projects were analyzed. Missing or inconsistent totals retain the `2 repos` display; a public-only count is never substituted for the complete total. Counts of 10,000 or more use compact notation, while accessible descriptions retain the exact total. The sample gallery uses an invented total of 138.
+
 The detailed card's numeric scores and bar lengths come from the report. It retains all six row positions: an unavailable area says `Not checked`, while an irrelevant area says `Doesn't apply`. Neither receives a zero-score bar. Compact cards leave those rows to the report, retaining their accessible descriptions. If no area can be scored, the renderer returns a readable no-score fallback matching the requested layout and theme.
 
 The checked percentage and `Early look` notice remain separate from scores. Private-local cards still disclose owner-supplied private projects and the limits of independent checking. Tier labels remain in report output and accessible score descriptions; they are no longer the profile cover's headline. No-score fallbacks honor the requested theme, and `renderFallbackCard(message, { theme })` also accepts the optional theme directly.

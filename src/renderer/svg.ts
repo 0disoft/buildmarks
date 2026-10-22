@@ -139,6 +139,7 @@ export function renderUserSignalCard(
       checkedXml: escapeXml(footerNote),
       scopeXml: escapeXml(`${scope} · ${reviewed} reviewed`),
       reviewedCount: reviewed,
+      ...(report.totalOwnedRepositoryCount === undefined ? {} : { totalOwnedRepositoryCount: report.totalOwnedRepositoryCount }),
       generatedXml: escapeXml(`Generated ${generatedDate} · ${brandVersion}`),
       includesPrivate,
       projects: projects.map((project) => {

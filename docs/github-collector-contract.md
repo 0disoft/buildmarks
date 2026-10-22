@@ -35,6 +35,8 @@ The collector must not collect or infer:
 
 `collectPublicGitHubProfile()` remains public-only. It does not quietly widen token access or add private repositories when a token is present.
 
+The optional `totalOwnedRepositoryCount` is display metadata: all repositories owned by the account, public plus private, including forks and archives. With an explicitly supplied owner token, the collector reads `public_repos + owned_private_repos` from GitHub's authenticated user response. Missing private counts remain unknown; another token owner's counts are ignored. This count does not add private repository details to public-only scoring or affect scores. Local JSON inputs may supply the same field directly.
+
 Owner-supplied private repository details are supported only through the separate, opt-in `collectOwnerSuppliedGitHubProfile()` path. That mode must stay explicit and owner-controlled, use a token supplied by the owner, hide names by default, and label its output `Public + Private Projects`.
 
 The private-local boundary is defined in [Private Repository Rules](private-repository-signal-contract.md).

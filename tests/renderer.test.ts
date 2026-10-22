@@ -43,6 +43,18 @@ describe("SVG renderer", () => {
     expect(svg).toContain(`Generated 2026-05-28 · v${buildmarksVersion}`);
     expect(JSON.stringify(report)).toBe(before);
   });
+  test("shows analyzed repos out of all owned public and private repos when the total is known", () => {
+    const report = scoreUserProfile(fixture as ProfileInput, { now });
+    const input = { ...report, totalOwnedRepositoryCount: 138,
+      selection: { ...report.selection, evaluatedCount: 7 } };
+    const svg = renderUserSignalCard(input);
+    expect(svg).toContain('class="footer">7 of 138</text>');
+    expect(svg).toContain("138 total owned repositories (public + private)");
+    expect(svg).not.toContain('class="footer">2 of 138</text>');
+    for (const totalOwnedRepositoryCount of [undefined, -1, 6, NaN, 138.5]) {
+      expect(renderUserSignalCard({ ...input, totalOwnedRepositoryCount } as typeof input)).toContain('class="footer">7 repos</text>');
+    }
+  });
   test("retains all six type covers on compact cards", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const ids = new Set<string>();

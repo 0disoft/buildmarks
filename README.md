@@ -40,6 +40,8 @@ No hosted Buildmarks backend is required. Your profile repository stores the sta
 
 Profile cards select one of 30 playful personas, or Balanced Builder when the area scores are close together. A large score, persona title and distinct vector emblem lead the compact card, followed by a short description and two project names. Small icons show the project count, checked percentage and date. Full area scores stay in the report.
 
+The repository counter shows `2 of 138` when the total owned public + private count is available from an owner token or the optional `totalOwnedRepositoryCount` input field. Otherwise it keeps `2 repos`. The first number is the analyzed count, and the total does not affect scores.
+
 ![Buildmarks profile card example](examples/assets/example-card.svg)
 
 The compact card is 420 pixels wide and is designed to remain readable at 360 pixels. Light, dark and automatic themes share the cover geometry. Select `renderUserSignalCard(report, { layout: "detailed" })`, CLI `--layout detailed`, or Action input `card-layout: detailed` to keep the previous 760 × 420 card with six numeric area scores.
