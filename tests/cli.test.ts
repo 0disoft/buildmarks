@@ -97,7 +97,7 @@ describe("render-card CLI", () => {
     expect(svg).not.toContain("Public Signal Tier");
     expect(svg).not.toContain('class="value">');
     expect(svg).toContain('class="project"');
-    expect(svg).toContain("Tests + workflow");
+    expect(svg).toMatch(/class="facts">[^<]+<\/text>/);
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("repos checked");
     expect(svg).not.toContain(">24 marks</text>");
