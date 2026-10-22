@@ -41,7 +41,7 @@ function selectEligibleRepositories(
   }
 
   const maxRepositories = resolveMaxRepositories(options.maxRepositories);
-  const displayedNames = new Set(
+  const displayedKeys = new Set(
     scoreUserProfile(
       {
         username: "gap-selection",
@@ -49,9 +49,15 @@ function selectEligibleRepositories(
         repositories: eligibleRepositories
       },
       { ...options, maxRepositories }
-    ).topRepos.map((repository) => repository.name)
+    ).topRepos.map(repositoryKey)
   );
-  return eligibleRepositories.filter((repository) => displayedNames.has(repository.name));
+  return eligibleRepositories.filter((repository) => displayedKeys.has(repositoryKey(repository)));
+}
+
+function repositoryKey(repository: { owner: string; name: string; visibility?: RepositoryInput["visibility"]; redactedName?: boolean; signalVisibility?: { privateRepositoriesIncluded: boolean } }): string {
+  const isPrivate = repository.visibility === "private" || repository.redactedName === true || repository.signalVisibility?.privateRepositoriesIncluded === true;
+  const owner = isPrivate ? "Private owner" : repository.owner;
+  return `${owner}/${repository.name}`.toLowerCase();
 }
 
 function buildGapLimitations(includesPrivateSignals: boolean): string[] {

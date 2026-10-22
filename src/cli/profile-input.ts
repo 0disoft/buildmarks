@@ -1,4 +1,5 @@
 import { isSupportedCardLabel } from "../shared/types";
+import { resolveCollectionCounts } from "../scoring/collection-counts";
 import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
@@ -61,6 +62,7 @@ export function parseProfileInput(value: unknown): ProfileInput {
     profile.signalVisibility = signalVisibility;
   }
   validateProfileSignalVisibility(profile);
+  resolveCollectionCounts(profile);
 
   return profile;
 }

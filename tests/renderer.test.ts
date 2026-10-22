@@ -329,6 +329,9 @@ describe("SVG renderer", () => {
   test("keeps available scores visible while calling a thin pass an early look", () => {
     const report = scoreUserProfile({
       ...(fixture as ProfileInput),
+      repositories: Array.from({ length: 8 }, (_, index) => ({
+        ...(fixture as ProfileInput).repositories[index % 2]!, name: `collected-${index}`
+      })),
       repositoryCollectionAttemptCount: 10,
       repositoryCollectionFailureCount: 2
     }, { now });

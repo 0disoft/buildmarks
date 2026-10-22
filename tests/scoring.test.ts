@@ -538,6 +538,9 @@ describe("profile scoring", () => {
   test("keeps the early-result state when too many repositories were missed", () => {
     const report = scoreUserProfile({
       ...(fixture as ProfileInput),
+      repositories: Array.from({ length: 8 }, (_, index) => ({
+        ...(fixture as ProfileInput).repositories[index % 2]!, name: `collected-${index}`
+      })),
       repositoryCollectionAttemptCount: 10,
       repositoryCollectionFailureCount: 2
     }, { now });

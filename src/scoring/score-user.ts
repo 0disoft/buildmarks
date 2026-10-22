@@ -15,6 +15,7 @@ import {
 } from "../shared/types.js";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning.js";
 import { aggregateScoreAssessments } from "./assessment.js";
+import { resolveCollectionCounts } from "./collection-counts.js";
 import { classifySignalType } from "./signal-type.js";
 import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
 import {
@@ -48,9 +49,7 @@ export function scoreUserProfile(
     (repository) => repository.codebaseShape?.treeTruncated !== true
   );
   const truncatedRepositoryCount = eligibleRepositories.length - completeTreeRepositories.length;
-  const collectionFailureCount = input.repositoryCollectionFailureCount ?? 0;
-  const collectionAttemptCount = input.repositoryCollectionAttemptCount
-    ?? eligibleRepositories.length + collectionFailureCount;
+  const { failed: collectionFailureCount, attempted: collectionAttemptCount } = resolveCollectionCounts(input);
   const collectionStatus = resolveCollectionStatus(
     collectionAttemptCount,
     collectionFailureCount,

@@ -335,6 +335,13 @@ function compactSourceShape(repository: RepositoryInput): boolean | null {
   if (shape === undefined) {
     return null;
   }
+  if (
+    !Number.isSafeInteger(shape.sourceFileCount) || shape.sourceFileCount < 0 ||
+    !Number.isSafeInteger(shape.oversizedSourceFileCount) || shape.oversizedSourceFileCount < 0 ||
+    shape.oversizedSourceFileCount > shape.sourceFileCount ||
+    !Number.isFinite(shape.medianSourceFileBytes) || shape.medianSourceFileBytes < 0 ||
+    !Number.isFinite(shape.p90SourceFileBytes) || shape.p90SourceFileBytes < shape.medianSourceFileBytes
+  ) return null;
   const sourceFileCount = codebaseShapeMetric(shape.sourceFileCount);
   const medianSourceFileBytes = codebaseShapeMetric(shape.medianSourceFileBytes);
   const p90SourceFileBytes = codebaseShapeMetric(shape.p90SourceFileBytes);
@@ -381,7 +388,7 @@ function makeCoverage(observed: number, expected: number) {
   return {
     observed,
     expected,
-    ratio: expected === 0 ? 0 : Number((observed / expected).toFixed(3))
+    ratio: expected === 0 ? 0 : observed / expected
   };
 }
 
