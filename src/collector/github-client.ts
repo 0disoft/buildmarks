@@ -534,7 +534,9 @@ function buildCollectedRepository(
 ): CollectedGitHubRepository {
   const isPrivate = repository.private;
   const repositoryKind = detectRepositoryKindFromPaths(
-    treeEntries.entries.map((entry) => entry.path),
+    treeEntries.entries.filter((entry) =>
+      (entry.type === undefined || entry.type === "blob") && entry.size !== 0
+    ).map((entry) => entry.path),
     {
       sourceFileCount: fileSignals.codebaseShape.sourceFileCount,
       hasReadme: fileSignals.hasReadme,

@@ -1,7 +1,7 @@
 import { codebaseShapePolicy } from "../shared/evidence-policy.js";
 import type { CodebaseShapeSignals } from "../shared/types.js";
+import { isIgnoredRepositoryPath, isExampleRepositoryPath, isSourceRepositoryPath } from "../shared/repository-paths.js";
 
-const ciDirectoryPaths = [".github/workflows"];
 const ciFilePaths = [
   ".circleci/config.yml",
   ".travis.yml",
@@ -10,7 +10,6 @@ const ciFilePaths = [
   ".gitlab-ci.yml",
   ".drone.yml"
 ];
-const testPaths = ["tests", "test", "__tests__", "spec"];
 const readmePaths = ["README.md", "README", "readme.md"];
 const licensePaths = ["LICENSE", "LICENSE.md", "LICENCE", "LICENCE.md", "COPYING"];
 const changelogPaths = ["CHANGELOG.md", "CHANGELOG", "changelog.md"];
@@ -32,47 +31,7 @@ const packageArtifactPaths = [
   "build.gradle.kts"
 ];
 const packageArtifactFileNames = new Set(packageArtifactPaths.map((path) => path.toLowerCase()));
-const sourceFileExtensions = new Set([
-  ".astro",
-  ".c",
-  ".cpp",
-  ".cs",
-  ".cjs",
-  ".dart",
-  ".go",
-  ".h",
-  ".hpp",
-  ".java",
-  ".js",
-  ".jsx",
-  ".kt",
-  ".mjs",
-  ".php",
-  ".py",
-  ".rb",
-  ".rs",
-  ".scala",
-  ".svelte",
-  ".swift",
-  ".ts",
-  ".tsx",
-  ".vue",
-  ".zig"
-]);
-const ignoredShapePathSegments = new Set([
-  ".cache",
-  ".git",
-  ".next",
-  ".svelte-kit",
-  ".turbo",
-  "build",
-  "coverage",
-  "dist",
-  "node_modules",
-  "out",
-  "target",
-  "vendor"
-]);
+
 const lockfileNames = new Set([
   "bun.lock",
   "bun.lockb",
@@ -132,14 +91,12 @@ export function collectTreePathSignals(treeEntries: readonly GitHubTreeEntry[]):
 
   for (const entry of treeEntries) {
     const normalizedPath = normalizeTreePath(entry.path);
-    if (hasIgnoredShapePathSegment(normalizedPath)) {
+    if (isIgnoredRepositoryPath(normalizedPath)) {
       continue;
     }
 
     if (!signals.hasTests) {
-      signals.hasTests =
-        isTestPath(entry.path) ||
-        testPaths.some((candidate) => treePathMatchesCandidate(normalizedPath, normalizeTreePath(candidate)));
+      signals.hasTests = isCountableSourceFile(entry) && isTestPath(entry.path);
     }
     if (!signals.hasCi) {
       signals.hasCi = isCiPath(entry, normalizedPath);
@@ -156,7 +113,9 @@ export function collectTreePathSignals(treeEntries: readonly GitHubTreeEntry[]):
       signals[matcher.key] = matcher.candidates.some((candidate) =>
         matcher.mode === "file"
           ? filePathMatchesCandidate(entry, normalizedPath, normalizeTreePath(candidate))
-          : treePathMatchesCandidate(normalizedPath, normalizeTreePath(candidate))
+          : isFileEntry(entry) && entry.size !== 0 &&
+            !(normalizedPath.split("/").at(-1) ?? "").startsWith(".") &&
+            normalizedPath.startsWith(`${normalizeTreePath(candidate)}/`)
       );
     }
 
@@ -168,21 +127,17 @@ export function collectTreePathSignals(treeEntries: readonly GitHubTreeEntry[]):
   return signals;
 }
 
-function treePathMatchesCandidate(normalizedPath: string, normalizedCandidate: string): boolean {
-  return normalizedPath === normalizedCandidate || normalizedPath.startsWith(`${normalizedCandidate}/`);
-}
-
 function filePathMatchesCandidate(
   entry: GitHubTreeEntry,
   normalizedPath: string,
   normalizedCandidate: string
 ): boolean {
-  return isFileEntry(entry) && normalizedPath === normalizedCandidate;
+  return isFileEntry(entry) && entry.size !== 0 && normalizedPath === normalizedCandidate;
 }
 
 function isCiPath(entry: GitHubTreeEntry, normalizedPath: string): boolean {
   return (
-    ciDirectoryPaths.some((candidate) => treePathMatchesCandidate(normalizedPath, normalizeTreePath(candidate))) ||
+    (isFileEntry(entry) && entry.size !== 0 && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(normalizedPath)) ||
     ciFilePaths.some((candidate) => filePathMatchesCandidate(entry, normalizedPath, normalizeTreePath(candidate)))
   );
 }
@@ -192,7 +147,7 @@ function isFileEntry(entry: GitHubTreeEntry): boolean {
 }
 
 function isPackageArtifactPath(entry: GitHubTreeEntry): boolean {
-  if (!isFileEntry(entry)) {
+  if (!isFileEntry(entry) || entry.size === 0 || isExampleRepositoryPath(entry.path)) {
     return false;
   }
 
@@ -255,31 +210,25 @@ function isCountableSourceFile(entry: GitHubTreeEntry): boolean {
   if (!isFileEntry(entry)) {
     return false;
   }
-  if (hasIgnoredShapePathSegment(normalizedPath)) {
+  if (isIgnoredRepositoryPath(normalizedPath) || entry.size === 0) {
     return false;
   }
   if (lockfileNames.has(fileName) || fileName.endsWith(".min.js") || fileName.endsWith(".map")) {
     return false;
   }
 
-  return sourceFileExtensions.has(extensionOf(fileName));
+  return isSourceRepositoryPath(normalizedPath);
 }
 
 function isExampleFileEntry(entry: GitHubTreeEntry): boolean {
   if (!isFileEntry(entry)) {
     return false;
   }
-  if (hasIgnoredShapePathSegment(entry.path)) {
+  if (isIgnoredRepositoryPath(entry.path)) {
     return false;
   }
 
-  return isExamplePath(entry.path);
-}
-
-function hasIgnoredShapePathSegment(path: string): boolean {
-  return normalizeTreePath(path)
-    .split("/")
-    .some((segment) => ignoredShapePathSegments.has(segment));
+  return isExampleRepositoryPath(entry.path);
 }
 
 function isTestPath(path: string): boolean {
@@ -296,30 +245,11 @@ function isTestPath(path: string): boolean {
     normalizedPath.includes("/tests/") ||
     normalizedPath.includes("/spec/") ||
     fileName.includes(".test.") ||
-    fileName.includes(".spec.")
+    fileName.includes(".spec.") ||
+    fileName.endsWith("_test.go") ||
+    (fileName.endsWith(".py") && (fileName.startsWith("test_") || fileName.endsWith("_test.py"))) ||
+    fileName.endsWith("_spec.rb")
   );
-}
-
-function isExamplePath(path: string): boolean {
-  const normalizedPath = normalizeTreePath(path);
-
-  return (
-    normalizedPath.startsWith("demo/") ||
-    normalizedPath.startsWith("demos/") ||
-    normalizedPath.startsWith("example/") ||
-    normalizedPath.startsWith("examples/") ||
-    normalizedPath.startsWith("fixture/") ||
-    normalizedPath.startsWith("fixtures/") ||
-    normalizedPath.startsWith("sample/") ||
-    normalizedPath.startsWith("samples/") ||
-    normalizedPath.includes("/examples/") ||
-    normalizedPath.includes("/fixtures/")
-  );
-}
-
-function extensionOf(fileName: string): string {
-  const extensionStart = fileName.lastIndexOf(".");
-  return extensionStart === -1 ? "" : fileName.slice(extensionStart);
 }
 
 function percentileOfSorted(sorted: readonly number[], percentileValue: number): number {

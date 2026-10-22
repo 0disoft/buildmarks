@@ -6,6 +6,7 @@ import {
   type RepositoryKindAssessment
 } from "../shared/types.js";
 import { codebaseShapeMetric } from "./codebase-shape.js";
+import { isIgnoredRepositoryPath, isExampleRepositoryPath, isSourceRepositoryPath } from "../shared/repository-paths.js";
 
 const packageManifestNames = new Set([
   "package.json",
@@ -47,6 +48,7 @@ export function resolveRepositoryKind(repository: RepositoryInput): RepositoryKi
   const sourceFileCount = codebaseShapeMetric(repository.codebaseShape?.sourceFileCount);
   if (
     sourceFileCount <= 2 &&
+    repository.hasPackageArtifact !== true &&
     repository.hasReadme === true &&
     repository.hasDemoOrDocs === true
   ) {
@@ -70,15 +72,17 @@ export function detectRepositoryKindFromPaths(
   paths: readonly string[],
   context: RepositoryKindDetectionContext
 ): RepositoryKindAssessment {
-  const normalizedPaths = paths.map(normalizePath);
+  const normalizedPaths = paths.map(normalizePath).filter(path =>
+    !isIgnoredRepositoryPath(path) && !isExampleRepositoryPath(path)
+  );
   const fileNames = normalizedPaths.map((path) => path.split("/").at(-1) ?? "");
   const nestedPackageManifestCount = normalizedPaths.filter((path, index) => {
     const fileName = fileNames[index] ?? "";
-    return path.includes("/") && packageManifestNames.has(fileName);
+    return /^(packages|apps|crates|modules)\/[^/]+\/[^/]+$/.test(path) && packageManifestNames.has(fileName);
   }).length;
 
   if (
-    fileNames.some((fileName) => workspaceMarkers.has(fileName)) ||
+    normalizedPaths.some((path) => workspaceMarkers.has(path)) ||
     nestedPackageManifestCount >= 2
   ) {
     return { kind: "monorepo", source: "detected", confidence: "high" };
@@ -110,19 +114,24 @@ export function detectRepositoryKindFromPaths(
     return { kind: "application", source: "detected", confidence: "medium" };
   }
 
+  const hasRootPackageManifest = normalizedPaths.some((path) =>
+    !path.includes("/") && packageManifestNames.has(path)
+  );
+  const hasProductSource = normalizedPaths.some(path =>
+    isSourceRepositoryPath(path) &&
+    !/^(docs?|documentation|scripts|tools|\.github)\//.test(path) &&
+    !/\.config\.[^/]+$/.test(path)
+  );
+  if (hasRootPackageManifest && hasProductSource) {
+    return { kind: "library", source: "detected", confidence: "low" };
+  }
+
   if (
     context.sourceFileCount <= 2 &&
     context.hasReadme &&
     context.hasDemoOrDocs
   ) {
     return { kind: "documentation", source: "detected", confidence: "medium" };
-  }
-
-  const hasRootPackageManifest = normalizedPaths.some((path) =>
-    !path.includes("/") && packageManifestNames.has(path)
-  );
-  if (hasRootPackageManifest && context.sourceFileCount > 0) {
-    return { kind: "library", source: "detected", confidence: "low" };
   }
 
   if (context.sourceFileCount > 0 && context.sourceFileCount <= 10 && !hasRootPackageManifest) {
