@@ -23,14 +23,15 @@
     .divider { stroke:var(--line); stroke-width:1; }
     .track { fill:var(--track); }
     .bar,.accent { fill:var(--accent); }
-    .secondary { fill:var(--secondary); }
-    .emblem-stroke { stroke:var(--accent); }
-    .art-line { stroke:var(--line); fill:none; stroke-width:1; }
-    .art-ink { stroke:var(--text); }
-    .art-page { fill:#fff4e5; }
-    .art-page + .art-ink { stroke:#203044; }
     .chip-bg { fill:var(--chip); }
     .chip { font-size:12px; font-weight:600; }
+
+    .persona-emblem{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+    .emblem-halo{fill:var(--accent);fill-opacity:.07;stroke:none;}
+    .emblem-paper{fill:var(--surface);}
+    .emblem-fill{fill:var(--accent);}
+    .emblem-cutout{fill:var(--surface);stroke:var(--surface);}
+    .emblem-light{stroke:var(--surface);}
   </style>
   <rect width="760" height="420" rx="16" class="surface" />
   <g aria-hidden="true" class="accent"><path d="M32 23h7v17h-7zM43 23h7v17h-7z" /></g>
@@ -41,19 +42,14 @@
   <g data-cover="ships-steadily" aria-label="Rocket Courier">
     <text x="32" y="119" class="cover-title"><tspan x="32">Rocket</tspan><tspan x="32" dy="34">Courier</tspan></text>
     <text x="32" y="180" class="tagline"><tspan x="32">The version has landed.</tspan><tspan x="32" dy="17">Unpacking instructions are the</tspan><tspan x="32" dy="17">next delivery.</tspan></text>
-    <g transform="translate(38 270) scale(.3)" aria-hidden="true"><g transform="translate(0 0)">
-        <path d="M0 63C35 63 41 38 83 38S138 10 201 10" class="emblem-stroke" fill="none" stroke-width="12" stroke-linecap="round" />
-        <g class="art-ink" fill="none" stroke-width="3"><circle cx="62" cy="42" r="7" /><circle cx="125" cy="29" r="7" /></g>
-        <circle cx="201" cy="10" r="10" class="secondary" />
-      </g><g transform="translate(0 36)">
-        <path d="M0 63C35 63 41 38 83 38S138 10 201 10" class="emblem-stroke" fill="none" stroke-width="12" stroke-linecap="round" />
-        <g class="art-ink" fill="none" stroke-width="3"><circle cx="62" cy="42" r="7" /><circle cx="125" cy="29" r="7" /></g>
-        <circle cx="201" cy="10" r="10" class="secondary" />
-      </g><g transform="translate(0 72)">
-        <path d="M0 63C35 63 41 38 83 38S138 10 201 10" class="emblem-stroke" fill="none" stroke-width="12" stroke-linecap="round" />
-        <g class="art-ink" fill="none" stroke-width="3"><circle cx="62" cy="42" r="7" /><circle cx="125" cy="29" r="7" /></g>
-        <circle cx="201" cy="10" r="10" class="secondary" />
-      </g></g>
+    <g transform="translate(38 258) scale(.45)" data-emblem="rocket-courier" class="persona-emblem" aria-hidden="true">
+    <rect x="5" y="5" width="118" height="118" rx="32" class="emblem-halo"/>
+
+    <path d="M49 79q-3-36 38-57 17 43-11 65Z" class="emblem-fill"/>
+    <path d="m48 58-21 9-2 23 24-11M81 74l9 22-19 15-3-25" class="emblem-paper"/>
+    <circle cx="72" cy="51" r="10" class="emblem-cutout"/>
+    <path d="m42 91-13 17M53 98l-6 13M30 85l-14 7"/>
+  </g>
     <text x="250" y="310" class="profile-score">82/100</text>
   </g>
   <g aria-label="Project areas with scores out of 100"><g role="img" aria-label="Maintainability: Diamond II, 97 points out of 100">

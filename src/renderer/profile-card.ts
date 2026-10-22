@@ -1,6 +1,7 @@
 import { cardDisplayPolicy, detailedCardSize } from "./layout-policy.js";
 import { dimensionLabels, type ProfilePersona, type SignalDimension, type SignalType } from "../shared/types.js";
-import { getProfileCover, renderCoverArtwork, renderCoverStyles } from "./profile-cover.js";
+import { getProfileCover, renderCoverStyles } from "./profile-cover.js";
+import { renderPersonaEmblem, renderEmblemStyles } from "./persona-emblem.js";
 import { wrapCardText, escapeCardCopy as escapeCopy } from "./text-layout.js";
 
 interface ProfileCardContent {
@@ -59,7 +60,7 @@ export function renderProfileCard(content: ProfileCardContent): string {
 <svg xmlns="http://www.w3.org/2000/svg" class="card card-${content.theme}" role="img" width="${detailedCardSize.width}" height="${detailedCardSize.height}" viewBox="0 0 ${detailedCardSize.width} ${detailedCardSize.height}" aria-labelledby="title desc">
   <title id="title">${content.titleXml}</title>
   <desc id="desc">${content.descriptionXml}</desc>
-  <style>${renderCoverStyles(cover)}${renderProfileStyles()}</style>
+  <style>${renderCoverStyles(cover)}${renderProfileStyles()}${renderEmblemStyles()}</style>
   <rect width="${detailedCardSize.width}" height="${detailedCardSize.height}" rx="16" class="surface" />
   <g aria-hidden="true" class="accent"><path d="M32 23h7v17h-7zM43 23h7v17h-7z" /></g>
   <text x="60" y="39" class="brand">Buildmarks</text>
@@ -69,7 +70,7 @@ export function renderProfileCard(content: ProfileCardContent): string {
   <g data-cover="${cover.id}" aria-label="${escapeCopy(cover.lines.join(" "))}">
     <text x="32" y="119" class="cover-title${cover.serif ? " cover-serif" : ""}"><tspan x="32">${escapeCopy(cover.lines[0])}</tspan><tspan x="32" dy="34">${escapeCopy(cover.lines[1])}</tspan></text>
     <text x="32" y="180" class="tagline">${tagline}</text>
-    ${renderCoverArtwork(cover, "translate(38 270) scale(.3)")}
+    ${renderPersonaEmblem(content.persona?.id, "translate(38 258) scale(.45)")}
     <text x="250" y="310" class="profile-score">${content.scoreXml}</text>
   </g>
   <g aria-label="Project areas with scores out of 100">${rows.join("\n")}</g>
@@ -77,7 +78,7 @@ ${highlights.length > 0 ? '  <text x="32" y="333" class="caption">Highlights</te
   <g aria-label="Project highlights">${highlights.join("\n")}</g>
   <path d="M32 383h696" class="divider" aria-hidden="true" />
   <text x="32" y="403" class="footer">${content.footerXml}</text>
-</svg>`;
+</svg>`.replace(/[ \t]+$/gm, "");
 }
 
 export function renderProfileStyles(): string {
@@ -100,12 +101,6 @@ export function renderProfileStyles(): string {
     .divider { stroke:var(--line); stroke-width:1; }
     .track { fill:var(--track); }
     .bar,.accent { fill:var(--accent); }
-    .secondary { fill:var(--secondary); }
-    .emblem-stroke { stroke:var(--accent); }
-    .art-line { stroke:var(--line); fill:none; stroke-width:1; }
-    .art-ink { stroke:var(--text); }
-    .art-page { fill:#fff4e5; }
-    .art-page + .art-ink { stroke:#203044; }
     .chip-bg { fill:var(--chip); }
     .chip { font-size:12px; font-weight:600; }
   `;

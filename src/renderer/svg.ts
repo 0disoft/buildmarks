@@ -138,14 +138,13 @@ export function renderUserSignalCard(
       descriptionXml: escapeXml(`${compactDescription}${projectDescriptions ? ` Representative projects: ${projectDescriptions}` : ""}`),
       checkedXml: escapeXml(footerNote),
       scopeXml: escapeXml(`${scope} · ${reviewed} reviewed`),
+      reviewedCount: reviewed,
       generatedXml: escapeXml(`Generated ${generatedDate} · ${brandVersion}`),
       includesPrivate,
       projects: projects.map((project) => {
         const separator = project.name.indexOf("/");
-        const owner = separator < 0 ? "" : project.name.slice(0, separator);
         const name = separator < 0 ? project.name : project.name.slice(separator + 1);
-        const display = owner === "" || owner.toLowerCase() === usernameRaw.trim().toLowerCase() ? name : `${name} · ${owner}`;
-        return { nameXml: escapeXml(fitCompactText(display, 32)), factsXml: escapeXml(project.facts.join(" · ")),
+        return { nameXml: escapeXml(fitCompactText(name, 18)),
           descriptionXml: escapeXml(`${project.name}: ${project.facts.join("; ")}`) };
       })
     });

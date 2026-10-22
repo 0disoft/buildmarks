@@ -25,13 +25,14 @@ describe("SVG renderer", () => {
     const before = JSON.stringify(report);
     const svg = renderUserSignalCard(report);
     expect(svg).toContain('data-layout="compact"');
-    expect(svg).toContain('viewBox="0 0 420 416"');
+    expect(svg).toContain('viewBox="0 0 420 288"');
     expect(svg).toContain('aria-label="Representative projects and observed details"');
     expect(svg).toContain('class="project"');
     expect(svg).toContain('class="project">usable-toolkit</text>');
     expect(svg).toContain('aria-label="example-builder/usable-toolkit:');
-    expect(svg).toContain('class="facts"');
-    expect(svg).toContain('class="profile-score">82/100</text>');
+    expect(svg).toContain('class="small-icon"');
+    expect(svg).not.toContain('class="facts"');
+    expect(svg).toContain('class="profile-score">82</text>');
     expect(svg).toContain('aria-label="Rocket Courier"');
     expect(svg).toContain('class="tagline"');
     expect(svg).not.toContain('role="progressbar"');
@@ -57,7 +58,7 @@ describe("SVG renderer", () => {
   test("shows an honest empty state and early-result notice without invented project facts", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const svg = renderUserSignalCard({ ...report, topRepos: [], resultStatus: "provisional" });
-    expect(svg).toContain("No repository details to show.");
+    expect(svg).toContain("No projects to display");
     expect(svg).toContain("Early look");
     expect(svg).not.toContain('class="project"');
   });
@@ -72,7 +73,8 @@ describe("SVG renderer", () => {
     const svg = renderUserSignalCard({ ...report, topRepos: privateProjects });
     expect(svg).toContain("Private project 1");
     expect(svg).toContain("Public + Private Projects");
-    expect(svg).toContain("Private projects supplied by owner");
+    expect(svg).toContain("Public + Private Projects · Owner-supplied");
+    expect(svg).toContain('viewBox="0 0 420 312"');
     expect(svg).not.toContain("secret-project");
   });
   test("uses compact fallbacks and normalizes invalid runtime layout values", () => {

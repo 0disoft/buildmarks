@@ -19,7 +19,7 @@ The JSON result adds a `persona` object. The existing `signalType` stays for com
 }
 ```
 
-Personas use public project artifacts and the existing six cover artworks. The catalog does not promise separate artwork for every title.
+Each persona has a distinct vector emblem, using one of six accent palettes. The cards remain self-contained SVGs.
 
 | Title | Description |
 | --- | --- |

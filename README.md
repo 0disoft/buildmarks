@@ -38,7 +38,7 @@ No hosted Buildmarks backend is required. Your profile repository stores the sta
 
 ## Profile Card Designs
 
-Profile cards now select one of 30 playful personas, or Balanced Builder when the area scores are close together. The compact card shows the overall score, a title and short description, up to two representative projects, checked percentage, scope and date. Personas reuse six vector artworks. Full area scores stay in the report.
+Profile cards select one of 30 playful personas, or Balanced Builder when the area scores are close together. A large score, persona title and distinct vector emblem lead the compact card, followed by a short description and two project names. Small icons show the project count, checked percentage and date. Full area scores stay in the report.
 
 ![Buildmarks profile card example](examples/assets/example-card.svg)
 
