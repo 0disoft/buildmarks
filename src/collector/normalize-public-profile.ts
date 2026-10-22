@@ -4,9 +4,10 @@ import type {
   ProfileInput,
   RepositoryInput
 } from "../shared/types.js";
+import { normalizeProfileRepositories } from "../shared/repository-identity.js";
 
 export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): ProfileInput {
-  return {
+  return normalizeProfileRepositories({
     username: profile.username,
     ...(profile.collectedAt === undefined ? {} : { generatedAt: profile.collectedAt }),
     ...(profile.activityWindowDays === undefined ? {} : { activityWindowDays: profile.activityWindowDays }),
@@ -24,7 +25,7 @@ export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): P
       : { repositoryCollectionFailures: profile.repositoryCollectionFailures.map((failure) => ({ ...failure })) }),
     ...(profile.signalVisibility ? { signalVisibility: { ...profile.signalVisibility } } : {}),
     repositories: profile.repositories.map(normalizePublicGitHubRepository)
-  };
+  });
 }
 
 function normalizePublicGitHubRepository(repository: CollectedGitHubProfile["repositories"][number]): RepositoryInput {

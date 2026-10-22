@@ -37,6 +37,10 @@ Custom caller cancellation reasons are retained as the `AbortError` cause (an ex
 
 Payload overflow raises `github_response_too_large` or `github_tree_too_large` without retry. Oversized repository details are counted as failed collection, not absent files or a successfully truncated tree; normal insufficient-evidence rules still apply. Oversized repository lists fail the whole collection. Response readers cancel and release their lock on failure or cancellation without waiting for stalled stream cleanup. Increasing the limits increases peak memory, which also depends on the shared request concurrency and parsed JSON objects.
 
+A tree 404, 409, null body, invalid entry or invalid truncation flag is a failed repository collection. Only a valid successful tree response can establish an empty tree; unavailable trees never become complete zero-file evidence. Optional README and community-file absence retains its separate behavior.
+
+Input and scoring boundaries use case-insensitive, trimmed owner/name identities. Identical records keep the first occurrence and original order; conflicting observations throw `RepositoryConflictError`. Explicit collection-attempt counts must describe unique eligible repositories plus failures. The collector also deduplicates across list pages before scheduling detail requests, and conflicting list records fail with `invalid_github_response` without exposing repository identifiers.
+
 `runtime.onCleanupError?: (error: unknown) => void | Promise<void>` observes response-body cleanup failures without replacing the primary result. It is opt-in, has no built-in logging, and must not retain secrets. Observer failures are isolated and the operation does not wait for an observer or stalled body cleanup. Private-local fatal collector errors copy and redact diagnostic causes rather than exposing raw private repository names through nested errors.
 
 ## Filesystem boundaries
@@ -56,6 +60,8 @@ Writers remove only temporary and backup files they successfully created. Cancel
 
 Temporary-file and backup cleanup failures throw `OutputCleanupError` with the primary failure as `cause` and cleanup failures in `errors`. Its `committed` flag identifies a successful publication followed by failed cleanup; renderers propagate this error without publishing fallback files. Inaccessible output paths have an `unknown` existence state and raise `OutputInspectionError` instead of claiming preservation or assuming absence. Filesystem writes are not raced against a timeout: a pending rename can still finish, so the owner retains its locks until publication and recovery settle.
 
+GitHub card, report and combined renderers acquire their output locks before collection and retain them through publication or fallback recovery. An overlapping refresh fails with `OutputBusyError` before any GitHub request. Different output paths remain independent. This prevents overlapping refreshes from publishing out of order without adding timestamp comparisons or persistent generation metadata.
+
 ## Regression coverage
 
 - `scoring-boundaries.test.ts`: unrounded coverage thresholds, partial invalid metrics, count consistency, collection availability and owner-qualified selection.
@@ -65,6 +71,7 @@ Temporary-file and backup cleanup failures throw `OutputCleanupError` with the p
 - `request-limiter.test.ts`: shared admission across profiles, FIFO cancellation, queue overflow, body lifetime and retry backoff.
 - `response-limits.test.ts`: streamed byte limits, UTF-8 boundaries, inaccurate length headers, reader cancellation and excessive tree entries.
 - `report-reuse.test.ts`: equivalent standalone/report gap selection, a single profile assessment and exact percentiles without changing input order.
+- `repository-identity.test.ts`: duplicate-invariant scores, unique collection counts, conflict rejection and deduplicated public/private-local pagination.
 - `output-runtime.test.ts`: memory filesystem rendering, exclusive-name collisions, write failures, publication rollback and cancellation.
 - `output-concurrency.test.ts`: overlapping output sets, fallback races, partial lock acquisition, cleanup failures, directory aliases and a separate writer process.
 

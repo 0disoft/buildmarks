@@ -11,7 +11,7 @@ const profiles: ProfileInput[] = [
   { username: "probe", repositories: [
     { ...base, owner: "alice", name: "same", repositoryKind: "library" },
     { ...base, owner: "bob", name: "same", repositoryKind: "documentation", hasLicense: false },
-    { ...base, owner: "alice", name: "SAME", repositoryKind: "cli", hasTests: false },
+    { ...base, owner: "alice", name: "other", repositoryKind: "cli", hasTests: false },
     { ...base, name: "incomplete", codebaseShape: { ...base.codebaseShape, treeTruncated: true } }
   ] },
   { username: "private-probe", signalVisibility: privateLocalSignalVisibility, repositories: [

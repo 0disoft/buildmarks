@@ -21,6 +21,7 @@ import { aggregateScoreAssessments } from "./assessment.js";
 import { resolveCollectionCounts } from "./collection-counts.js";
 import { classifySignalType } from "./signal-type.js";
 import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
+import { normalizeProfileRepositories } from "../shared/repository-identity.js";
 import {
   repositoryOverallWeights,
   scoreRepository,
@@ -42,6 +43,7 @@ export function scoreUserProfile(
   options: ScoreUserProfileOptions = {}
 ): UserSignalReportV2 {
   validatePrivateRepositoryDisclosure(input);
+  input = normalizeProfileRepositories(input);
   const now = resolveEvaluationTime(options.now, input.generatedAt);
   const generatedAt = now.toISOString();
   const displayLimit = resolveMaxRepositories(options.maxRepositories);

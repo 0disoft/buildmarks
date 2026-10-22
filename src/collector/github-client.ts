@@ -10,6 +10,7 @@ import { redactErrorCause } from "./github-errors.js";
 import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 import { defaultGitHubRequestLimiter, type GitHubRequestLimiter } from "./request-limiter.js";
 import { readBoundedText } from "./response-body.js";
+import { createRepositoryIndex } from "./repository-index.js";
 export { GitHubCollectorError, type GitHubCollectorErrorCode } from "./github-errors.js";
 
 import type {
@@ -233,6 +234,7 @@ class GitHubRestClient {
 
   async listUserRepositories(username: string, limit: number): Promise<GitHubRepositoryResponse[]> {
     const repositories: GitHubRepositoryResponse[] = [];
+    const index = createRepositoryIndex<GitHubRepositoryResponse>();
     let page = 1;
     const perPage = Math.min(githubRequestPolicy.maximumPageSize, limit);
 
@@ -246,7 +248,9 @@ class GitHubRestClient {
       }
 
       const mapped = pageRepositories.map(asRepositoryResponse);
-      repositories.push(...mapped.filter(isRepositoryCollectionCandidate));
+      for (const repository of mapped) {
+        if (isRepositoryCollectionCandidate(repository) && index.add(repository)) repositories.push(repository);
+      }
 
       if (mapped.length < perPage) {
         break;
@@ -260,6 +264,7 @@ class GitHubRestClient {
 
   async listAuthenticatedOwnerRepositories(username: string, limit: number): Promise<GitHubRepositoryResponse[]> {
     const repositories: GitHubRepositoryResponse[] = [];
+    const index = createRepositoryIndex<GitHubRepositoryResponse>();
     let page = 1;
     const normalizedUsername = username.toLowerCase();
     const perPage = githubRequestPolicy.maximumPageSize;
@@ -274,9 +279,9 @@ class GitHubRestClient {
       }
 
       const mapped = pageRepositories.map(asRepositoryResponse);
-      repositories.push(...mapped.filter((repository) =>
-        repository.owner.login.toLowerCase() === normalizedUsername && isRepositoryCollectionCandidate(repository)
-      ));
+      for (const repository of mapped) {
+        if (repository.owner.login.toLowerCase() === normalizedUsername && isRepositoryCollectionCandidate(repository) && index.add(repository)) repositories.push(repository);
+      }
 
       if (mapped.length < perPage) {
         break;

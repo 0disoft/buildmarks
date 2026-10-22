@@ -1,5 +1,6 @@
 import { isSupportedCardLabel } from "../shared/types";
 import { resolveCollectionCounts } from "../scoring/collection-counts";
+import { normalizeProfileRepositories } from "../shared/repository-identity.js";
 import {
   privateLocalSignalVisibility,
   publicOnlySignalVisibility,
@@ -65,6 +66,7 @@ export function parseProfileInput(value: unknown): ProfileInput {
     profile.signalVisibility = signalVisibility;
   }
   validateProfileSignalVisibility(profile);
+  profile.repositories = normalizeProfileRepositories(profile).repositories;
   resolveCollectionCounts(profile);
 
   return profile;

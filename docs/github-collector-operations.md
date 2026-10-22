@@ -62,6 +62,10 @@ Normal completion, caught failures, and cancellation close and remove only locks
 
 Repository-list pagination keeps a fixed page size while filtering forked and archived repositories. The scan limit counts eligible repositories, rather than duplicated rows from changing page boundaries.
 
+Repository identity is case-insensitive owner/name. Identical duplicate list records count once and never schedule duplicate detail requests; conflicting records fail collection. Imported snapshots follow the same rule before scoring and gap analysis. Their explicit attempt counts must match unique eligible repositories plus failures. Tree 404/409 responses and malformed trees count as unavailable collection rather than complete empty repositories.
+
+GitHub generation commands reserve all output paths before starting collection and release them after publication or recovery. Overlapping refreshes are rejected immediately with `OutputBusyError` and do not call GitHub, preventing an earlier slow collection from overwriting a later result. No persistent generation file is needed; cooperating processes use the existing exclusive-file protocol.
+
 ## Live Client Scope
 
 The live collector uses GitHub REST API endpoints for:

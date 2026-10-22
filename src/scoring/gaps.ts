@@ -5,6 +5,7 @@ import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
 import { resolveRepositoryKind } from "./repository-kind.js";
 import { scoreUserProfile } from "./score-user.js";
 import { resolveEvaluationTime } from "../shared/evaluation-time.js";
+import { normalizeProfileRepositories } from "../shared/repository-identity.js";
 
 
 export interface AnalyzeSignalGapsOptions {
@@ -37,6 +38,7 @@ export function analyzeSignalGapsWithSelection(
 
 function buildSignalGaps(input: ProfileInput, options: AnalyzeSignalGapsOptions, displayedKeys?: ReadonlySet<string>): UserSignalGapsReport {
   validatePrivateRepositoryDisclosure(input);
+  input = normalizeProfileRepositories(input);
 
   const now = resolveEvaluationTime(options.now, input.generatedAt);
   const generatedAt = now.toISOString();
