@@ -7,6 +7,8 @@ export type GitHubCollectorErrorCode =
   | "github_request_budget_exhausted"
   | "github_collection_timeout"
   | "github_request_queue_full"
+  | "github_response_too_large"
+  | "github_tree_too_large"
   | "invalid_github_response";
 
 export class GitHubCollectorError extends Error {

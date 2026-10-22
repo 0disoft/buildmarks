@@ -9,6 +9,7 @@ import { isTransientReadError, readWithRetry } from "./read-retry.js";
 import { redactErrorCause } from "./github-errors.js";
 import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 import { defaultGitHubRequestLimiter, type GitHubRequestLimiter } from "./request-limiter.js";
+import { readBoundedText } from "./response-body.js";
 export { GitHubCollectorError, type GitHubCollectorErrorCode } from "./github-errors.js";
 
 import type {
@@ -51,6 +52,8 @@ export interface CollectPublicGitHubProfileOptions {
   collectionTimeoutMilliseconds?: number;
   /** Reuse across calls; the default instance is shared within this module's process. */
   requestLimiter?: GitHubRequestLimiter;
+  maxResponseBytes?: number;
+  maxTreeEntries?: number;
   runtime?: Partial<GitHubCollectorRuntime>;
 }
 
@@ -163,6 +166,8 @@ class GitHubRestClient {
   private readonly timeoutMilliseconds: number;
   private readonly callerSignal: AbortSignal | undefined;
   private readonly requestLimiter: GitHubRequestLimiter;
+  private readonly maxResponseBytes: number;
+  private readonly maxTreeEntries: number;
   private cancelCollectionTimeout = () => {};
   private readonly abortFromCaller = () => this.batchAbortController.abort(cancellationError(this.callerSignal!));
 
@@ -174,6 +179,11 @@ class GitHubRestClient {
   ) {
     this.runtime = resolveCollectorRuntime(options.runtime);
     this.requestLimiter = options.requestLimiter ?? defaultGitHubRequestLimiter;
+    this.maxResponseBytes = options.maxResponseBytes ?? githubRequestPolicy.maximumResponseBytes;
+    this.maxTreeEntries = options.maxTreeEntries ?? githubRequestPolicy.maximumTreeEntries;
+    for (const [label, limit] of [["Response byte limit", this.maxResponseBytes], ["Tree entry limit", this.maxTreeEntries]] as const) {
+      if (!Number.isSafeInteger(limit) || limit <= 0) throw new GitHubCollectorError("invalid_policy", `${label} must be a positive safe integer.`);
+    }
     this.timeoutMilliseconds = options.timeoutMilliseconds ?? githubRequestTimeoutMilliseconds;
     if (!Number.isSafeInteger(this.timeoutMilliseconds) || this.timeoutMilliseconds <= 0 || this.timeoutMilliseconds > githubRequestPolicy.maximumTimerMilliseconds) {
       throw new GitHubCollectorError("invalid_policy", `Request timeout must be a positive integer at most ${githubRequestPolicy.maximumTimerMilliseconds} milliseconds.`);
@@ -346,6 +356,9 @@ class GitHubRestClient {
     if (!Array.isArray(tree.tree)) {
       throw new GitHubCollectorError("invalid_github_response", "GitHub tree response was missing tree array.");
     }
+    if (tree.tree.length > this.maxTreeEntries) {
+      throw new GitHubCollectorError("github_tree_too_large", `GitHub tree exceeded the ${this.maxTreeEntries}-entry limit.`);
+    }
 
     return {
       entries: tree.tree.flatMap((item) => {
@@ -387,13 +400,13 @@ class GitHubRestClient {
   }
 
   async fetchJson<T>(path: string, options: { allowMissing?: boolean; signal?: AbortSignal } = {}): Promise<T | null> {
-    return this.request(path, { accept: githubJsonAccept }, async (response) => {
+    return this.request(path, { accept: githubJsonAccept }, async (response, signal) => {
       if (isMissingResponse(response) && options.allowMissing === true) {
         return null;
       }
 
       await assertOkResponse(response, path);
-      return (await response.json()) as T;
+      return JSON.parse(await readBoundedText(response, this.maxResponseBytes, signal, this.runtime.onCleanupError)) as T;
     }, options.signal);
   }
 
@@ -401,18 +414,18 @@ class GitHubRestClient {
     path: string,
     options: { accept?: string; allowMissing?: boolean; signal?: AbortSignal } = {}
   ): Promise<string | null> {
-    return this.request(path, { accept: options.accept ?? githubJsonAccept }, async (response) => {
+    return this.request(path, { accept: options.accept ?? githubJsonAccept }, async (response, signal) => {
       if (isMissingResponse(response) && options.allowMissing === true) {
         return null;
       }
 
       await assertOkResponse(response, path);
-      return response.text();
+      return readBoundedText(response, this.maxResponseBytes, signal, this.runtime.onCleanupError);
     }, options.signal);
   }
 
   private async request<T>(
-    path: string, options: { accept: string }, consume: (response: Response) => Promise<T>,
+    path: string, options: { accept: string }, consume: (response: Response, signal: AbortSignal) => Promise<T>,
     signal: AbortSignal = this.batchAbortController.signal
   ): Promise<T> {
     const headers = buildRequestHeaders(options.accept, this.token);
@@ -437,7 +450,7 @@ class GitHubRestClient {
     path: string,
     headers: Record<string, string>,
     attempt: number,
-    consume: (response: Response) => Promise<T>,
+    consume: (response: Response, signal: AbortSignal) => Promise<T>,
     signal: AbortSignal
   ): Promise<RequestAttemptResult<T>> {
     throwIfCancelled(this.callerSignal);
@@ -454,7 +467,7 @@ class GitHubRestClient {
         signal,
         scheduleTimeout: this.runtime.scheduleTimeout,
         ...(this.runtime.onCleanupError === undefined ? {} : { onCleanupError: this.runtime.onCleanupError })
-      }, response => consumeRequestAttempt(response, path, attempt, consume));
+      }, (response, requestSignal) => consumeRequestAttempt(response, path, attempt, value => consume(value, requestSignal)));
     } finally { release(); }
   }
 

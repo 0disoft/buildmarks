@@ -23,6 +23,8 @@ The existing GitHub collector options additionally accept:
 - `signal?: AbortSignal`: caller cancellation, propagated through requests, body consumption and retry waits.
 - `timeoutMilliseconds?: number`: per-attempt deadline, including body consumption; default 10,000, valid range 1 through 2,147,483,647 integer milliseconds.
 - `collectionTimeoutMilliseconds?: number`: optional total collection deadline covering pagination, concurrent detail reads and retry waits. It uses the same valid range as the per-attempt deadline and is disabled when omitted. Expiry rejects with `GitHubCollectorError.code === "github_collection_timeout"`; it never returns a partial profile as success.
+- `maxResponseBytes?: number`: maximum buffered response bytes before UTF-8 decoding and JSON parsing, default 8 MiB. Streamed bytes are counted even when `Content-Length` is absent or incorrect.
+- `maxTreeEntries?: number`: maximum tree entries before copying paths or computing signals, default 50,000. Both payload limits must be positive safe integers.
 - `runtime?: Partial<GitHubCollectorRuntime>`: optional `sleep(milliseconds, signal)` and `scheduleTimeout(callback, milliseconds)` implementations. The scheduler returns a function that cancels the scheduled callback. Test schedulers should queue callbacks for explicit advancement rather than calling them inline.
 
 Rate-limit responses stop collection immediately. Buildmarks does not retry a 429 or rate-limited 403 ahead of `Retry-After`; caller workflows can retry later. Transient server and transport failures still get at most one retry, counted against the same request budget.
@@ -32,6 +34,8 @@ Collectors share a process-local HTTP limiter: 15 active attempts and 160 queued
 Caller cancellation rejects with `AbortError`, stops repository scheduling and does not generate fallback artifacts. Request and caller hooks are removed after completion. Injected fetchers should honor the request signal; the deadline also rejects the caller when a test double ignores cancellation. Retry waits follow the same rule.
 
 Custom caller cancellation reasons are retained as the `AbortError` cause (an existing `AbortError` is propagated unchanged). Per-attempt expiry uses `TimeoutError` and may retry once; total expiry and caller cancellation never retry. Exhausted transient transport failures retain their original `cause`. Programming errors and malformed JSON are not retryable. The read retry policy lives in `src/collector/read-retry.ts`; file writes do not use it.
+
+Payload overflow raises `github_response_too_large` or `github_tree_too_large` without retry. Oversized repository details are counted as failed collection, not absent files or a successfully truncated tree; normal insufficient-evidence rules still apply. Oversized repository lists fail the whole collection. Response readers cancel and release their lock on failure or cancellation without waiting for stalled stream cleanup. Increasing the limits increases peak memory, which also depends on the shared request concurrency and parsed JSON objects.
 
 `runtime.onCleanupError?: (error: unknown) => void | Promise<void>` observes response-body cleanup failures without replacing the primary result. It is opt-in, has no built-in logging, and must not retain secrets. Observer failures are isolated and the operation does not wait for an observer or stalled body cleanup. Private-local fatal collector errors copy and redact diagnostic causes rather than exposing raw private repository names through nested errors.
 

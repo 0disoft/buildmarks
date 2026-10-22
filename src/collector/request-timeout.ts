@@ -8,7 +8,7 @@ export async function fetchWithTimeout<T>(
   fetcher: GitHubCollectorFetch,
   url: string,
   options: { headers: Record<string, string>; timeoutMilliseconds: number; signal: AbortSignal; scheduleTimeout?: TimeoutScheduler; onCleanupError?: CleanupErrorHandler },
-  consume: (response: Response) => Promise<T>
+  consume: (response: Response, signal: AbortSignal) => Promise<T>
 ): Promise<T> {
   options.signal.throwIfAborted();
   if (!Number.isSafeInteger(options.timeoutMilliseconds) || options.timeoutMilliseconds <= 0 || options.timeoutMilliseconds > githubRequestPolicy.maximumTimerMilliseconds) {
@@ -39,7 +39,7 @@ export async function fetchWithTimeout<T>(
       response = received;
       try {
         controller.signal.throwIfAborted();
-        return await consume(received);
+        return await consume(received, controller.signal);
       } finally {
         // A non-cooperative adapter may return headers after the outer call ended.
         if (controller.signal.aborted) cancelResponseBody(received, options.onCleanupError);
