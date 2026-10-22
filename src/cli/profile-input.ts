@@ -33,6 +33,12 @@ export function parseProfileInput(value: unknown): ProfileInput {
     repositories: record.repositories.map(parseRepositoryInput)
   };
 
+  const totalOwnedRepositoryCount = optionalNonNegativeInteger(record, "totalOwnedRepositoryCount");
+  if (totalOwnedRepositoryCount !== undefined) {
+    if (!Number.isSafeInteger(totalOwnedRepositoryCount)) throw new Error("profile input totalOwnedRepositoryCount must be a safe integer");
+    profile.totalOwnedRepositoryCount = totalOwnedRepositoryCount;
+  }
+
   if (typeof record.generatedAt === "string") {
     if (record.generatedAt.trim() === "") {
       throw new Error("profile input generatedAt must be a non-empty string when provided");

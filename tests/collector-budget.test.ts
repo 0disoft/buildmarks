@@ -44,7 +44,7 @@ describe("request budget partial collection", () => {
     const profile = await result;
     expect(profile.repositories).toHaveLength(100);
     expect(profile.repositoryCollectionFailureCount).toBeUndefined();
-    expect(paths).toHaveLength(501);
+    expect(paths).toHaveLength(502);
   });
 
   test("preserves completed results at the former 500-request boundary", async () => {

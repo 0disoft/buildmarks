@@ -9,6 +9,7 @@ import { normalizeProfileRepositories } from "../shared/repository-identity.js";
 export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): ProfileInput {
   return normalizeProfileRepositories({
     username: profile.username,
+    ...(profile.totalOwnedRepositoryCount === undefined ? {} : { totalOwnedRepositoryCount: profile.totalOwnedRepositoryCount }),
     ...(profile.collectedAt === undefined ? {} : { generatedAt: profile.collectedAt }),
     ...(profile.activityWindowDays === undefined ? {} : { activityWindowDays: profile.activityWindowDays }),
     ...(profile.activityAggregatesDeferred === undefined

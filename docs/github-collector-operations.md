@@ -19,6 +19,8 @@ The current username-to-card CLI is `src/cli/render-github-card.ts`. It uses the
 - The CLI follows the same rule: pass `--token <token>` explicitly if token mode is desired.
 - The CLI also supports `--max-repositories-scanned <n>`, `--max-repositories-scored <n>`, and `--activity-window-days <n>` so local demos can reduce GitHub API cost.
 
+When a token is explicitly supplied, public-only collection makes an optional `GET /user` request after repository analysis to obtain the account's total owned public and private repository count. The token owner must match the requested username, and both count fields must be present. Permission failures, missing metadata and an exhausted request budget leave this count absent without discarding completed analysis. Private-local collection reuses its existing owner identity response. Repository names and contents remain outside this metadata request. See [GitHub's authenticated user documentation](https://docs.github.com/en/rest/users/users#get-the-authenticated-user) for token access to private profile fields.
+
 ## Cache Policy
 
 Default cache contract values:
@@ -39,7 +41,7 @@ Default repository limits:
 - Scan up to 30 repositories per profile by default. Policy validation caps this at 100.
 - Display up to 12 evaluated repositories per profile by default. The legacy `maxRepositoriesScored` policy field controls this display limit and is capped at 24; all successfully evaluated repositories still contribute to the profile calculation.
 - Collect up to 3 repositories concurrently by default. Policy validation caps this at 8.
-- Spend at most 160 GitHub REST requests per profile collection by default. Policy validation caps this at 600, and every retry spends budget. A normal public scan uses one list request plus five detail requests per repository (501 requests for 100 repositories); extra list pages and retries also spend budget. The default remains 160.
+- Spend at most 160 GitHub REST requests per profile collection by default. Policy validation caps this at 600, and every retry spends budget. A normal public scan uses one list request plus five detail requests per repository (501 requests for 100 repositories), with one additional optional account-total request when a token is supplied. Extra list pages and retries also spend budget. The default remains 160.
 - Analyze repositories pushed within the last 365 days by default. Policy validation caps this at 3650.
 
 The scan limit protects API cost and local runtime. Bounded concurrency shortens the wait without turning a profile refresh into an uncontrolled burst. The display setting limits what the card can show, but scoring rules `2.0.1` use every eligible repository that was successfully reviewed, not only the repositories selected for display.

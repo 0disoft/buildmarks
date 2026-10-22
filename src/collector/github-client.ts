@@ -11,6 +11,7 @@ import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 import { defaultGitHubRequestLimiter, type GitHubRequestLimiter } from "./request-limiter.js";
 import { readBoundedText } from "./response-body.js";
 import { createRepositoryIndex } from "./repository-index.js";
+import { readTotalOwnedRepositoryCount } from "./repository-total.js";
 export { GitHubCollectorError, type GitHubCollectorErrorCode } from "./github-errors.js";
 
 import type {
@@ -65,7 +66,7 @@ export async function collectOwnerSuppliedGitHubProfile(
   const context = prepareGitHubCollection(username, options, "private-local");
   const { client, policy, now } = context;
   try {
-    await client.assertAuthenticatedOwner(context.username);
+    const totalOwnedRepositoryCount = await client.assertAuthenticatedOwner(context.username);
     const repositories = await client.listAuthenticatedOwnerRepositories(
       context.username, policy.limits.maxRepositoriesScannedPerProfile
     );
@@ -79,7 +80,7 @@ export async function collectOwnerSuppliedGitHubProfile(
       throw redactPrivateRepositoryError(error, activeRepositories);
     }
     client.assertActive();
-    return buildCollectedProfile(context, activeRepositories.length, collected, relabelPrivateRepositories(collected.repositories));
+    return buildCollectedProfile(context, activeRepositories.length, collected, relabelPrivateRepositories(collected.repositories), totalOwnedRepositoryCount);
   } finally { client.dispose(); }
 }
 
@@ -95,8 +96,9 @@ export async function collectPublicGitHubProfile(
       wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays, now)
     );
     const collected = await collectRepositoryBatch(client, activeRepositories, policy);
+    const totalOwnedRepositoryCount = await client.tryOwnedRepositoryTotal(context.username);
     client.assertActive();
-    return buildCollectedProfile(context, activeRepositories.length, collected, collected.repositories);
+    return buildCollectedProfile(context, activeRepositories.length, collected, collected.repositories, totalOwnedRepositoryCount);
   } finally { client.dispose(); }
 }
 
@@ -135,11 +137,12 @@ function collectRepositoryBatch(client: GitHubRestClient, repositories: readonly
 
 function buildCollectedProfile(
   context: GitHubCollectionContext, attempted: number, collected: CollectedRepositoryBatch,
-  repositories: CollectedGitHubRepository[]
+  repositories: CollectedGitHubRepository[], totalOwnedRepositoryCount?: number
 ): CollectedGitHubProfile {
   const includesPrivateRepositories = repositories.some(repository => repository.visibility === "private");
   return {
     username: context.username,
+    ...(totalOwnedRepositoryCount === undefined ? {} : { totalOwnedRepositoryCount }),
     collectedAt: context.now.toISOString(),
     activityWindowDays: context.policy.limits.repositoryActivityWindowDays,
     activityAggregatesDeferred,
@@ -222,7 +225,7 @@ class GitHubRestClient {
     this.batchAbortController.abort();
   }
 
-  async assertAuthenticatedOwner(username: string): Promise<void> {
+  async assertAuthenticatedOwner(username: string): Promise<number | undefined> {
     const authenticatedUser = await this.fetchJson<unknown>("/user");
     const login = asAuthenticatedUserLogin(authenticatedUser);
     if (login.toLowerCase() !== username.toLowerCase()) {
@@ -230,6 +233,18 @@ class GitHubRestClient {
         "github_owner_mismatch",
         `Private-local collection token belongs to ${login}, not ${username}.`
       );
+    }
+    return readTotalOwnedRepositoryCount(authenticatedUser, username);
+  }
+
+  async tryOwnedRepositoryTotal(username: string): Promise<number | undefined> {
+    if (!this.token?.trim()) return undefined;
+    try {
+      return readTotalOwnedRepositoryCount(await this.fetchJson<unknown>("/user"), username);
+    } catch {
+      // Optional display metadata must not discard completed repository analysis.
+      this.assertActive();
+      return undefined;
     }
   }
 

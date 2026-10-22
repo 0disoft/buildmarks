@@ -58,6 +58,7 @@ export function scoreUserProfile(
   const evidenceLedger = evaluated.flatMap(({ scored }) => scored.evidenceLedger);
   return {
     username: input.username,
+    ...(input.totalOwnedRepositoryCount === undefined ? {} : { totalOwnedRepositoryCount: input.totalOwnedRepositoryCount }),
     generatedAt,
     ...(input.activityWindowDays === undefined ? {} : { activityWindowDays: input.activityWindowDays }),
     ...(input.signalVisibility ? { signalVisibility: { ...input.signalVisibility } } : {}),

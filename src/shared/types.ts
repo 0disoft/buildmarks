@@ -244,6 +244,8 @@ export interface CollectedGitHubRepository {
 
 export interface CollectedGitHubProfile {
   username: string;
+  /** All owned public + private repositories; omitted when the private count is unknown. */
+  totalOwnedRepositoryCount?: number;
   collectedAt?: string;
   activityWindowDays?: number;
   activityAggregatesDeferred?: boolean;
@@ -258,6 +260,7 @@ export interface CollectedGitHubProfile {
 
 export interface ProfileInput {
   username: string;
+  totalOwnedRepositoryCount?: number;
   generatedAt?: string;
   activityWindowDays?: number;
   activityAggregatesDeferred?: boolean;
@@ -372,6 +375,7 @@ export interface ProfilePersona {
 
 export interface UserSignalReport {
   username: string;
+  totalOwnedRepositoryCount?: number;
   generatedAt: string;
   activityWindowDays?: number;
   signalVisibility?: SignalVisibilityDisclosure;
