@@ -8,6 +8,30 @@ const encoder = new TextEncoder();
 const json = (value: unknown) => new Response(JSON.stringify(value));
 
 describe("GitHub payload limits", () => {
+  for (const [label, response] of [
+    ["404", () => new Response("{}", { status: 404 })],
+    ["409", () => new Response("{}", { status: 409 })],
+    ["null", () => json(null)],
+    ["invalid entry", () => json({ tree: [{ path: 123 }] })],
+    ["invalid truncation", () => json({ tree: [], truncated: "true" })]
+  ] as const) {
+    test(`does not turn an unreadable tree (${label}) into complete evidence`, async () => {
+      const now = new Date("2026-05-28T00:00:00Z");
+      const collected = await collectPublicGitHubProfile("probe", { now, fetcher: async url => {
+        const path = new URL(url).pathname;
+        if (path.includes("/users/")) return json([{ owner: { login: "probe" }, name: "one", private: false, fork: false, archived: false, stargazers_count: 0, forks_count: 0, pushed_at: now.toISOString(), default_branch: "main" }]);
+        if (path.includes("/git/trees/")) return response();
+        if (path.endsWith("/community/profile")) return json({ files: {} });
+        if (path.endsWith("/readme")) return new Response("Usage");
+        return json([]);
+      } });
+      expect(collected.repositories).toHaveLength(0);
+      expect(collected.repositoryCollectionFailureCount).toBe(1);
+      expect(collected.repositoryCollectionFailures?.[0]?.operation).toBe("tree");
+      expect(scoreUserProfile(normalizePublicGitHubProfile(collected), { now }).evidenceStatus).toBe("insufficient");
+    });
+  }
+
   for (const limit of [3, 4, 5]) {
     test(`counts UTF-8 bytes at the ${limit}-byte boundary`, async () => {
       const response = new Response("😀");

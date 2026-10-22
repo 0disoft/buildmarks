@@ -346,11 +346,11 @@ class GitHubRestClient {
   async fetchRepositoryTree(owner: string, repo: string, branch: string, signal: AbortSignal): Promise<GitHubTreeSummary> {
     const tree = await this.fetchJson<GitHubTreeResponse>(
       `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
-      { allowMissing: true, signal }
+      { signal }
     );
 
     if (tree === null) {
-      return { entries: [], truncated: false };
+      throw new GitHubCollectorError("invalid_github_response", "GitHub tree response was null.");
     }
 
     if (!Array.isArray(tree.tree)) {
@@ -359,11 +359,16 @@ class GitHubRestClient {
     if (tree.tree.length > this.maxTreeEntries) {
       throw new GitHubCollectorError("github_tree_too_large", `GitHub tree exceeded the ${this.maxTreeEntries}-entry limit.`);
     }
+    if (tree.truncated !== undefined && typeof tree.truncated !== "boolean") {
+      throw new GitHubCollectorError("invalid_github_response", "GitHub tree truncation flag was not boolean.");
+    }
 
     return {
-      entries: tree.tree.flatMap((item) => {
-        if (typeof item.path !== "string") {
-          return [];
+      entries: tree.tree.map((item) => {
+        if (typeof item !== "object" || item === null || typeof item.path !== "string" || item.path.trim() === "" ||
+            (item.type !== undefined && typeof item.type !== "string") ||
+            (item.size !== undefined && (typeof item.size !== "number" || !Number.isFinite(item.size) || item.size < 0))) {
+          throw new GitHubCollectorError("invalid_github_response", "GitHub tree contained an invalid entry.");
         }
 
         const entry: GitHubTreeEntry = { path: item.path };
@@ -374,7 +379,7 @@ class GitHubRestClient {
           entry.size = Math.max(0, item.size);
         }
 
-        return [entry];
+        return entry;
       }),
       truncated: tree.truncated === true
     };
