@@ -30,7 +30,6 @@ const githubRawAccept = "application/vnd.github.raw+json";
 const activityAggregatesDeferred = true;
 const githubRequestTimeoutMilliseconds = 10_000;
 const githubRequestRetryCount = 1;
-const repositoryCollectionOperationSymbol = Symbol("repositoryCollectionOperation");
 
 const usageGuidePattern = /\b(install|installation|usage|example|quick start|get started|getting started)\b|설치|사용법|예제|시작하기/i;
 export type GitHubCollectorFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -103,7 +102,7 @@ export async function collectOwnerSuppliedGitHubProfile(
       ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
       repositoryCollectionAttemptCount: activeRepositories.length,
       ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
-      signalVisibility: includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility,
+      signalVisibility: { ...(includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility) },
       repositories: repositoriesWithPrivateLabels
     };
   } finally { client.dispose(); }
@@ -149,7 +148,7 @@ export async function collectPublicGitHubProfile(
       ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
       repositoryCollectionAttemptCount: activeRepositories.length,
       ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
-      signalVisibility: publicOnlySignalVisibility,
+      signalVisibility: { ...publicOnlySignalVisibility },
       repositories: collected.repositories
     };
   } finally { client.dispose(); }
@@ -169,25 +168,27 @@ class GitHubRestClient {
   private requestCount = 0;
   private readonly runtime: GitHubCollectorRuntime;
   private readonly timeoutMilliseconds: number;
+  private readonly callerSignal: AbortSignal | undefined;
   private readonly abortFromCaller = () => this.abortPendingRequests();
 
   constructor(
     private readonly fetcher: GitHubCollectorFetch,
     private readonly token: string | undefined,
     private readonly maxRequests: number,
-    private readonly options: CollectPublicGitHubProfileOptions
+    options: CollectPublicGitHubProfileOptions
   ) {
     this.runtime = resolveCollectorRuntime(options.runtime);
     this.timeoutMilliseconds = options.timeoutMilliseconds ?? githubRequestTimeoutMilliseconds;
     if (!Number.isSafeInteger(this.timeoutMilliseconds) || this.timeoutMilliseconds <= 0 || this.timeoutMilliseconds > 2_147_483_647) {
       throw new GitHubCollectorError("invalid_policy", "Request timeout must be a positive integer at most 2147483647 milliseconds.");
     }
-    throwIfCancelled(options.signal);
-    options.signal?.addEventListener("abort", this.abortFromCaller, { once: true });
+    this.callerSignal = options.signal;
+    throwIfCancelled(this.callerSignal);
+    this.callerSignal?.addEventListener("abort", this.abortFromCaller, { once: true });
   }
 
   dispose(): void {
-    this.options.signal?.removeEventListener("abort", this.abortFromCaller);
+    this.callerSignal?.removeEventListener("abort", this.abortFromCaller);
   }
 
   abortPendingRequests(): void {
@@ -446,7 +447,7 @@ class GitHubRestClient {
 
     for (let attempt = 0; attempt <= githubRequestRetryCount; attempt += 1) {
       try {
-        throwIfCancelled(this.options.signal);
+        throwIfCancelled(this.callerSignal);
         this.batchAbortController.signal.throwIfAborted();
         this.consumeRequestBudget(path);
         const result = await fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
@@ -473,7 +474,7 @@ class GitHubRestClient {
 
         await this.waitForRetry(attempt);
       } catch (error) {
-        throwIfCancelled(this.options.signal);
+        throwIfCancelled(this.callerSignal);
         if (error instanceof GitHubCollectorError || error instanceof SyntaxError) {
           throw error;
         }
@@ -622,8 +623,8 @@ async function collectRepositories(
         try {
           results[index] = await collect(repository, index);
         } catch (error) {
-          if (shouldAbortRepositoryBatch(error)) {
-            fatalError ??= error;
+          if (shouldAbortRepositoryBatch(originalCollectionError(error))) {
+            fatalError ??= originalCollectionError(error);
             abortBatch();
             return;
           }
@@ -650,10 +651,11 @@ async function collectRepositories(
 
 function recordRepositoryCollectionFailure(
   failures: Map<string, RepositoryCollectionFailureSummary>,
-  error: unknown
+  failure: unknown
 ): void {
+  const error = originalCollectionError(failure);
   const code = error instanceof GitHubCollectorError ? error.code : "unknown_repository_collection_failure";
-  const operation = repositoryCollectionOperation(error);
+  const operation = repositoryCollectionOperation(failure);
   const status = error instanceof GitHubCollectorError ? error.status : undefined;
   const key = `${code}:${operation}:${status ?? "none"}`;
   const current = failures.get(key);
@@ -671,14 +673,7 @@ function recordRepositoryCollectionFailure(
 }
 
 function repositoryCollectionOperation(error: unknown): RepositoryCollectionOperation {
-  if (error instanceof Error) {
-    const tagged = (error as Error & { [repositoryCollectionOperationSymbol]?: RepositoryCollectionOperation })[
-      repositoryCollectionOperationSymbol
-    ];
-    if (tagged !== undefined) {
-      return tagged;
-    }
-  }
+  if (error instanceof RepositoryCollectionError) return error.operation;
   if (!(error instanceof Error)) {
     return "unknown";
   }
@@ -710,14 +705,17 @@ async function withRepositoryCollectionOperation<T>(
   try {
     return await promise;
   } catch (error) {
-    if (error instanceof Error) {
-      Object.defineProperty(error, repositoryCollectionOperationSymbol, {
-        value: operation,
-        configurable: true
-      });
-    }
-    throw error;
+    throw new RepositoryCollectionError(error, operation);
   }
+}
+
+/** Operation metadata belongs to this collection, never to a caller's error. */
+class RepositoryCollectionError {
+  constructor(readonly error: unknown, readonly operation: RepositoryCollectionOperation) {}
+}
+
+function originalCollectionError(error: unknown): unknown {
+  return error instanceof RepositoryCollectionError ? error.error : error;
 }
 
 function compareRepositoryCollectionFailures(

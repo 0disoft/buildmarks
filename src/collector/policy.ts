@@ -46,10 +46,19 @@ export const defaultGitHubCollectorPolicy = {
 } satisfies GitHubCollectorPolicy;
 
 export const privateLocalGitHubCollectorPolicy = {
-  ...defaultGitHubCollectorPolicy,
+  ...copyGitHubCollectorPolicy(defaultGitHubCollectorPolicy),
   publicOnly: false,
   allowPrivateRepositories: true
 } satisfies GitHubCollectorPolicy;
+
+export function copyGitHubCollectorPolicy(policy: GitHubCollectorPolicy): GitHubCollectorPolicy {
+  return {
+    ...policy,
+    requiredTokenScopes: [...policy.requiredTokenScopes],
+    cache: { ...policy.cache },
+    limits: { ...policy.limits }
+  };
+}
 
 const maxRepositoriesScannedLimit = 100;
 const maxRepositoriesScoredLimit = 24;

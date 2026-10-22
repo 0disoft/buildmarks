@@ -46,7 +46,7 @@ export function scoreRepository(
     owner,
     name: repository.name,
     ...(repository.url === undefined ? {} : { url: repository.url }),
-    ...(includesPrivateRepositories ? { signalVisibility: privateLocalSignalVisibility } : {}),
+    ...(includesPrivateRepositories ? { signalVisibility: { ...privateLocalSignalVisibility } } : {}),
     methodologyVersion: scoringMethodologyVersion,
     repositoryKind,
     dimensions: assessed.dimensions,

@@ -105,7 +105,7 @@ export function scoreUserProfile(
     ...(input.activityWindowDays === undefined
       ? {}
       : { activityWindowDays: input.activityWindowDays }),
-    ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
+    ...(input.signalVisibility ? { signalVisibility: { ...input.signalVisibility } } : {}),
     methodologyVersion: scoringMethodologyVersion,
     evidenceStatus,
     ...(evidenceStatus === "insufficient"

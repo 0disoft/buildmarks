@@ -26,7 +26,7 @@ export function analyzeSignalGaps(
   return {
     username: input.username,
     generatedAt,
-    ...(input.signalVisibility ? { signalVisibility: input.signalVisibility } : {}),
+    ...(input.signalVisibility ? { signalVisibility: { ...input.signalVisibility } } : {}),
     gaps,
     limitations: buildGapLimitations(input.signalVisibility?.privateRepositoriesIncluded === true)
   };

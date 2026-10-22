@@ -22,7 +22,7 @@ export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): P
     ...(profile.repositoryCollectionFailures === undefined
       ? {}
       : { repositoryCollectionFailures: profile.repositoryCollectionFailures.map((failure) => ({ ...failure })) }),
-    ...(profile.signalVisibility ? { signalVisibility: profile.signalVisibility } : {}),
+    ...(profile.signalVisibility ? { signalVisibility: { ...profile.signalVisibility } } : {}),
     repositories: profile.repositories.map(normalizePublicGitHubRepository)
   };
 }
@@ -62,7 +62,7 @@ function normalizePublicGitHubRepository(repository: CollectedGitHubProfile["rep
     hasReleases: repository.hasReleasesOrTags,
     hasDemoOrDocs: repository.files.hasDemoOrDocs,
     hasPackageArtifact: repository.files.hasPackageArtifact,
-    codebaseShape: repository.files.codebaseShape ?? emptyCodebaseShape(),
+    codebaseShape: repository.files.codebaseShape ? { ...repository.files.codebaseShape } : emptyCodebaseShape(),
     issueResponseCount: repository.activity.issueResponseCount,
     pullRequestReviewCount: repository.activity.pullRequestReviewCount,
     externalContributorCount: repository.activity.externalContributorCount

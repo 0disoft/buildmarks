@@ -1,12 +1,13 @@
 import {
   defaultGitHubCollectorPolicy,
+  copyGitHubCollectorPolicy,
   privateLocalGitHubCollectorPolicy,
   validateGitHubCollectorPolicy,
   type GitHubCollectorPolicy
 } from "../collector/policy";
 import { isMissingOptionValue, isOptionLikeArgument, unknownOptionMessage } from "./args";
 
-export const githubCliDefaultLimits = defaultGitHubCollectorPolicy.limits;
+export const githubCliDefaultLimits = { ...defaultGitHubCollectorPolicy.limits };
 
 export interface CommonGitHubCliOptions {
   token?: string;
@@ -160,7 +161,7 @@ export function buildGitHubCollectorPolicyFromCli(
     : defaultGitHubCollectorPolicy;
 
   return {
-    ...basePolicy,
+    ...copyGitHubCollectorPolicy(basePolicy),
     limits: {
       maxRepositoriesScannedPerProfile: options.maxRepositoriesScanned,
       maxRepositoriesScoredPerProfile: options.maxRepositoriesScored,
