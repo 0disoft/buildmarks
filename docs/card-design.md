@@ -1,12 +1,12 @@
 # Profile Card Design
 
-The default profile card uses a 420 × 336 layout: identity and checked percentage, a type title and vector illustration, up to two representative projects with three observed details, then scope and generation date. Private-local cards add a visible owner-supplied notice and use 420 × 360. Text is at least 14 pixels at native size, approximately 12 pixels when embedded at 360 pixels. Each type has light and dark palettes; the automatic theme follows the viewer's color scheme. There are no external images, fonts, scripts or embedded raster assets.
+The default profile card uses a 420 × 416 layout: identity and overall score, a persona title and vector illustration, a short character description, up to two representative projects with three observed details, then scope, checked percentage and generation date. Private-local cards add a visible owner-supplied notice and use 420 × 440. Text is at least 14 pixels at native size, approximately 12 pixels when embedded at 360 pixels. The six reused artworks have light and dark palettes; the automatic theme follows the viewer's color scheme. There are no external images, fonts, scripts or embedded raster assets.
 
 The previous 760 × 420 card remains available as `layout: "detailed"`. It shows all six area scores and profile highlights. Reports always retain the full scored areas and criterion ledger regardless of card layout.
 
 ## Type Covers
 
-| Project description | Existing signal type | Cover |
+| Artwork family | Legacy signal type | Cover |
 | --- | --- | --- |
 | Built to Last | `Maintainer-Builder` | Green architectural beams |
 | Ready to Use | `Productized Builder` | Orange open package |
@@ -15,23 +15,19 @@ The previous 760 × 420 card remains available as `layout: "detailed"`. It shows
 | Easy to Pick Up | `Well-Documented Project` | Warm handbook |
 | Project Snapshot | `General Signal Profile` | Blue project viewfinder |
 
-The classifier still uses the ordered rules in `src/scoring/signal-type.ts`. If several descriptions fit, the first matching rule wins. The cover describes the generated snapshot; it is not a rank or a permanent identity. A later snapshot can change cover when scores cross a classification boundary. The default receives the same design attention as the other types.
+The visible title comes from [30 personas and Balanced Builder](personas.md), using the relative shape of available area scores. A spread below 10 points selects Balanced Builder; a lower selected score of at least 60 uses the positive description. Ties use stable dimension order. The selected pair is internal: cards and reports show no strongest/weakest labels. The existing `signalType` field and classifier remain available for API compatibility. Persona selection does not change scores. Titles and descriptions are recomputed when rendering a report so older or edited inputs cannot carry stale display copy.
 
 ## Sample Gallery
 
-These six cards use **invented scores for design demonstration** and say `Sample data`. They are not assessments of a real account. Each score set is checked against the existing classifier when the examples are regenerated.
+These cards use **invented scores for design demonstration** and say `Sample data`. They are not assessments of a real account. All 31 samples are linked in the [persona catalog](personas.md).
 
-![Built to Last sample](../examples/assets/types/built-to-last.svg)
+![Workshop Artisan sample](../examples/assets/personas/workshop-artisan.svg)
 
-![Ready to Use sample](../examples/assets/types/ready-to-use.svg)
+![Rocket Courier sample](../examples/assets/personas/rocket-courier.svg)
 
-![Well Rounded sample](../examples/assets/types/well-rounded.svg)
+![Contributor Lounge sample](../examples/assets/personas/contributor-lounge.svg)
 
-![Ships Steadily sample](../examples/assets/types/ships-steadily.svg)
-
-![Easy to Pick Up sample](../examples/assets/types/easy-to-pick-up.svg)
-
-![Project Snapshot sample](../examples/assets/types/project-snapshot.svg)
+![Balanced Builder sample](../examples/assets/personas/balanced-builder.svg)
 
 ## Representative Projects
 
@@ -51,10 +47,10 @@ The checked percentage and `Early look` notice remain separate from scores. Priv
 
 Embed the compact card at 360–420 pixels. Display detailed cards at 600–760 pixels when space allows. Keep a report link beside the image in the README. SVG text uses system fonts, so glyph shapes can vary by platform.
 
-`src/renderer/profile-cover.ts` owns the palettes and editable geometric illustrations. `src/renderer/card-projects.ts` owns representative selection; `compact-card.ts` owns the compact geometry and `profile-card.ts` the detailed geometry. All generate standalone SVGs without page CSS or network assets. `renderUserSignalCard(report, { theme, layout })` defaults to `layout: "compact"`. Scoring rules and JSON report schemas are unchanged. Repository and suggestions cards keep their existing layouts.
+`src/renderer/profile-cover.ts` owns the palettes and editable geometric illustrations. `src/renderer/card-projects.ts` owns representative selection; `compact-card.ts` owns the compact geometry and `profile-card.ts` the detailed geometry. All generate standalone SVGs without page CSS or network assets. `renderUserSignalCard(report, { theme, layout })` defaults to `layout: "compact"`. Scoring rules are unchanged. JSON reports add an optional `persona` object with only `id`, `title` and `description`. Repository and suggestions cards keep their existing layouts.
 
 For CLI generation, choose `--layout compact` or `--layout detailed` on local, GitHub-card and combined GitHub-artifact commands. The composite Action exposes `card-layout` with the same values and rejects invalid inputs before collection. Report-only generation has no card layout option.
 
 ![Detailed profile card](../examples/assets/example-detailed-card.svg)
 
-`scripts/update-examples.ts` is the deterministic source for the fixture cards and type gallery; do not edit generated files by hand. The workspace exposes the bounded offline `buildmarks_card_examples` generation intent. The optional preview helper validates generated SVG structure and renders the gallery with Playwright and Edge, using locally provided tooling without adding production dependencies.
+`scripts/update-examples.ts` is the deterministic source for the fixture cards and type gallery; do not edit generated files by hand. Regenerate the cards with `bun run examples:update`. The optional preview helper validates generated SVG structure and renders the gallery with Playwright and Edge, using locally provided tooling without adding production dependencies.

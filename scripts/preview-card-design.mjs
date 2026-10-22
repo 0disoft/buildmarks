@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import {
   privateLocalSignalVisibility,
+  classifyProfilePersona,
+  signalDimensions,
   renderUserSignalCard,
   scoreUserProfile
 } from "../dist/index.js";
@@ -12,9 +14,9 @@ import {
 const { chromium } = createRequire(process.argv[2] ?? import.meta.url)("playwright");
 const output = resolve("out/card-previews");
 await mkdir(output, { recursive: true });
-const names = ["built-to-last", "ready-to-use", "well-rounded", "ships-steadily", "easy-to-pick-up", "project-snapshot"];
-const gallery = await Promise.all(names.map(async (name) => ({
-  name, svg: await readFile(resolve(`examples/assets/types/${name}.svg`), "utf8")
+const names = (await readdir(resolve("examples/assets/personas"))).filter(name => name.endsWith(".svg"));
+const gallery = await Promise.all(names.map(async file => ({
+  name: file.slice(0, -4), svg: await readFile(resolve(`examples/assets/personas/${file}`), "utf8")
 })));
 const fixture = JSON.parse(await readFile(resolve("fixtures/example-public-profile.json"), "utf8"));
 const report = scoreUserProfile(fixture, { now: new Date(fixture.generatedAt) });
@@ -31,6 +33,17 @@ const states = [
   { name: "detailed-missing", svg: renderUserSignalCard({ ...report, unavailableDimensions: ["shipping"] }, { layout: "detailed" }) },
   { name: "detailed-insufficient", svg: renderUserSignalCard({ ...report, evidenceStatus: "insufficient" }, { layout: "detailed" }) }
 ];
+
+for (const highest of signalDimensions) for (const lowest of signalDimensions) {
+  if (highest === lowest) continue;
+  for (const minimum of [42, 80]) {
+    const dimensions = Object.fromEntries(signalDimensions.map(key => [key, key === highest ? 96 : key === lowest ? minimum : 85]));
+    const persona = classifyProfilePersona(dimensions);
+    const sample = { ...report, dimensions };
+    if (minimum === 80) states.push({ name: `${persona.id}-positive`, svg: renderUserSignalCard(sample) });
+    states.push({ name: `${persona.id}-detailed-${minimum}`, svg: renderUserSignalCard(sample, { layout: "detailed" }) });
+  }
+}
 
 const browser = await chromium.launch({ channel: "msedge", headless: true, timeout: 20_000 });
 const results = [];
@@ -103,7 +116,7 @@ try {
     :root{color-scheme:light dark}body{margin:0;padding:24px;background:light-dark(#e4e9f0,#101820);color:light-dark(#17365d,#f3f0df);font:16px system-ui}
     h1{margin:0 0 8px;font-size:25px}p{margin:0 0 24px}main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}figure{margin:0}img{display:block;width:100%;height:auto}figcaption{margin:8px 0 0;font-size:14px}
     @media(max-width:600px){main{grid-template-columns:1fr}}
-  </style></head><body><h1>Buildmarks · SVG cover gallery</h1><p>Sample data · Real vector geometry · Six project descriptions</p><main>${entries.map(({ name, svg }) => `<figure><img alt="${name}" src="data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}"><figcaption>${name}</figcaption></figure>`).join("")}</main></body></html>`;
+  </style></head><body><h1>Buildmarks · SVG cover gallery</h1><p>Sample data · Real vector geometry · Thirty personas and Balanced Builder</p><main>${entries.map(({ name, svg }) => `<figure><img alt="${name}" src="data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}"><figcaption>${name}</figcaption></figure>`).join("")}</main></body></html>`;
   const html = galleryHtml(gallery);
   await writeFile(resolve(output, "gallery.html"), html, "utf8");
   await page.setViewportSize({ width: 1600, height: 1400 });

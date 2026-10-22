@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" data-layout="compact" role="img" width="420" height="336" viewBox="0 0 420 336" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-auto" data-layout="compact" role="img" width="420" height="416" viewBox="0 0 420 416" aria-labelledby="title desc">
   <title id="title">Buildmarks project card for Sample data · example-builder</title>
-  <desc id="desc">Buildmarks reviewed 2 repositories and found 30 project practices. The overall result is Platinum IV, 79 out of 100. Maintainability Platinum I, 88 out of 100, Project Readiness Platinum IV, 79 out of 100, Ease of Use Platinum V, 72 out of 100, Shipping Platinum III, 81 out of 100, Consistency Platinum V, 70 out of 100, Project Care Platinum III, 82 out of 100. This card is based on public GitHub repositories only. Buildmarks is not a developer ranking. Representative projects: example/sample-toolkit: Release + changelog; Tests + workflow. example/sample-project: License found</desc>
+  <desc id="desc">Snapshot Crafter. A story worth following, with extra care in every frame. Buildmarks reviewed 2 repositories and found 30 project practices. The overall result is Platinum IV, 79 out of 100. Maintainability Platinum I, 88 out of 100, Project Readiness Platinum IV, 79 out of 100, Ease of Use Platinum V, 72 out of 100, Shipping Platinum III, 81 out of 100, Consistency Platinum V, 70 out of 100, Project Care Platinum III, 82 out of 100. This card is based on public GitHub repositories only. Buildmarks is not a developer ranking. Representative projects: example/sample-toolkit: Release + changelog; Tests + workflow. example/sample-project: License found</desc>
   <style>.card { --surface:#edf5ee;--text:#173b2e;--muted:#466953;--accent:#26744c;--secondary:#a47727;--track:#d1e3d5;--chip:#dcecdf;--line:#bed5c5; }
     .card-dark { --surface:#0b211c;--text:#f3f0df;--muted:#b2c9bb;--accent:#9ce3b1;--secondary:#e9ca72;--track:#294a3d;--chip:#18392d;--line:#426250; }
     @media (prefers-color-scheme: dark) { .card-auto { --surface:#0b211c;--text:#f3f0df;--muted:#b2c9bb;--accent:#9ce3b1;--secondary:#e9ca72;--track:#294a3d;--chip:#18392d;--line:#426250; } }
@@ -9,7 +9,9 @@
     .surface { fill:var(--surface); }
     .brand { font-size:20px; font-weight:750; }
     .username { font-size:20px; font-weight:650; }
-    .cover-title { font-size:40px; font-weight:800; letter-spacing:-1px; }
+    .cover-title { font-size:30px; font-weight:800; letter-spacing:-.5px; }
+    .tagline { font-size:13px; fill:var(--muted); }
+    .profile-score { font-size:24px; font-weight:750; text-anchor:end; }
     .cover-serif { font-family:Georgia, "Times New Roman", serif; letter-spacing:-.5px; }
     .metric { font-size:15px; font-weight:600; }
     .value { font-size:15px; font-weight:700; text-anchor:end; font-variant-numeric:tabular-nums; }
@@ -34,15 +36,17 @@
     .username { font-size:19px; }
     .cover-title { font-size:29px; letter-spacing:-.5px; }
     .checked,.footer { font-size:14px; }
+    .profile-score { font-size:21px; font-weight:750; text-anchor:end; }
+    .tagline { font-size:14px; fill:var(--muted); }
     .project { font-size:16px; font-weight:650; }
     .facts { font-size:14px; fill:var(--muted); }
   </style>
-  <rect width="420" height="336" rx="16" class="surface" />
+  <rect width="420" height="416" rx="16" class="surface" />
   <text x="22" y="32" class="brand">Buildmarks</text>
-  <text x="398" y="32" class="checked">Some details couldn&apos;t be checked</text>
+  <text x="398" y="32" class="profile-score">79/100</text>
   <text x="22" y="63" class="username">Sample data · example-bui…</text>
-  <g data-cover="built-to-last" aria-label="Built to Last">
-    <text x="22" y="104" class="cover-title cover-serif"><tspan x="22">Built to</tspan><tspan x="22" dy="32">Last</tspan></text>
+  <g data-cover="built-to-last" aria-label="Snapshot Crafter">
+    <text x="22" y="104" class="cover-title cover-serif"><tspan x="22">Snapshot</tspan><tspan x="22" dy="32">Crafter</tspan></text>
     <g transform="translate(298 77) scale(.42)" aria-hidden="true"><g class="accent">
         <path d="M24 54 56 37 56 117 24 134Z" />
         <path d="M24 54 56 37 127 77 95 95Z" />
@@ -53,19 +57,21 @@
       <path d="M131 89 153 77 153 132 131 144Z" class="secondary" />
       <path d="M10 146 115 88 220 147M10 106 115 164 220 106" class="art-line" /></g>
   </g>
-  <path d="M22 149h376" class="divider" aria-hidden="true" />
+  <text x="22" y="165" class="tagline"><tspan x="22">A story worth following, with extra care in every</tspan><tspan x="22" dy="19">frame.</tspan></text>
+  <path d="M22 218h376" class="divider" aria-hidden="true" />
   <g aria-label="Representative projects and observed details">
     <g role="img" aria-label="example/sample-toolkit: Release + changelog; Tests + workflow">
-      <text x="22" y="176" class="project">sample-toolkit · example</text>
-      <text x="22" y="199" class="facts">Release + changelog · Tests + workflow</text>
+      <text x="22" y="244" class="project">sample-toolkit · example</text>
+      <text x="22" y="267" class="facts">Release + changelog · Tests + workflow</text>
     </g>
 <g role="img" aria-label="example/sample-project: License found">
-      <text x="22" y="232" class="project">sample-project · example</text>
-      <text x="22" y="255" class="facts">License found</text>
+      <text x="22" y="290" class="project">sample-project · example</text>
+      <text x="22" y="313" class="facts">License found</text>
     </g>
   </g>
-  <path d="M22 272h376" class="divider" aria-hidden="true" />
-  <text x="22" y="296" class="footer">Public GitHub projects · 2 reviewed</text>
-  <text x="22" y="319" class="footer">Generated 2026-05-28 · v0.5.0</text>
+  <path d="M22 326h376" class="divider" aria-hidden="true" />
+  <text x="22" y="350" class="footer">Public GitHub projects · 2 reviewed</text>
+  <text x="22" y="373" class="footer checked" style="text-anchor:start">100% checked</text>
+  <text x="22" y="396" class="footer">Generated 2026-05-28 · v0.5.0</text>
 
 </svg>

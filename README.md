@@ -38,13 +38,13 @@ No hosted Buildmarks backend is required. Your profile repository stores the sta
 
 ## Profile Card Designs
 
-Profile cards automatically select one of six vector covers from the existing project type. The default compact card shows up to two representative projects and three observed details, alongside the checked percentage, data scope and generation date. Full area scores stay in the report.
+Profile cards now select one of 30 playful personas, or Balanced Builder when the area scores are close together. The compact card shows the overall score, a title and short description, up to two representative projects, checked percentage, scope and date. Personas reuse six vector artworks. Full area scores stay in the report.
 
 ![Buildmarks profile card example](examples/assets/example-card.svg)
 
 The compact card is 420 pixels wide and is designed to remain readable at 360 pixels. Light, dark and automatic themes share the cover geometry. Select `renderUserSignalCard(report, { layout: "detailed" })`, CLI `--layout detailed`, or Action input `card-layout: detailed` to keep the previous 760 × 420 card with six numeric area scores.
 
-See [the six type examples and card design guide](docs/card-design.md). These are project descriptions, not ranks, and the cover choice does not change scoring.
+Browse [all 30 personas and Balanced Builder](docs/personas.md), or read [the card design guide](docs/card-design.md). Titles describe a project snapshot, not a rank, and do not change scoring.
 
 ## Status
 

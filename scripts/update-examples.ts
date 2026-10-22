@@ -7,6 +7,7 @@ import {
   renderUserSignalCard,
   scoreRepository,
   scoreUserProfile,
+  signalDimensions,
   type ProfileInput,
   type SignalDimension,
   type SignalType,
@@ -14,6 +15,7 @@ import {
 } from "../src/index.js";
 import { classifySignalType } from "../src/scoring/signal-type.js";
 import { writeTextFileAtomically } from "../src/cli/write-output.js";
+import { personaDefinitions } from "../src/shared/persona-catalog.js";
 
 const fixturePath = resolve("fixtures/example-public-profile.json");
 const profile = JSON.parse(await Bun.file(fixturePath).text()) as ProfileInput;
@@ -67,12 +69,29 @@ for (const example of typeExamples) {
     overall: Math.round(Object.values(example.dimensions).reduce((total, value) => total + value, 0) / 6),
     topRepos: profileReport.topRepos.map((repository, index) => ({ ...repository, owner: "example", name: index === 0 ? "sample-toolkit" : "sample-project" })),
     evidence: [],
+    coverage: { observed: 6, expected: 6, ratio: 1 },
     limitations: ["Design example with invented scores; not a real project assessment."]
   };
   await writeTextFileAtomically(
     resolve(`examples/assets/types/${example.file}.svg`),
     renderUserSignalCard(report, { theme: "auto" })
   );
+}
+
+await mkdir(resolve("examples/assets/personas"), { recursive: true });
+for (const persona of [...personaDefinitions, { id: "balanced-builder" }]) {
+  const dimensions = Object.fromEntries(
+    signalDimensions.map(dimension =>
+      [dimension, "highest" in persona && dimension === persona.highest ? 92
+        : "lowest" in persona && dimension === persona.lowest ? 42 : 70])
+  ) as Record<SignalDimension, number>;
+  const report: UserSignalReport = {
+    ...profileReport, username: "Sample data · example-builder", dimensions,
+    dimensionAssessments: Object.fromEntries(Object.entries(profileReport.dimensionAssessments).map(([key, value]) =>
+      [key, { ...value, score: dimensions[key as SignalDimension], applicability: "applicable" }])) as NonNullable<UserSignalReport["dimensionAssessments"]>,
+    overall: Math.round(Object.values(dimensions).reduce((total, value) => total + value, 0) / 6)
+  };
+  await writeTextFileAtomically(resolve(`examples/assets/personas/${persona.id}.svg`), renderUserSignalCard(report));
 }
 
 function parseFixtureDate(value: string | undefined): Date {

@@ -13,6 +13,7 @@ import { renderProfileCard, type ProfileCardRow } from "./profile-card.js";
 import { methodologyCriteria, type CriterionCheck } from "../scoring/methodology-v2.js";
 import { selectCardProjects } from "./card-projects.js";
 import { renderCompactCard, renderCompactFallback } from "./compact-card.js";
+import { resolveProfilePersona } from "../scoring/profile-persona.js";
 
 const highlightLabels: Record<CriterionCheck, string> = {
   readme: "Docs", license: "License", "usage-guide": "Docs", ci: "CI", tests: "Tests",
@@ -84,6 +85,7 @@ export function renderUserSignalCard(
   const username = fitText(usernameRaw, 34);
   const generatedDate = formatDate(report.generatedAt);
   const overall = safeScore(report.overall);
+  const persona = resolveProfilePersona(report);
   const includesPrivateSignals = report.signalVisibility?.privateRepositoriesIncluded === true;
   const footerLabel = includesPrivateSignals
     ? `Buildmarks ${brandVersion} · ${privateLocalSignalVisibility.cardLabel} · ${generatedDate}`
@@ -117,7 +119,8 @@ export function renderUserSignalCard(
   }
   const contextDescriptions = dimensions.filter((row) => row.status !== "scored")
     .map((row) => `${dimensionLabels[row.key]} ${row.status === "not-applicable" ? "doesn't apply" : "couldn't be checked"}`);
-  const desc = [buildDescription(report, overall), ...contextDescriptions].join(". ");
+  const personaDescription = persona === undefined ? [] : [`${persona.title}. ${persona.description.replace(/[.!?]$/, "")}`];
+  const desc = [...personaDescription, buildDescription(report, overall), ...contextDescriptions].join(". ");
   if (options.layout !== "detailed") {
     const projects = selectCardProjects(report.topRepos, report.signalType);
     const includesPrivate = includesPrivateSignals || projects.some((project) => project.private);
@@ -125,9 +128,11 @@ export function renderUserSignalCard(
     const scope = includesPrivate ? privateLocalSignalVisibility.cardLabel : "Public GitHub projects";
     const projectDescriptions = projects.map((project) => `${project.name}: ${project.facts.join("; ")}`).join(". ");
     const compactDescription = includesPrivate && !includesPrivateSignals
-      ? [buildDescription({ ...report, signalVisibility: privateLocalSignalVisibility }, overall), ...contextDescriptions].join(". ") : desc;
+      ? [...personaDescription, buildDescription({ ...report, signalVisibility: privateLocalSignalVisibility }, overall), ...contextDescriptions].join(". ") : desc;
     return renderCompactCard({
       signalType: report.signalType, theme,
+      ...(persona === undefined ? {} : { persona }),
+      scoreXml: `${overall}/100`,
       usernameXml: escapeXml(fitCompactText(usernameRaw, 26)),
       titleXml: `Buildmarks project card for ${escapeXml(usernameRaw)}`,
       descriptionXml: escapeXml(`${compactDescription}${projectDescriptions ? ` Representative projects: ${projectDescriptions}` : ""}`),
@@ -147,6 +152,8 @@ export function renderUserSignalCard(
   }
   return renderProfileCard({
     signalType: report.signalType,
+    ...(persona === undefined ? {} : { persona }),
+    scoreXml: `${overall}/100`,
     theme,
     usernameXml: escapeXml(username),
     titleXml: `Buildmarks project card for ${escapeXml(usernameRaw)}`,

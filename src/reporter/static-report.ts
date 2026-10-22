@@ -17,6 +17,7 @@ import { privateLocalPublicCommitWarning } from "../shared/private-local-warning
 import { analyzeSignalGapsWithSelection } from "../scoring/gaps.js";
 import { scoreUserProfile, type ScoreUserProfileOptions } from "../scoring/score-user.js";
 import { resolveEvaluationTime } from "../shared/evaluation-time.js";
+import { resolveProfilePersona } from "../scoring/profile-persona.js";
 
 export interface BuildmarksStaticReport {
   version: 1;
@@ -57,6 +58,7 @@ export function createStaticReport(
 
 export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
   const hasInsufficientEvidence = report.profile.evidenceStatus === "insufficient";
+  const persona = resolveProfilePersona(report.profile);
   const scopeSummary = report.profile.signalVisibility?.privateRepositoriesIncluded === true
     ? "Public GitHub plus owner-supplied private repositories · Private details cannot be checked independently · Not a ranking"
     : "Based on public GitHub repositories only · Not a ranking";
@@ -181,7 +183,8 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
       <p class="muted">Buildmarks static report</p>
       <h1>${escapeHtml(report.profile.username)}</h1>
       <p class="score">${hasInsufficientEvidence ? "Not scored" : `${report.profile.overall}/100`}</p>
-      <p>${hasInsufficientEvidence ? "Buildmarks needs more project information before it can show a score" : escapeHtml(signalTypeDisplayLabels[report.profile.signalType])} · ${escapeHtml(scopeSummary)}</p>
+      <p>${hasInsufficientEvidence ? "Buildmarks needs more project information before it can show a score" : escapeHtml(persona?.title ?? signalTypeDisplayLabels[report.profile.signalType])} · ${escapeHtml(scopeSummary)}</p>
+      ${persona === undefined ? "" : `<p>${escapeHtml(persona.description)}</p>`}
       <p class="muted">${escapeHtml(reviewSummary(report.profile))}</p>
       ${privateLocalWarning}
       <p class="muted">Generated ${escapeHtml(report.profile.generatedAt)}</p>

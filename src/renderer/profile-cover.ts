@@ -1,4 +1,5 @@
-import { type SignalType } from "../shared/types.js";
+import { type ProfilePersona, type SignalDimension, type SignalType } from "../shared/types.js";
+import { balancedPersonaLines, personaDefinitions } from "../shared/persona-catalog.js";
 
 interface CoverPalette {
   surface: string;
@@ -52,7 +53,16 @@ const covers = {
   }
 } satisfies Record<SignalType, ProfileCover>;
 
-export function getProfileCover(type: SignalType): ProfileCover {
+const personaCovers: Record<SignalDimension, SignalType> = {
+  maintainability: "Maintainer-Builder", completeness: "Productized Builder",
+  usability: "Well-Documented Project", shipping: "Steady Shipper",
+  consistency: "Builder", stewardship: "General Signal Profile"
+};
+
+export function getProfileCover(type: SignalType, persona?: ProfilePersona): ProfileCover {
+  const definition = personaDefinitions.find(candidate => candidate.id === persona?.id);
+  if (definition !== undefined) return { ...covers[personaCovers[definition.highest]], lines: definition.lines };
+  if (persona?.id === "balanced-builder") return { ...covers.Builder, lines: balancedPersonaLines };
   return Object.hasOwn(covers, type) ? covers[type] : covers["General Signal Profile"];
 }
 

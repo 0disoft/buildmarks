@@ -8,8 +8,7 @@ import {
   renderSignalGapsCard,
   renderUserSignalCard,
   signalDimensions,
-  signalTypes,
-  signalTypeDisplayLabels,
+  classifyProfilePersona,
   scoreRepository,
   scoreUserProfile
 } from "../src";
@@ -21,17 +20,20 @@ const renderDetailedProfileCard = (report: Parameters<typeof renderUserSignalCar
   renderUserSignalCard(report, { layout: "detailed", ...options });
 
 describe("SVG renderer", () => {
-  test("defaults to readable project examples without visible scores or tiers", () => {
+  test("shows a score, persona and projects without visible tiers", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const before = JSON.stringify(report);
     const svg = renderUserSignalCard(report);
     expect(svg).toContain('data-layout="compact"');
-    expect(svg).toContain('viewBox="0 0 420 336"');
+    expect(svg).toContain('viewBox="0 0 420 416"');
     expect(svg).toContain('aria-label="Representative projects and observed details"');
     expect(svg).toContain('class="project"');
     expect(svg).toContain('class="project">usable-toolkit</text>');
     expect(svg).toContain('aria-label="example-builder/usable-toolkit:');
     expect(svg).toContain('class="facts"');
+    expect(svg).toContain('class="profile-score">82/100</text>');
+    expect(svg).toContain('aria-label="Rocket Courier"');
+    expect(svg).toContain('class="tagline"');
     expect(svg).not.toContain('role="progressbar"');
     expect(svg).not.toContain('class="value"');
     expect(svg).not.toMatch(/>\s*(?:Gold|Platinum|Diamond)\s+[IVX]+<\/text>/);
@@ -43,11 +45,12 @@ describe("SVG renderer", () => {
   test("retains all six type covers on compact cards", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const ids = new Set<string>();
-    for (const signalType of signalTypes) {
-      const svg = renderUserSignalCard({ ...report, signalType });
+    for (const highest of signalDimensions) {
+      const dimensions = Object.fromEntries(signalDimensions.map(key => [key, key === highest ? 96 : 59])) as typeof report.dimensions;
+      const svg = renderUserSignalCard({ ...report, dimensions });
       const id = svg.match(/data-cover="([^"]+)"/)?.[1];
       if (id !== undefined) ids.add(id);
-      expect(svg).toContain(`aria-label="${signalTypeDisplayLabels[signalType]}"`);
+      expect(svg).toContain(`aria-label="${classifyProfilePersona(dimensions)!.title}"`);
     }
     expect(ids.size).toBe(6);
   });
@@ -116,6 +119,7 @@ describe("SVG renderer", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     for (const signalType of ["__proto__", 'unknown\" onload=\"alert(1)']) {
       Reflect.set(report, "signalType", signalType);
+      report.unavailableDimensions = signalDimensions.filter(key => key !== "maintainability");
       const svg = renderDetailedProfileCard(report);
       expect(svg).toContain('data-cover="project-snapshot"');
       expect(svg).not.toContain("onload=");
@@ -125,12 +129,13 @@ describe("SVG renderer", () => {
   test("selects six distinct covers without changing the supplied scores", () => {
     const report = scoreUserProfile(fixture as ProfileInput, { now });
     const coverIds = new Set<string>();
-    for (const signalType of signalTypes) {
-      const svg = renderDetailedProfileCard({ ...report, signalType }, { theme: "dark" });
+    for (const highest of signalDimensions) {
+      const dimensions = Object.fromEntries(signalDimensions.map(key => [key, key === highest ? 96 : 59])) as typeof report.dimensions;
+      const svg = renderDetailedProfileCard({ ...report, dimensions }, { theme: "dark" });
       const id = svg.match(/data-cover="([^"]+)"/)?.[1];
       expect(id).toBeDefined();
       if (id !== undefined) coverIds.add(id);
-      expect(svg).toContain(`aria-label="${signalTypeDisplayLabels[signalType]}"`);
+      expect(svg).toContain(`aria-label="${classifyProfilePersona(dimensions)!.title}"`);
       expect(svg).toContain('aria-valuenow="59"');
       expect(svg.match(/role="progressbar"/g)).toHaveLength(6);
     }

@@ -1,9 +1,12 @@
 import { cardDisplayPolicy, detailedCardSize } from "./layout-policy.js";
-import { dimensionLabels, type SignalDimension, type SignalType } from "../shared/types.js";
+import { dimensionLabels, type ProfilePersona, type SignalDimension, type SignalType } from "../shared/types.js";
 import { getProfileCover, renderCoverArtwork, renderCoverStyles } from "./profile-cover.js";
+import { wrapCardText, escapeCardCopy as escapeCopy } from "./text-layout.js";
 
 interface ProfileCardContent {
   signalType: SignalType;
+  persona?: ProfilePersona;
+  scoreXml: string;
   theme: "auto" | "dark" | "light";
   usernameXml: string;
   titleXml: string;
@@ -22,7 +25,9 @@ export type ProfileCardRow = {
 const font = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 export function renderProfileCard(content: ProfileCardContent): string {
-  const cover = getProfileCover(content.signalType);
+  const cover = getProfileCover(content.signalType, content.persona);
+  const tagline = wrapCardText(content.persona?.description ?? "", 32, 5)
+    .map((line, index) => `<tspan x="32"${index > 0 ? ' dy="17"' : ""}>${escapeCopy(line)}</tspan>`).join("");
   const rows = content.dimensions.map((row, index) => {
     const { key, descriptionXml } = row;
     const y = 112 + index * 36;
@@ -61,9 +66,11 @@ export function renderProfileCard(content: ProfileCardContent): string {
   <text x="728" y="38" class="checked">${content.checkedXml}</text>
   <text x="32" y="75" class="username">${content.usernameXml}</text>
   <path d="M284 98v224" class="divider" aria-hidden="true" />
-  <g data-cover="${cover.id}" aria-label="${cover.lines.join(" ")}">
-    <text x="32" y="129" class="cover-title${cover.serif ? " cover-serif" : ""}"><tspan x="32">${cover.lines[0]}</tspan><tspan x="32" dy="44">${cover.lines[1]}</tspan></text>
-    ${renderCoverArtwork(cover)}
+  <g data-cover="${cover.id}" aria-label="${escapeCopy(cover.lines.join(" "))}">
+    <text x="32" y="119" class="cover-title${cover.serif ? " cover-serif" : ""}"><tspan x="32">${escapeCopy(cover.lines[0])}</tspan><tspan x="32" dy="34">${escapeCopy(cover.lines[1])}</tspan></text>
+    <text x="32" y="180" class="tagline">${tagline}</text>
+    ${renderCoverArtwork(cover, "translate(38 270) scale(.3)")}
+    <text x="250" y="310" class="profile-score">${content.scoreXml}</text>
   </g>
   <g aria-label="Project areas with scores out of 100">${rows.join("\n")}</g>
 ${highlights.length > 0 ? '  <text x="32" y="333" class="caption">Highlights</text>' : ""}
@@ -79,7 +86,9 @@ export function renderProfileStyles(): string {
     .surface { fill:var(--surface); }
     .brand { font-size:20px; font-weight:750; }
     .username { font-size:20px; font-weight:650; }
-    .cover-title { font-size:40px; font-weight:800; letter-spacing:-1px; }
+    .cover-title { font-size:30px; font-weight:800; letter-spacing:-.5px; }
+    .tagline { font-size:13px; fill:var(--muted); }
+    .profile-score { font-size:24px; font-weight:750; text-anchor:end; }
     .cover-serif { font-family:Georgia, "Times New Roman", serif; letter-spacing:-.5px; }
     .metric { font-size:15px; font-weight:600; }
     .value { font-size:15px; font-weight:700; text-anchor:end; font-variant-numeric:tabular-nums; }
