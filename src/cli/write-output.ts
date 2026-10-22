@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { canonicalFilePath, resolveFileSystem, type OutputFileSystem, type OutputFileHandle, type WriteOutputOptions } from "./file-system.js";
 import { throwIfCancelled } from "../shared/cancellation.js";
-import { isOutputLockError, withOutputLocks } from "./output-lock.js";
+import { withOutputLocks } from "./output-lock.js";
+import { isOutputSafetyError, OutputCleanupError } from "./output-errors.js";
 export type { WriteOutputOptions } from "./file-system.js";
 
 export function resolveRequiredPath(path: string, label: string): string {
@@ -21,7 +22,7 @@ export async function tryWriteTextFile(path: string, content: string, options: W
     await writeTextFileAtomically(path, content, options);
     return undefined;
   } catch (error) {
-    if (isOutputLockError(error)) throw error;
+    if (isOutputSafetyError(error)) throw error;
     throwIfCancelled(options.signal);
     return error instanceof Error ? error.message : "unknown file write failure";
   }
@@ -41,8 +42,10 @@ async function stageTextFile(path: string, content: string, fs: OutputFileSystem
     handle = undefined;
     throwIfCancelled(signal);
   } catch (error) {
-    await handle?.close().catch(() => undefined);
-    if (owned) await fs.rm(path, { force: true }).catch(() => undefined);
+    const failures: unknown[] = [];
+    if (handle) await attemptCleanup(() => handle!.close(), failures);
+    if (owned) await attemptCleanup(() => fs.rm(path, { force: true }), failures);
+    if (failures.length > 0) throw new OutputCleanupError(false, failures, error);
     throw error;
   }
 }
@@ -61,7 +64,9 @@ async function writeSingleTextFile(path: string, content: string, options: Write
     // Once replacement starts, finish it even if the caller cancels concurrently.
     await fs.rename(temporaryPath, path);
   } catch (error) {
-    await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
+    const failures: unknown[] = [];
+    await attemptCleanup(() => fs.rm(temporaryPath, { force: true }), failures);
+    if (failures.length > 0) throw new OutputCleanupError(false, failures, error);
     throw error;
   }
 }
@@ -107,17 +112,21 @@ async function writeLockedOutputSet(
   const entries = outputs.map((output, index) =>
     planOutputEntry(output.content, paths[index], process.pid, (options.randomId ?? randomUUID)())
   );
+  let committed = false;
+  let cause: unknown;
   try {
     for (const entry of entries) await prepareOutputEntry(entry, fs, options.signal);
     throwIfCancelled(options.signal);
     // Commit and recovery deliberately ignore cancellation after this point.
     await publishOutputEntries(entries, replace ?? fs.rename);
+    committed = true;
   } catch (error) {
     const failures = await restoreOutputEntries(entries, fs);
-    if (failures.length > 0) throw new OutputSetRollbackError(error, failures);
-    throw error;
+    cause = failures.length > 0 ? new OutputSetRollbackError(error, failures) : error;
+    throw cause;
   } finally {
-    await cleanupOutputEntries(entries, fs);
+    const failures = await cleanupOutputEntries(entries, fs);
+    if (failures.length > 0) throw new OutputCleanupError(committed, failures, cause);
   }
 }
 
@@ -180,11 +189,18 @@ async function restoreOutputEntries(entries: readonly OutputEntry[], fs: OutputF
   return failures;
 }
 
-async function cleanupOutputEntries(entries: readonly OutputEntry[], fs: OutputFileSystem): Promise<void> {
+async function cleanupOutputEntries(entries: readonly OutputEntry[], fs: OutputFileSystem): Promise<unknown[]> {
+  const failures: unknown[] = [];
   for (const entry of entries) {
-    if (entry.temporaryOwned) await fs.rm(entry.temporaryPath, { force: true }).catch(() => undefined);
-    if (entry.backupOwned && !entry.retainBackup) await fs.rm(entry.backupPath, { force: true }).catch(() => undefined);
+    if (entry.temporaryOwned) await attemptCleanup(() => fs.rm(entry.temporaryPath, { force: true }), failures);
+    if (entry.backupOwned && !entry.retainBackup) await attemptCleanup(() => fs.rm(entry.backupPath, { force: true }), failures);
   }
+  return failures;
+}
+
+async function attemptCleanup(operation: () => Promise<void>, failures: unknown[]): Promise<void> {
+  try { await operation(); }
+  catch (error) { failures.push(error); }
 }
 
 export async function tryWriteTextFilesAsSet(outputs: readonly { path: string; content: string }[], options: WriteOutputOptions = {}): Promise<string | undefined> {
@@ -192,7 +208,7 @@ export async function tryWriteTextFilesAsSet(outputs: readonly { path: string; c
     await writeTextFilesAsSet(outputs, undefined, options);
     return undefined;
   } catch (error) {
-    if (isOutputLockError(error)) throw error;
+    if (isOutputSafetyError(error)) throw error;
     if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
     return error instanceof Error ? error.message : "unknown output set write failure";
   }

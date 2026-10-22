@@ -11,6 +11,8 @@ import { renderGitHubCardFile } from "../src/cli/render-github-card";
 import { renderGitHubReportFiles } from "../src/cli/render-github-report";
 import { renderGitHubArtifacts } from "../src/cli/render-github-artifacts";
 import type { LocalRenderOptions } from "../src/cli/local-render-options";
+import { OutputCleanupError, OutputInspectionError } from "../src/cli/output-errors";
+import { hasExistingOutput } from "../src/cli/collection-outcome";
 
 const root = resolve("memory-output-runtime");
 const first = join(root, "first.txt"), second = join(root, "second.txt");
@@ -68,6 +70,52 @@ class MemoryFiles implements RenderFileSystem {
 }
 
 describe("output ownership and recovery", () => {
+  test("retains both the primary write failure and cleanup failure", async () => {
+    const fs = new MemoryFiles();
+    const primary = new Error("disk full");
+    const cleanup = new Error("temporary file locked");
+    fs.before = (operation) => {
+      if (operation === "write") throw primary;
+      if (operation === "remove") throw cleanup;
+    };
+    await expect(writeTextFileAtomically(first, "new", fs.options())).rejects.toMatchObject({
+      name: "OutputCleanupError", committed: false, cause: primary, errors: [cleanup]
+    });
+    expect(fs.files.has(temporary(first))).toBe(true);
+    expect(fs.lockOperations).toContain("remove");
+  });
+
+  test("reports cleanup after commit without rolling back the new output", async () => {
+    const fs = new MemoryFiles(); fs.files.set(first, "old first"); fs.files.set(second, "old second");
+    const cleanup = new Error("backup is locked");
+    fs.before = (operation, path) => { if (operation === "remove" && path.endsWith(".bak")) throw cleanup; };
+    await expect(writeTextFilesAsSet(outputs, undefined, fs.options())).rejects.toMatchObject({
+      name: "OutputCleanupError", committed: true, errors: [cleanup, cleanup]
+    });
+    expect(fs.files.get(first)).toBe("new first"); expect(fs.files.get(second)).toBe("new second");
+    expect(fs.operations.filter(operation => operation === "rename")).toHaveLength(2);
+  });
+
+  test("does not hide incomplete rollback when temporary cleanup also fails", async () => {
+    const fs = new MemoryFiles(); fs.files.set(first, "old first"); fs.files.set(second, "old second");
+    fs.before = (operation, source, destination) => {
+      if (operation === "rename" && (destination === second || source.endsWith(".bak"))) throw new Error("replacement or rollback failed");
+      if (operation === "remove" && source.endsWith(".tmp")) throw new Error("cleanup failed");
+    };
+    const failure = await writeTextFilesAsSet(outputs, undefined, fs.options()).catch(error => error);
+    expect(failure).toBeInstanceOf(OutputCleanupError);
+    expect(failure.committed).toBe(false);
+    expect(failure.cause).toBeInstanceOf(OutputSetRollbackError);
+    expect(fs.files.get(temporary(first, "bak"))).toBe("old first");
+  });
+
+  test("does not turn an inaccessible destination into a confirmed existing output", async () => {
+    const fs = new MemoryFiles();
+    const cause = Object.assign(new Error("access denied"), { code: "EACCES" });
+    fs.access = async () => { throw cause; };
+    await expect(hasExistingOutput([first], fs.options())).rejects.toMatchObject({ name: "OutputInspectionError", cause });
+  });
+
   test("rejects aliased output destinations before staging files", async () => {
     const fs = new MemoryFiles();
     fs.realpath = async path => path === second ? first : path;
@@ -193,12 +241,33 @@ describe("renderer I/O injection", () => {
     (options: LocalRenderOptions & { fetcher: () => Promise<Response> }) => renderGitHubArtifacts("probe", first, root, options)
   ];
   for (const [index, render] of githubRenderers.entries()) {
+    test(`GitHub renderer ${index} does not claim preservation or write fallback after inspection failure`, async () => {
+      const fs = new MemoryFiles();
+      const cause = Object.assign(new Error("inspection I/O failed"), { code: "EIO" });
+      fs.access = async () => { throw cause; };
+      const failure = await render({ ...fs.options(), fetcher: async () => new Response("unavailable", { status: 401 }) }).catch(error => error);
+      expect(failure).toBeInstanceOf(OutputInspectionError);
+      expect(failure.cause.errors[1]).toBe(cause);
+      expect(fs.files.size).toBe(0);
+      expect(fs.operations).not.toContain("rename");
+    });
+
     test(`GitHub renderer ${index} does not create fallback artifacts on cancellation`, async () => {
       const fs = new MemoryFiles(); const controller = new AbortController();
       await expect(render({ ...fs.options(), signal: controller.signal, fetcher: async () => { controller.abort(); return new Response("[]"); } })).rejects.toMatchObject({ name: "AbortError" });
       expect(fs.files.size).toBe(0); expect(fs.operations).not.toContain("open");
     });
   }
+
+  test("does not replace a committed local report with fallback after cleanup fails", async () => {
+    const fs = new MemoryFiles(); fs.files.set(input, JSON.stringify(fixture));
+    const html = join(root, "buildmarks-report.html"), json = join(root, "buildmarks-report.json");
+    fs.files.set(html, "old HTML"); fs.files.set(json, "old JSON");
+    fs.before = (operation, path) => { if (operation === "remove" && path.endsWith(".bak")) throw new Error("cleanup failed"); };
+    await expect(renderReportFiles(input, root, fs.options())).rejects.toMatchObject({ name: "OutputCleanupError", committed: true });
+    expect(JSON.parse(fs.files.get(json)!).profile.username).toBe(fixture.username);
+    expect(fs.operations.filter(operation => operation === "rename")).toHaveLength(2);
+  });
 
   test("cancels before touching any filesystem operation", async () => {
     for (const renderer of localRenderers) {

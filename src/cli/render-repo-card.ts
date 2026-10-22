@@ -1,4 +1,4 @@
-import { isOutputLockError } from "./output-lock.js";
+import { isOutputSafetyError } from "./output-errors.js";
 import { readProfileSource, resolveFileSystem } from "./file-system";
 import { throwIfCancelled } from "../shared/cancellation";
 import { dirname } from "node:path";
@@ -62,7 +62,7 @@ export async function renderRepoCardFile(
       fallback: false
     };
   } catch (error) {
-    if (isOutputLockError(error)) throw error;
+    if (isOutputSafetyError(error)) throw error;
     throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown repository render failure";
     const svg = renderFallbackCard("Buildmarks couldn't generate this repository report right now");

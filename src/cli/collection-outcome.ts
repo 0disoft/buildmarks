@@ -1,5 +1,6 @@
 import { resolveFileSystem, type RenderFileOptions } from "./file-system.js";
 import type { ProfileInput, UserSignalReport } from "../shared/types.js";
+import { OutputInspectionError } from "./output-errors.js";
 
 export class InsufficientEvidenceError extends Error {
   constructor(profile: ProfileInput) {
@@ -24,17 +25,25 @@ export function assertSufficientEvidence(profile: ProfileInput, report: UserSign
 }
 
 export async function hasExistingOutput(paths: readonly string[], options: RenderFileOptions = {}): Promise<boolean> {
+  const result = await inspectExistingOutput(paths, options);
+  if (result.state === "unknown") throw new OutputInspectionError(result.error);
+  return result.state === "present";
+}
+
+export async function inspectExistingOutput(paths: readonly string[], options: RenderFileOptions = {}): Promise<
+  { state: "present" | "missing" } | { state: "unknown"; error: unknown }
+> {
   const fs = resolveFileSystem(options.fileSystem);
   for (const path of paths) {
     try {
       await fs.access(path);
-      return true;
+      return { state: "present" };
     } catch (error) {
       // Permission and I/O failures are not proof that a destination is absent.
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        return true;
+      if ((error as NodeJS.ErrnoException | null)?.code !== "ENOENT") {
+        return { state: "unknown", error };
       }
     }
   }
-  return false;
+  return { state: "missing" };
 }

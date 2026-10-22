@@ -1,10 +1,11 @@
 import { collectOwnerSuppliedGitHubProfile, collectPublicGitHubProfile, type CollectPublicGitHubProfileOptions } from "../collector/github-client.js";
 import { normalizePublicGitHubProfile } from "../collector/normalize-public-profile.js";
 import { throwIfCancelled } from "../shared/cancellation.js";
-import { hasExistingOutput } from "./collection-outcome.js";
+import { inspectExistingOutput } from "./collection-outcome.js";
 import type { RenderFileOptions } from "./file-system.js";
 import { appendWriteFailure, OutputSetRollbackError } from "./write-output.js";
-import { isOutputLockError, withOutputLocks } from "./output-lock.js";
+import { withOutputLocks } from "./output-lock.js";
+import { isOutputSafetyError, OutputInspectionError } from "./output-errors.js";
 
 export const githubRefreshFailureMessage = "Buildmarks couldn't refresh this GitHub report right now";
 
@@ -37,14 +38,18 @@ type GitHubOutputFailure =
 export async function recoverGitHubOutput(
   error: unknown, recovery: GitHubOutputRecovery, options: RenderFileOptions
 ): Promise<GitHubOutputFailure> {
-  if (isOutputLockError(error)) throw error;
+  if (isOutputSafetyError(error)) throw error;
   if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
   const message = error instanceof Error ? error.message : recovery.unknownErrorMessage;
   if (error instanceof OutputSetRollbackError) {
     return { fallback: false, preservedExisting: false, error: message };
   }
   return withOutputLocks(recovery.paths, options, async lockedOptions => {
-    if (await hasExistingOutput(recovery.paths, lockedOptions)) {
+    const existing = await inspectExistingOutput(recovery.paths, lockedOptions);
+    if (existing.state === "unknown") {
+      throw new OutputInspectionError(new AggregateError([error, existing.error], "Refresh and output inspection failed."));
+    }
+    if (existing.state === "present") {
       return { fallback: false, preservedExisting: true, error: message };
     }
     const writeError = await recovery.writeFallback(message, lockedOptions);
