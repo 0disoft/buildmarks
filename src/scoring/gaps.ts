@@ -3,6 +3,7 @@ import { codebaseShapeMetric } from "./codebase-shape.js";
 import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
 import { resolveRepositoryKind } from "./repository-kind.js";
 import { scoreUserProfile } from "./score-user.js";
+import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 
 const maxGaps = 8;
 
@@ -17,8 +18,9 @@ export function analyzeSignalGaps(
 ): UserSignalGapsReport {
   validatePrivateRepositoryDisclosure(input);
 
-  const generatedAt = input.generatedAt ?? (options.now ?? new Date()).toISOString();
-  const eligibleRepositories = selectEligibleRepositories(input, options);
+  const now = resolveEvaluationTime(options.now, input.generatedAt);
+  const generatedAt = now.toISOString();
+  const eligibleRepositories = selectEligibleRepositories(input, { ...options, now });
   const gaps = eligibleRepositories.flatMap(repositorySignalGaps).slice(0, maxGaps);
 
   return {

@@ -85,7 +85,7 @@ describe("render-card CLI", () => {
     const directory = await makeTempDirectory();
     const outputPath = join(directory, "cards", "example-card.svg");
 
-    const result = await renderCardFile("fixtures/example-public-profile.json", outputPath);
+    const result = await renderCardFile("fixtures/example-public-profile.json", outputPath, { now: new Date("2026-05-28T00:00:00Z") });
     const svg = await readFile(outputPath, "utf8");
 
     expect(result.ok).toBe(true);
@@ -98,6 +98,7 @@ describe("render-card CLI", () => {
     expect(svg).not.toContain('class="value">');
     expect(svg).toContain('class="project"');
     expect(svg).toMatch(/class="facts">[^<]+<\/text>/);
+    expect(svg).toContain("Tests + workflow");
     expect(svg).not.toContain("50-74 band");
     expect(svg).not.toContain("repos checked");
     expect(svg).not.toContain(">24 marks</text>");

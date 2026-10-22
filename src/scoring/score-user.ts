@@ -14,6 +14,7 @@ import {
   type UserSignalReportV2
 } from "../shared/types.js";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning.js";
+import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 import { aggregateScoreAssessments } from "./assessment.js";
 import { resolveCollectionCounts } from "./collection-counts.js";
 import { classifySignalType } from "./signal-type.js";
@@ -41,7 +42,8 @@ export function scoreUserProfile(
 ): UserSignalReportV2 {
   validatePrivateRepositoryDisclosure(input);
 
-  const generatedAt = input.generatedAt ?? (options.now ?? new Date()).toISOString();
+  const now = resolveEvaluationTime(options.now, input.generatedAt);
+  const generatedAt = now.toISOString();
   const includesPrivateRepositories = input.signalVisibility?.privateRepositoriesIncluded === true;
   const displayLimit = resolveMaxRepositories(options.maxRepositories);
   const eligibleRepositories = input.repositories.filter(isEligibleRepository);
@@ -62,7 +64,7 @@ export function scoreUserProfile(
   );
   const evaluated = completeTreeRepositories.map((repository) => ({
     input: repository,
-    scored: scoreRepository(repository, options)
+    scored: scoreRepository(repository, { ...options, now })
   }));
   const displayed = selectDisplayedRepositories(evaluated, displayLimit);
   const dimensionAssessments = Object.fromEntries(

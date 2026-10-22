@@ -9,6 +9,8 @@ import {
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { parseProfileInput } from "./profile-input";
+import type { LocalRenderOptions } from "./local-render-options";
+import { resolveEvaluationTime } from "../shared/evaluation-time";
 import { isMainModule } from "./main";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
@@ -24,7 +26,8 @@ export interface RenderRepoCardFileResult {
 export async function renderRepoCardFile(
   inputPath: string,
   repositoryRef: string,
-  outputPath: string
+  outputPath: string,
+  options: LocalRenderOptions = {}
 ): Promise<RenderRepoCardFileResult> {
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
@@ -40,8 +43,8 @@ export async function renderRepoCardFile(
       throw new Error(`repository ${repositoryRef} was not found in profile input`);
     }
 
-    const report = scoreRepository(repository);
-    const svg = renderRepositorySignalCard(report);
+    const report = scoreRepository(repository, { now: resolveEvaluationTime(options.now, profile.generatedAt) });
+    const svg = renderRepositorySignalCard(report, options);
 
     await writeTextFileAtomically(resolvedOutputPath, svg);
 

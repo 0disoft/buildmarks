@@ -6,6 +6,7 @@ import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { isMainModule } from "./main";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { parseProfileInput } from "./profile-input";
+import type { LocalRenderOptions } from "./local-render-options";
 export { parseProfileInput } from "./profile-input";
 import {
   renderFallbackCard,
@@ -14,7 +15,7 @@ import {
   type RenderCardOptions
 } from "../index";
 
-export interface RenderCardFileOptions extends RenderCardOptions {}
+export interface RenderCardFileOptions extends LocalRenderOptions {}
 
 export interface RenderCardFileResult {
   ok: boolean;
@@ -38,7 +39,7 @@ export async function renderCardFile(
   try {
     const rawInput = await readFile(resolvedInputPath, "utf8");
     const profile = parseProfileInput(JSON.parse(rawInput));
-    const report = scoreUserProfile(profile);
+    const report = scoreUserProfile(profile, options);
     const svg = renderUserSignalCard(report, options);
 
     await writeTextFileAtomically(resolvedOutputPath, svg);

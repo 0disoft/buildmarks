@@ -37,6 +37,9 @@ export function parseProfileInput(value: unknown): ProfileInput {
       throw new Error("profile input generatedAt must be a non-empty string when provided");
     }
     profile.generatedAt = record.generatedAt.trim();
+    if (!Number.isFinite(new Date(profile.generatedAt).getTime())) throw new Error("profile input generatedAt must be a valid timestamp");
+  } else if (record.generatedAt !== undefined) {
+    throw new Error("profile input generatedAt must be a valid timestamp");
   }
 
   const activityWindowDays = optionalPositiveInteger(record, "activityWindowDays");

@@ -4,6 +4,7 @@ import { analyzeSignalGaps, renderFallbackCard, renderSignalGapsCard } from "../
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { parseProfileInput } from "./profile-input";
+import type { LocalRenderOptions } from "./local-render-options";
 import { isMainModule } from "./main";
 import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 
@@ -17,7 +18,8 @@ export interface RenderGapsCardFileResult {
 
 export async function renderGapsCardFile(
   inputPath: string,
-  outputPath: string
+  outputPath: string,
+  options: LocalRenderOptions = {}
 ): Promise<RenderGapsCardFileResult> {
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
@@ -28,8 +30,8 @@ export async function renderGapsCardFile(
   try {
     const rawInput = await readFile(resolvedInputPath, "utf8");
     const profile = parseProfileInput(JSON.parse(rawInput));
-    const report = analyzeSignalGaps(profile);
-    const svg = renderSignalGapsCard(report);
+    const report = analyzeSignalGaps(profile, options);
+    const svg = renderSignalGapsCard(report, options);
 
     await writeTextFileAtomically(resolvedOutputPath, svg);
 

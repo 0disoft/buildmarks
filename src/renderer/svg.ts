@@ -617,7 +617,7 @@ function formatDate(value: unknown): string {
     }
   }
 
-  return new Date().toISOString().slice(0, 10);
+  return "Date unavailable";
 }
 
 function safeScore(value: unknown): number {

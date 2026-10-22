@@ -7,6 +7,7 @@ import {
   type SignalDimension
 } from "../shared/types.js";
 import { assessRepository } from "./assessment.js";
+import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 import { validatePrivateRepositoryRecord } from "./private-disclosure.js";
 import { resolveRepositoryKind } from "./repository-kind.js";
 
@@ -29,7 +30,7 @@ export function scoreRepository(
 ): RepoSignalV2 {
   validatePrivateRepositoryRecord(repository);
 
-  const now = options.now ?? new Date();
+  const now = resolveEvaluationTime(options.now);
   const includesPrivateRepositories = isPrivateRepository(repository);
   const owner = includesPrivateRepositories ? "Private owner" : repository.owner;
   const repositoryKind = resolveRepositoryKind(repository);

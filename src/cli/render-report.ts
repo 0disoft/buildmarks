@@ -4,6 +4,7 @@ import { createStaticReport, renderStaticReportHtml } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
 import { assertInputNotReplaced, runLocalRenderCli } from "./input-output";
 import { parseProfileInput } from "./profile-input";
+import type { LocalRenderOptions } from "./local-render-options";
 import { isMainModule } from "./main";
 import { appendWriteFailure, OutputSetRollbackError, resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
 
@@ -18,7 +19,8 @@ export interface RenderReportFileResult {
 
 export async function renderReportFiles(
   inputPath: string,
-  outputDirectory: string
+  outputDirectory: string,
+  options: LocalRenderOptions = {}
 ): Promise<RenderReportFileResult> {
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputDirectory = resolveRequiredPath(outputDirectory, "Output report directory");
@@ -31,7 +33,7 @@ export async function renderReportFiles(
   try {
     const rawInput = await readFile(resolvedInputPath, "utf8");
     const profile = parseProfileInput(JSON.parse(rawInput));
-    const report = createStaticReport(profile);
+    const report = createStaticReport(profile, options);
     const html = renderStaticReportHtml(report);
 
     await writeTextFilesAsSet([

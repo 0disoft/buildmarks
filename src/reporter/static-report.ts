@@ -15,6 +15,7 @@ import {
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning.js";
 import { analyzeSignalGaps } from "../scoring/gaps.js";
 import { scoreUserProfile, type ScoreUserProfileOptions } from "../scoring/score-user.js";
+import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 
 export interface BuildmarksStaticReport {
   version: 1;
@@ -36,10 +37,11 @@ export function createStaticReport(
   profile: ProfileInput,
   options: CreateStaticReportOptions = {}
 ): BuildmarksStaticReportV2 {
-  const scoredProfile = scoreUserProfile(profile, options);
+  const now = resolveEvaluationTime(options.now, profile.generatedAt);
+  const scoredProfile = scoreUserProfile(profile, { ...options, now });
   const gaps = analyzeSignalGaps(profile, {
     ...(options.maxRepositories === undefined ? {} : { maxRepositories: options.maxRepositories }),
-    ...(options.now === undefined ? {} : { now: options.now })
+    now
   });
 
   return {
