@@ -433,45 +433,12 @@ class GitHubRestClient {
   }
 
   private async request<T>(path: string, options: { accept: string }, consume: (response: Response) => Promise<T>): Promise<T> {
-    const headers: Record<string, string> = {
-      Accept: options.accept,
-      "X-GitHub-Api-Version": githubApiVersion
-    };
-
-    const token = this.token?.trim();
-    if (token !== undefined && token !== "") {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
+    const headers = buildRequestHeaders(options.accept, this.token);
     let lastError: unknown;
-
     for (let attempt = 0; attempt <= githubRequestRetryCount; attempt += 1) {
       try {
-        throwIfCancelled(this.callerSignal);
-        this.batchAbortController.signal.throwIfAborted();
-        this.consumeRequestBudget(path);
-        const result = await fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
-          headers,
-          timeoutMilliseconds: this.timeoutMilliseconds,
-          signal: this.batchAbortController.signal,
-          scheduleTimeout: this.runtime.scheduleTimeout
-        }, async (response): Promise<{ retry: true } | { retry: false; value: T }> => {
-          if (isRateLimitResponse(response)) {
-            // Cleanup failure must not turn a rate limit into a retryable error.
-            void response.body?.cancel().catch(() => undefined);
-            await assertOkResponse(response, path);
-          }
-          if (shouldRetryResponse(response) && attempt < githubRequestRetryCount) {
-            await response.body?.cancel();
-            return { retry: true };
-          }
-          return { retry: false, value: await consume(response) };
-        });
-
-        if (!result.retry) {
-          return result.value;
-        }
-
+        const result = await this.requestAttempt(path, headers, attempt, consume);
+        if (!result.retry) return result.value;
         await this.waitForRetry(attempt);
       } catch (error) {
         throwIfCancelled(this.callerSignal);
@@ -493,6 +460,23 @@ class GitHubRestClient {
     );
   }
 
+  private async requestAttempt<T>(
+    path: string,
+    headers: Record<string, string>,
+    attempt: number,
+    consume: (response: Response) => Promise<T>
+  ): Promise<RequestAttemptResult<T>> {
+    throwIfCancelled(this.callerSignal);
+    this.batchAbortController.signal.throwIfAborted();
+    this.consumeRequestBudget(path);
+    return fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
+      headers,
+      timeoutMilliseconds: this.timeoutMilliseconds,
+      signal: this.batchAbortController.signal,
+      scheduleTimeout: this.runtime.scheduleTimeout
+    }, response => consumeRequestAttempt(response, path, attempt, consume));
+  }
+
   private async waitForRetry(attempt: number): Promise<void> {
     const signal = this.batchAbortController.signal;
     await runAbortable(() => this.runtime.sleep(retryDelayMilliseconds(attempt), signal), signal);
@@ -507,6 +491,39 @@ class GitHubRestClient {
     }
     this.requestCount += 1;
   }
+}
+
+type RequestAttemptResult<T> = { retry: true } | { retry: false; value: T };
+
+function buildRequestHeaders(accept: string, token: string | undefined): Record<string, string> {
+  const normalizedToken = token?.trim();
+  return {
+    Accept: accept,
+    "X-GitHub-Api-Version": githubApiVersion,
+    ...(normalizedToken ? { Authorization: `Bearer ${normalizedToken}` } : {})
+  };
+}
+
+function requestResponseAction(response: Response, attempt: number): "rate-limit" | "retry" | "consume" {
+  if (isRateLimitResponse(response)) return "rate-limit";
+  if (shouldRetryResponse(response) && attempt < githubRequestRetryCount) return "retry";
+  return "consume";
+}
+
+async function consumeRequestAttempt<T>(
+  response: Response, path: string, attempt: number, consume: (response: Response) => Promise<T>
+): Promise<RequestAttemptResult<T>> {
+  const action = requestResponseAction(response, attempt);
+  if (action === "rate-limit") {
+    // Cleanup failure must not turn a rate limit into a retryable error.
+    void response.body?.cancel().catch(() => undefined);
+    await assertOkResponse(response, path);
+  }
+  if (action === "retry") {
+    await response.body?.cancel();
+    return { retry: true };
+  }
+  return { retry: false, value: await consume(response) };
 }
 
 function mergeCommunitySignals(
@@ -600,53 +617,54 @@ async function collectRepositories(
   collect: (repository: GitHubRepositoryResponse, index: number) => Promise<CollectedGitHubRepository>,
   abortBatch: () => void
 ): Promise<CollectedRepositoryBatch> {
-  const results: Array<CollectedGitHubRepository | undefined> = new Array(repositories.length);
-  const workerCount = Math.min(Math.max(1, concurrency), repositories.length);
-  let nextIndex = 0;
-  let failureCount = 0;
-  const failures = new Map<string, RepositoryCollectionFailureSummary>();
-  let fatalError: unknown;
-
-  await Promise.all(
-    Array.from({ length: workerCount }, async () => {
-      while (true) {
-        if (fatalError !== undefined) {
-          return;
-        }
-        const index = nextIndex;
-        nextIndex += 1;
-        const repository = repositories[index];
-        if (repository === undefined) {
-          return;
-        }
-
-        try {
-          results[index] = await collect(repository, index);
-        } catch (error) {
-          if (shouldAbortRepositoryBatch(originalCollectionError(error))) {
-            fatalError ??= originalCollectionError(error);
-            abortBatch();
-            return;
-          }
-          if (fatalError !== undefined) {
-            return;
-          }
-          failureCount += 1;
-          recordRepositoryCollectionFailure(failures, error);
-        }
-      }
-    })
-  );
-
-  if (fatalError !== undefined) {
-    throw fatalError;
-  }
-
-  return {
-    repositories: results.filter((repository): repository is CollectedGitHubRepository => repository !== undefined),
-    failureCount,
-    failures: [...failures.values()].sort(compareRepositoryCollectionFailures)
+  const state: RepositoryBatchState = {
+    results: new Array(repositories.length), nextIndex: 0, failureCount: 0,
+    failures: new Map(), fatalError: undefined
   };
+  const workerCount = Math.min(Math.max(1, concurrency), repositories.length);
+  await Promise.all(Array.from({ length: workerCount }, () =>
+    runRepositoryWorker(state, repositories, collect, abortBatch)
+  ));
+  if (state.fatalError !== undefined) throw state.fatalError;
+  return {
+    repositories: state.results.filter((repository): repository is CollectedGitHubRepository => repository !== undefined),
+    failureCount: state.failureCount,
+    failures: [...state.failures.values()].sort(compareRepositoryCollectionFailures)
+  };
+}
+
+/** Mutable scheduling and aggregation state owned by a single collection call. */
+interface RepositoryBatchState {
+  results: Array<CollectedGitHubRepository | undefined>;
+  nextIndex: number;
+  failureCount: number;
+  failures: Map<string, RepositoryCollectionFailureSummary>;
+  fatalError: unknown;
+}
+
+async function runRepositoryWorker(
+  state: RepositoryBatchState,
+  repositories: readonly GitHubRepositoryResponse[],
+  collect: (repository: GitHubRepositoryResponse, index: number) => Promise<CollectedGitHubRepository>,
+  abortBatch: () => void
+): Promise<void> {
+  while (state.fatalError === undefined) {
+    const index = state.nextIndex++;
+    const repository = repositories[index];
+    if (repository === undefined) return;
+    try {
+      state.results[index] = await collect(repository, index);
+    } catch (error) {
+      if (shouldAbortRepositoryBatch(originalCollectionError(error))) {
+        state.fatalError ??= originalCollectionError(error);
+        abortBatch();
+        return;
+      }
+      if (state.fatalError !== undefined) return;
+      state.failureCount += 1;
+      recordRepositoryCollectionFailure(state.failures, error);
+    }
+  }
 }
 
 function recordRepositoryCollectionFailure(
