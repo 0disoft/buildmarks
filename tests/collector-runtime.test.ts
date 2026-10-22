@@ -169,6 +169,52 @@ describe("collector runtime injection", () => {
 });
 
 describe("deterministic response deadlines", () => {
+  for (const status of [403, 503]) {
+    test(`releases unread HTTP ${status} bodies while preserving the response error`, async () => {
+      const clock = new ManualClock();
+      const signals: AbortSignal[] = [];
+      let cancelled = 0;
+      await expect(collectPublicGitHubProfile("probe", {
+        now, runtime: { scheduleTimeout: clock.schedule, sleep: async () => {} },
+        fetcher: async (_url, init) => {
+          signals.push(init.signal!);
+          return new Response(new ReadableStream({ cancel() { cancelled++; } }), { status });
+        }
+      })).rejects.toMatchObject({ code: "github_request_failed", status });
+      expect(cancelled).toBe(status === 503 ? 2 : 1);
+      expect(signals.at(-1)?.aborted).toBe(true);
+      expect(clock.tasks.size).toBe(0);
+    });
+  }
+
+  test("does not wait for a broken body cleanup or replace the original failure", async () => {
+    const error = Object.freeze(new Error("original consumer error"));
+    let signal: AbortSignal | null | undefined;
+    await expect(fetchWithTimeout(async (_url, init) => {
+      signal = init.signal;
+      return new Response(new ReadableStream({ cancel: () => new Promise(() => {}) }));
+    }, "https://example.invalid", { headers: {}, signal: new AbortController().signal, timeoutMilliseconds: 10000 }, async () => {
+      throw error;
+    })).rejects.toBe(error);
+    expect(signal?.aborted).toBe(true);
+  });
+
+  test("cancels a late response from an adapter that ignored cancellation", async () => {
+    const clock = new ManualClock();
+    let deliver!: (response: Response) => void;
+    let cancelled = false;
+    const operation = fetchWithTimeout(() => new Promise(resolve => { deliver = resolve; }), "https://example.invalid", {
+      headers: {}, signal: new AbortController().signal, timeoutMilliseconds: 10000, scheduleTimeout: clock.schedule
+    }, response => response.text());
+    void operation.catch(() => undefined);
+    clock.advance(10000);
+    await expect(operation).rejects.toMatchObject({ name: "AbortError" });
+    deliver(new Response(new ReadableStream({ cancel() { cancelled = true; } })));
+    await Promise.resolve();
+    expect(cancelled).toBe(true);
+    expect(clock.tasks.size).toBe(0);
+  });
+
   for (const stage of ["headers", "json", "text"] as const) {
     test(`deadline at 9999/10000ms covers ${stage} and releases hooks`, async () => {
       const clock = new ManualClock();

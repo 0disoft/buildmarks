@@ -23,19 +23,41 @@ export async function fetchWithTimeout<T>(
   if (options.signal.aborted) controller.abort();
   else options.signal.addEventListener("abort", abortFromBatch, { once: true });
   let cancelTimeout = () => {};
+  let response: Response | undefined;
+  let completed = false;
 
   try {
     cancelTimeout = (options.scheduleTimeout ?? scheduleTimeout)(() => controller.abort(), options.timeoutMilliseconds);
     const request = async () => {
       controller.signal.throwIfAborted();
-      const response = await fetcher(url, { headers: options.headers, signal: controller.signal });
-      controller.signal.throwIfAborted();
-      return consume(response);
+      const received = await fetcher(url, { headers: options.headers, signal: controller.signal });
+      response = received;
+      try {
+        controller.signal.throwIfAborted();
+        return await consume(received);
+      } finally {
+        // A non-cooperative adapter may return headers after the outer call ended.
+        if (controller.signal.aborted) cancelResponseBody(received);
+      }
     };
-    return await Promise.race([request(), aborted]);
+    const result = await Promise.race([request(), aborted]);
+    completed = true;
+    return result;
   } finally {
+    // Settle the original result before aborting, so cleanup cannot replace it.
+    if (!completed || (response?.body !== null && response?.bodyUsed === false)) {
+      controller.abort();
+      cancelResponseBody(response);
+    }
     cancelTimeout();
     options.signal.removeEventListener("abort", abortFromBatch);
     if (abortRequest !== undefined) controller.signal.removeEventListener("abort", abortRequest);
+  }
+}
+
+function cancelResponseBody(response: Response | undefined): void {
+  if (response?.body && !response.body.locked) {
+    // Abort owns transport cancellation; a custom stream's cleanup must not hang it.
+    void response.body.cancel().catch(() => undefined);
   }
 }
