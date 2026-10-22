@@ -221,8 +221,9 @@ describe("collector runtime injection", () => {
     for (const budget of [10, 11, 12]) {
       let requests = 0; const fetcher = fakeGitHub([repository("one"), repository("two")]);
       const operation = collectPublicGitHubProfile("probe", { now, policy: { ...defaultGitHubCollectorPolicy, limits: { ...defaultGitHubCollectorPolicy.limits, maxApiRequestsPerProfile: budget } }, fetcher: async (url, init) => { requests++; return fetcher(url, init); } });
-      if (budget < 11) await expect(operation).rejects.toMatchObject({ code: "github_request_budget_exhausted" });
-      else expect((await operation).repositories).toHaveLength(2);
+      const profile = await operation;
+      expect(profile.repositories).toHaveLength(budget < 11 ? 1 : 2);
+      if (budget < 11) expect(profile.repositoryCollectionFailureCount).toBe(1);
       expect(requests).toBe(Math.min(budget, 11));
     }
   });

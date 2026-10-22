@@ -20,6 +20,9 @@ export function normalizePublicGitHubProfile(profile: CollectedGitHubProfile): P
     ...(profile.repositoryCollectionAttemptCount === undefined
       ? {}
       : { repositoryCollectionAttemptCount: profile.repositoryCollectionAttemptCount }),
+    ...(profile.repositoryCollectionSkippedCount === undefined
+      ? {}
+      : { repositoryCollectionSkippedCount: profile.repositoryCollectionSkippedCount }),
     ...(profile.repositoryCollectionFailures === undefined
       ? {}
       : { repositoryCollectionFailures: profile.repositoryCollectionFailures.map((failure) => ({ ...failure })) }),

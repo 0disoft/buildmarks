@@ -65,7 +65,7 @@ const maxRepositoriesScannedLimit = 100;
 const maxRepositoriesScoredLimit = 24;
 const repositoryActivityWindowDaysLimit = 3650;
 const maxConcurrentRepositoryCollectionsLimit = 8;
-const maxApiRequestsPerProfileLimit = 500;
+const maxApiRequestsPerProfileLimit = 600;
 
 const privateRepositoryScopes = new Set([
   "repo",

@@ -102,7 +102,7 @@ describe("GitHub collector operations policy", () => {
         maxRepositoriesScoredPerProfile: 25,
         repositoryActivityWindowDays: 3651,
         maxConcurrentRepositoryCollections: 9,
-        maxApiRequestsPerProfile: 501
+        maxApiRequestsPerProfile: 601
       }
     };
 
@@ -113,6 +113,6 @@ describe("GitHub collector operations policy", () => {
     expect(validation.errors).toContain("Max repositories scored per profile must be less than or equal to 24.");
     expect(validation.errors).toContain("Repository activity window days must be less than or equal to 3650.");
     expect(validation.errors).toContain("Max concurrent repository collections must be less than or equal to 8.");
-    expect(validation.errors).toContain("Max API requests per profile must be less than or equal to 500.");
+    expect(validation.errors).toContain("Max API requests per profile must be less than or equal to 600.");
   });
 });

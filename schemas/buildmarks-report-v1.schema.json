@@ -69,6 +69,7 @@
             "displayLimit": { "type": "integer", "minimum": 1 },
             "attemptedCount": { "type": "integer", "minimum": 0 },
             "missedCount": { "type": "integer", "minimum": 0 },
+            "skippedCount": { "type": "integer", "minimum": 0 },
             "checkedRatio": { "type": "number", "minimum": 0, "maximum": 1 }
           }
         },

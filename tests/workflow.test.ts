@@ -296,7 +296,7 @@ describe("profile README workflow example", () => {
     expect(readme).toContain("| `max-api-requests` | `160` |");
     expect(example).toContain("| `max-api-requests` | `160` |");
     expect(action).toContain("Invalid max-api-requests");
-    expect(action).toContain("less than or equal to 500");
+    expect(action).toContain("less than or equal to 600");
     expect(readme).toContain('Must be exactly `"true"` or `"false"`');
     expect(example).toContain('Must be exactly `"true"` or `"false"`');
     expect(readme).toContain("private-local mode requires an explicit owner-provided read token");
@@ -329,7 +329,7 @@ describe("profile README workflow example", () => {
     expect(combined).toContain("hosted endpoint");
     expect(operations).toContain("cache-contract.md");
     expect(operations).toContain("activity-aggregate-methodology.md");
-    expect(operations).toContain("Fatal rate-limit and budget errors stop new repository work");
+    expect(operations).toContain("Budget exhaustion stops new repository work and preserves completed results");
   });
 
   test("keeps example assets and real smoke-test documentation discoverable", async () => {

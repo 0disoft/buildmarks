@@ -248,6 +248,8 @@ export interface CollectedGitHubProfile {
   activityWindowDays?: number;
   activityAggregatesDeferred?: boolean;
   repositoryCollectionFailureCount?: number;
+  /** Selected repositories never started; included in the failure count. */
+  repositoryCollectionSkippedCount?: number;
   repositoryCollectionAttemptCount?: number;
   repositoryCollectionFailures?: RepositoryCollectionFailureSummary[];
   signalVisibility?: SignalVisibilityDisclosure;
@@ -260,6 +262,7 @@ export interface ProfileInput {
   activityWindowDays?: number;
   activityAggregatesDeferred?: boolean;
   repositoryCollectionFailureCount?: number;
+  repositoryCollectionSkippedCount?: number;
   repositoryCollectionAttemptCount?: number;
   repositoryCollectionFailures?: RepositoryCollectionFailureSummary[];
   signalVisibility?: SignalVisibilityDisclosure;
@@ -354,6 +357,7 @@ export interface RepositorySelectionSummary {
   displayLimit: number;
   attemptedCount: number;
   missedCount: number;
+  skippedCount?: number;
   checkedRatio: number;
 }
 

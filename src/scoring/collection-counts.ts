@@ -5,11 +5,13 @@ export function resolveCollectionCounts(input: ProfileInput) {
   const returned = input.repositories.filter((repository) => repository.isFork === false && repository.isArchived === false).length;
   const failed = input.repositoryCollectionFailureCount ?? 0;
   const attempted = input.repositoryCollectionAttemptCount ?? returned + failed;
-  for (const [name, value] of [["repositoryCollectionFailureCount", failed], ["repositoryCollectionAttemptCount", attempted]] as const) {
+  const skipped = input.repositoryCollectionSkippedCount ?? 0;
+  for (const [name, value] of [["repositoryCollectionFailureCount", failed], ["repositoryCollectionAttemptCount", attempted], ["repositoryCollectionSkippedCount", skipped]] as const) {
     if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} must be a non-negative safe integer.`);
   }
+  if (skipped > failed) throw new Error("repositoryCollectionSkippedCount must not exceed repositoryCollectionFailureCount.");
   if (!Number.isSafeInteger(returned + failed) || attempted !== returned + failed) {
     throw new Error("repositoryCollectionAttemptCount must equal eligible repositories plus repositoryCollectionFailureCount.");
   }
-  return { failed, attempted };
+  return { failed, attempted, skipped };
 }

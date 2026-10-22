@@ -96,7 +96,7 @@ export function collectTreePathSignals(treeEntries: readonly GitHubTreeEntry[]):
     }
 
     if (!signals.hasTests) {
-      signals.hasTests = isCountableSourceFile(entry) && isTestPath(entry.path);
+      signals.hasTests = entry.size !== 0 && isCountableSourceFile(entry) && isTestPath(entry.path);
     }
     if (!signals.hasCi) {
       signals.hasCi = isCiPath(entry, normalizedPath);
@@ -176,7 +176,7 @@ export function summarizeCodebaseShape(
     }
 
     sourceFileCount += 1;
-    if (isTestPath(entry.path)) {
+    if (entry.size !== 0 && isTestPath(entry.path)) {
       testFileCount += 1;
     }
 
@@ -210,7 +210,7 @@ function isCountableSourceFile(entry: GitHubTreeEntry): boolean {
   if (!isFileEntry(entry)) {
     return false;
   }
-  if (isIgnoredRepositoryPath(normalizedPath) || entry.size === 0) {
+  if (isIgnoredRepositoryPath(normalizedPath)) {
     return false;
   }
   if (lockfileNames.has(fileName) || fileName.endsWith(".min.js") || fileName.endsWith(".map")) {

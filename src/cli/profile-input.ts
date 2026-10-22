@@ -60,6 +60,10 @@ export function parseProfileInput(value: unknown): ProfileInput {
   if (repositoryCollectionAttemptCount !== undefined) {
     profile.repositoryCollectionAttemptCount = repositoryCollectionAttemptCount;
   }
+  const repositoryCollectionSkippedCount = optionalNonNegativeInteger(record, "repositoryCollectionSkippedCount");
+  if (repositoryCollectionSkippedCount !== undefined) {
+    profile.repositoryCollectionSkippedCount = repositoryCollectionSkippedCount;
+  }
 
   const signalVisibility = parseSignalVisibility(record.signalVisibility);
   if (signalVisibility !== undefined) {

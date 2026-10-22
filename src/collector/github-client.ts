@@ -144,6 +144,7 @@ function buildCollectedProfile(
     activityWindowDays: context.policy.limits.repositoryActivityWindowDays,
     activityAggregatesDeferred,
     ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
+    ...(collected.skippedCount === 0 ? {} : { repositoryCollectionSkippedCount: collected.skippedCount }),
     repositoryCollectionAttemptCount: attempted,
     ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
     signalVisibility: { ...(includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility) },
@@ -658,16 +659,24 @@ async function collectRepositories(
 ): Promise<CollectedRepositoryBatch> {
   const state: RepositoryBatchState = {
     results: new Array(repositories.length), nextIndex: 0, failureCount: 0,
-    failures: new Map(), fatalError: undefined
+    failures: new Map(), fatalError: undefined, budgetError: undefined
   };
   const workerCount = Math.min(Math.max(1, concurrency), repositories.length);
   await Promise.all(Array.from({ length: workerCount }, () =>
     runRepositoryWorker(state, repositories, collect, abortBatch)
   ));
   if (state.fatalError !== undefined) throw state.fatalError;
+  const completed = state.results.filter((repository): repository is CollectedGitHubRepository => repository !== undefined);
+  if (state.budgetError !== undefined && completed.length === 0) throw state.budgetError;
+  const skippedCount = repositories.length - Math.min(state.nextIndex, repositories.length);
+  if (skippedCount > 0 && state.budgetError !== undefined) {
+    state.failureCount += skippedCount;
+    recordRepositoryCollectionFailure(state.failures, state.budgetError, skippedCount);
+  }
   return {
-    repositories: state.results.filter((repository): repository is CollectedGitHubRepository => repository !== undefined),
+    repositories: completed,
     failureCount: state.failureCount,
+    skippedCount,
     failures: [...state.failures.values()].sort(compareRepositoryCollectionFailures)
   };
 }
@@ -679,6 +688,7 @@ interface RepositoryBatchState {
   failureCount: number;
   failures: Map<string, RepositoryCollectionFailureSummary>;
   fatalError: unknown;
+  budgetError: GitHubCollectorError | undefined;
 }
 
 async function runRepositoryWorker(
@@ -687,13 +697,20 @@ async function runRepositoryWorker(
   collect: (repository: GitHubRepositoryResponse, index: number) => Promise<CollectedGitHubRepository>,
   abortBatch: () => void
 ): Promise<void> {
-  while (state.fatalError === undefined) {
+  while (state.fatalError === undefined && state.budgetError === undefined) {
     const index = state.nextIndex++;
     const repository = repositories[index];
     if (repository === undefined) return;
     try {
       state.results[index] = await collect(repository, index);
     } catch (error) {
+      const original = originalCollectionError(error);
+      if (original instanceof GitHubCollectorError && original.code === "github_request_budget_exhausted") {
+        state.budgetError ??= original;
+        state.failureCount += 1;
+        recordRepositoryCollectionFailure(state.failures, error);
+        return;
+      }
       if (shouldAbortRepositoryBatch(originalCollectionError(error))) {
         state.fatalError ??= originalCollectionError(error);
         abortBatch();
@@ -708,7 +725,8 @@ async function runRepositoryWorker(
 
 function recordRepositoryCollectionFailure(
   failures: Map<string, RepositoryCollectionFailureSummary>,
-  failure: unknown
+  failure: unknown,
+  count = 1
 ): void {
   const error = originalCollectionError(failure);
   const code = error instanceof GitHubCollectorError ? error.code : "unknown_repository_collection_failure";
@@ -717,7 +735,7 @@ function recordRepositoryCollectionFailure(
   const key = `${code}:${operation}:${status ?? "none"}`;
   const current = failures.get(key);
   if (current !== undefined) {
-    current.count += 1;
+    current.count += count;
     return;
   }
 
@@ -725,7 +743,7 @@ function recordRepositoryCollectionFailure(
     code,
     operation,
     ...(status === undefined ? {} : { status }),
-    count: 1
+    count
   });
 }
 
@@ -835,6 +853,7 @@ function relabelPrivateRepositories(
 interface CollectedRepositoryBatch {
   repositories: CollectedGitHubRepository[];
   failureCount: number;
+  skippedCount: number;
   failures: RepositoryCollectionFailureSummary[];
 }
 

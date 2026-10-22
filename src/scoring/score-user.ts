@@ -70,6 +70,7 @@ export function scoreUserProfile(
       displayLimit,
       attemptedCount: collection.collectionAttemptCount,
       missedCount: collection.collectionFailureCount + collection.truncatedRepositoryCount,
+      ...(input.repositoryCollectionSkippedCount === undefined ? {} : { skippedCount: input.repositoryCollectionSkippedCount }),
       checkedRatio: collection.collectionCheckedRatio
     },
     topRepos: displayed.map(({ scored }) => scored),
@@ -283,6 +284,13 @@ function buildCollectionLimitations(input: ProfileInput, collection: ProfileColl
     limitations.push(
       `${repositoryCollectionFailureCount} ${failedRepositoryLabel} could not be read from GitHub and ${repositoryCollectionFailureCount === 1 ? "was" : "were"} left out.`
     );
+  }
+  if ((input.repositoryCollectionSkippedCount ?? 0) > 0) {
+    limitations.push(`${input.repositoryCollectionSkippedCount} selected repositories were not started because the GitHub request budget was exhausted; they are included in the omitted count.`);
+  }
+  const budgetFailures = input.repositoryCollectionFailures?.filter(failure => failure.code === "github_request_budget_exhausted") ?? [];
+  if (budgetFailures.length > 0) {
+    limitations.push("The GitHub request budget was exhausted. This is a partial snapshot of the selected repositories.");
   }
 
   return limitations;

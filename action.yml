@@ -153,8 +153,8 @@ runs:
           echo "::error title=Invalid max-api-requests::Expected a positive integer."
           exit 1
         fi
-        if (( BUILDMARKS_MAX_API_REQUESTS > 500 )); then
-          echo "::error title=Invalid max-api-requests::Expected a value less than or equal to 500."
+        if (( BUILDMARKS_MAX_API_REQUESTS > 600 )); then
+          echo "::error title=Invalid max-api-requests::Expected a value less than or equal to 600."
           exit 1
         fi
 
