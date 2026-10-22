@@ -17,6 +17,7 @@ import type {
 } from "../shared/types.js";
 import { privateLocalSignalVisibility, publicOnlySignalVisibility } from "../shared/types.js";
 import {
+  copyGitHubCollectorPolicy,
   defaultGitHubCollectorPolicy,
   privateLocalGitHubCollectorPolicy,
   type GitHubCollectorPolicy,
@@ -49,63 +50,24 @@ export async function collectOwnerSuppliedGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
 ): Promise<CollectedGitHubProfile> {
-  throwIfCancelled(options.signal);
-  const now = resolveEvaluationTime(options.now);
-  const normalizedUsername = normalizeRequiredGitHubUsername(username);
-  const policy = options.policy ?? privateLocalGitHubCollectorPolicy;
-  const validation = validateGitHubCollectorPolicy(policy, { mode: "private-local" });
-  if (!validation.ok) {
-    throw new GitHubCollectorError("invalid_policy", validation.errors.join(" "));
-  }
-
-  if (options.token === undefined || options.token.trim() === "") {
-    throw new GitHubCollectorError(
-      "invalid_policy",
-      "Private-local collection requires an explicitly supplied read-only GitHub token."
-    );
-  }
-
-  const fetcher = options.fetcher ?? globalThis.fetch?.bind(globalThis);
-  if (fetcher === undefined) {
-    throw new GitHubCollectorError("missing_fetch", "Buildmarks requires a fetch implementation to collect GitHub data.");
-  }
-
-  const client = new GitHubRestClient(fetcher, options.token, policy.limits.maxApiRequestsPerProfile, options);
+  const context = prepareGitHubCollection(username, options, "private-local");
+  const { client, policy, now } = context;
   try {
-    await client.assertAuthenticatedOwner(normalizedUsername);
+    await client.assertAuthenticatedOwner(context.username);
     const repositories = await client.listAuthenticatedOwnerRepositories(
-      normalizedUsername,
-      policy.limits.maxRepositoriesScannedPerProfile
+      context.username, policy.limits.maxRepositoriesScannedPerProfile
     );
-    const activeRepositories = repositories.filter((repository) =>
+    const activeRepositories = repositories.filter(repository =>
       wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays, now)
     );
     let collected: CollectedRepositoryBatch;
     try {
-      collected = await collectRepositories(
-        activeRepositories,
-        policy.limits.maxConcurrentRepositoryCollections,
-        (repository) => client.collectRepository(repository),
-        () => client.abortPendingRequests()
-      );
+      collected = await collectRepositoryBatch(client, activeRepositories, policy);
     } catch (error) {
       throw redactPrivateRepositoryError(error, activeRepositories);
     }
-    const repositoriesWithPrivateLabels = relabelPrivateRepositories(collected.repositories);
-    const includesPrivateRepositories = repositoriesWithPrivateLabels.some((repository) => repository.visibility === "private");
-
-    throwIfCancelled(options.signal);
-    return {
-      username: normalizedUsername,
-      collectedAt: now.toISOString(),
-      activityWindowDays: policy.limits.repositoryActivityWindowDays,
-      activityAggregatesDeferred,
-      ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
-      repositoryCollectionAttemptCount: activeRepositories.length,
-      ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
-      signalVisibility: { ...(includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility) },
-      repositories: repositoriesWithPrivateLabels
-    };
+    throwIfCancelled(context.signal);
+    return buildCollectedProfile(context, activeRepositories.length, collected, relabelPrivateRepositories(collected.repositories));
   } finally { client.dispose(); }
 }
 
@@ -113,46 +75,68 @@ export async function collectPublicGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
 ): Promise<CollectedGitHubProfile> {
-  throwIfCancelled(options.signal);
+  const context = prepareGitHubCollection(username, options, "public-only");
+  const { client, policy, now } = context;
+  try {
+    const repositories = await client.listUserRepositories(context.username, policy.limits.maxRepositoriesScannedPerProfile);
+    const activeRepositories = repositories.filter(repository =>
+      wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays, now)
+    );
+    const collected = await collectRepositoryBatch(client, activeRepositories, policy);
+    throwIfCancelled(context.signal);
+    return buildCollectedProfile(context, activeRepositories.length, collected, collected.repositories);
+  } finally { client.dispose(); }
+}
+
+function prepareGitHubCollection(
+  username: string, options: CollectPublicGitHubProfileOptions, mode: "public-only" | "private-local"
+) {
+  const signal = options.signal;
+  throwIfCancelled(signal);
   const now = resolveEvaluationTime(options.now);
   const normalizedUsername = normalizeRequiredGitHubUsername(username);
-  const policy = options.policy ?? defaultGitHubCollectorPolicy;
-  const validation = validateGitHubCollectorPolicy(policy);
-  if (!validation.ok) {
-    throw new GitHubCollectorError("invalid_policy", validation.errors.join(" "));
+  const requestedPolicy = options.policy ?? (mode === "private-local" ? privateLocalGitHubCollectorPolicy : defaultGitHubCollectorPolicy);
+  const validation = validateGitHubCollectorPolicy(requestedPolicy, { mode });
+  if (!validation.ok) throw new GitHubCollectorError("invalid_policy", validation.errors.join(" "));
+  if (mode === "private-local" && (options.token === undefined || options.token.trim() === "")) {
+    throw new GitHubCollectorError(
+      "invalid_policy", "Private-local collection requires an explicitly supplied read-only GitHub token."
+    );
   }
-
   const fetcher = options.fetcher ?? globalThis.fetch?.bind(globalThis);
   if (fetcher === undefined) {
     throw new GitHubCollectorError("missing_fetch", "Buildmarks requires a fetch implementation to collect GitHub data.");
   }
-
+  const policy = copyGitHubCollectorPolicy(requestedPolicy);
   const client = new GitHubRestClient(fetcher, options.token, policy.limits.maxApiRequestsPerProfile, options);
-  try {
-    const repositories = await client.listUserRepositories(normalizedUsername, policy.limits.maxRepositoriesScannedPerProfile);
-    const activeRepositories = repositories.filter((repository) =>
-      wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays, now)
-    );
-    const collected = await collectRepositories(
-      activeRepositories,
-      policy.limits.maxConcurrentRepositoryCollections,
-      (repository) => client.collectRepository(repository),
-      () => client.abortPendingRequests()
-    );
+  return { username: normalizedUsername, now, policy, client, signal };
+}
 
-    throwIfCancelled(options.signal);
-    return {
-      username: normalizedUsername,
-      collectedAt: now.toISOString(),
-      activityWindowDays: policy.limits.repositoryActivityWindowDays,
-      activityAggregatesDeferred,
-      ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
-      repositoryCollectionAttemptCount: activeRepositories.length,
-      ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
-      signalVisibility: { ...publicOnlySignalVisibility },
-      repositories: collected.repositories
-    };
-  } finally { client.dispose(); }
+type GitHubCollectionContext = ReturnType<typeof prepareGitHubCollection>;
+
+function collectRepositoryBatch(client: GitHubRestClient, repositories: readonly GitHubRepositoryResponse[], policy: GitHubCollectorPolicy) {
+  return collectRepositories(
+    repositories, policy.limits.maxConcurrentRepositoryCollections,
+    repository => client.collectRepository(repository), () => client.abortPendingRequests()
+  );
+}
+
+function buildCollectedProfile(
+  context: GitHubCollectionContext, attempted: number, collected: CollectedRepositoryBatch,
+  repositories: CollectedGitHubRepository[]
+): CollectedGitHubProfile {
+  const includesPrivateRepositories = repositories.some(repository => repository.visibility === "private");
+  return {
+    username: context.username,
+    collectedAt: context.now.toISOString(),
+    activityWindowDays: context.policy.limits.repositoryActivityWindowDays,
+    activityAggregatesDeferred,
+    ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
+    repositoryCollectionAttemptCount: attempted,
+    ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
+    signalVisibility: { ...(includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility) },
+    repositories
+  };
 }
 
 function normalizeRequiredGitHubUsername(username: string): string {
@@ -290,44 +274,7 @@ class GitHubRestClient {
       withRepositoryCollectionOperation("tree", this.fetchRepositoryTree(owner, name, repository.default_branch))
     ]);
     const fileSignals = this.collectFileSignals(treeEntries.entries, repository, treeEntries.truncated);
-    const repositoryKind = detectRepositoryKindFromPaths(
-      treeEntries.entries.map((entry) => entry.path),
-      {
-        sourceFileCount: fileSignals.codebaseShape.sourceFileCount,
-        hasReadme: fileSignals.hasReadme,
-        hasDemoOrDocs: fileSignals.hasDemoOrDocs || hasNonEmptyString(repository.homepage)
-      }
-    );
-    const collected: CollectedGitHubRepository = {
-      owner,
-      name: isPrivate ? "Private repository" : name,
-      repositoryKind: repositoryKind.kind,
-      repositoryKindSource: repositoryKind.source,
-      repositoryKindConfidence: repositoryKind.confidence,
-      ...(isPrivate ? { unavailableObservations: ["usageGuide"] } : {}),
-      isFork: repository.fork,
-      isArchived: repository.archived,
-      stars: isPrivate ? 0 : repository.stargazers_count,
-      forks: isPrivate ? 0 : repository.forks_count,
-      createdAt: repository.created_at,
-      pushedAt: repository.pushed_at,
-      hasReleasesOrTags,
-      files: mergeCommunitySignals(fileSignals, community, readmeText),
-      activity: emptyActivitySignals()
-    };
-
-    if (isPrivate) {
-      collected.visibility = "private";
-      collected.redactedName = true;
-    } else {
-      collected.visibility = "public";
-    }
-
-    if (!isPrivate && repository.html_url !== null) {
-      collected.url = repository.html_url;
-    }
-
-    return collected;
+    return buildCollectedRepository(repository, treeEntries, fileSignals, community, readmeText, hasReleasesOrTags);
   }
 
   collectFileSignals(
@@ -525,6 +472,42 @@ async function consumeRequestAttempt<T>(
     return { retry: true };
   }
   return { retry: false, value: await consume(response) };
+}
+
+function buildCollectedRepository(
+  repository: GitHubRepositoryResponse, treeEntries: GitHubTreeSummary,
+  fileSignals: CollectedRepositoryFileSignals, community: GitHubCommunityProfileResponse | null,
+  readmeText: string | null, hasReleasesOrTags: boolean
+): CollectedGitHubRepository {
+  const isPrivate = repository.private;
+  const repositoryKind = detectRepositoryKindFromPaths(
+    treeEntries.entries.map((entry) => entry.path),
+    {
+      sourceFileCount: fileSignals.codebaseShape.sourceFileCount,
+      hasReadme: fileSignals.hasReadme,
+      hasDemoOrDocs: fileSignals.hasDemoOrDocs || hasNonEmptyString(repository.homepage)
+    }
+  );
+  return {
+    owner: repository.owner.login,
+    name: isPrivate ? "Private repository" : repository.name,
+    repositoryKind: repositoryKind.kind,
+    repositoryKindSource: repositoryKind.source,
+    repositoryKindConfidence: repositoryKind.confidence,
+    ...(isPrivate ? { unavailableObservations: ["usageGuide"] } : {}),
+    isFork: repository.fork,
+    isArchived: repository.archived,
+    stars: isPrivate ? 0 : repository.stargazers_count,
+    forks: isPrivate ? 0 : repository.forks_count,
+    createdAt: repository.created_at,
+    pushedAt: repository.pushed_at,
+    hasReleasesOrTags,
+    files: mergeCommunitySignals(fileSignals, community, readmeText),
+    activity: emptyActivitySignals(),
+    visibility: isPrivate ? "private" : "public",
+    ...(isPrivate ? { redactedName: true } : {}),
+    ...(!isPrivate && repository.html_url !== null ? { url: repository.html_url } : {})
+  };
 }
 
 function mergeCommunitySignals(

@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import {
   analyzeSignalGaps,
+  collectOwnerSuppliedGitHubProfile,
   collectPublicGitHubProfile,
   defaultGitHubCollectorPolicy,
   GitHubCollectorError,
@@ -102,6 +103,7 @@ describe("collection ownership and reference isolation", () => {
       now, signal: first.signal,
       fetcher: async (url, init) => {
         options.signal = second.signal;
+        second.abort();
         return fakeGitHub(url, init);
       }
     };
@@ -110,4 +112,62 @@ describe("collection ownership and reference isolation", () => {
       expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
     } finally { remove.mockRestore(); }
   });
+
+  test("keeps the validated policy stable when the caller changes it during collection", async () => {
+    const policy = buildGitHubCollectorPolicyFromCli({
+      privateLocal: false, maxRepositoriesScanned: 30, maxRepositoriesScored: 12,
+      activityWindowDays: 365, maxApiRequests: 160
+    });
+    const profile = await collectPublicGitHubProfile("probe", {
+      now, policy,
+      fetcher: async (url, init) => {
+        if (new URL(url).pathname === "/users/probe/repos") {
+          policy.limits.repositoryActivityWindowDays = 1;
+          return Response.json([{ ...repository, pushed_at: new Date(now.getTime() - 10 * 86_400_000).toISOString() }]);
+        }
+        return fakeGitHub(url, init);
+      }
+    });
+    expect(profile.repositories).toHaveLength(1);
+    expect(profile.activityWindowDays).toBe(365);
+    expect(policy.limits.repositoryActivityWindowDays).toBe(1);
+  });
+});
+
+describe("private collection validation and authentication order", () => {
+  test("validates username and policy before token and timeout without requesting GitHub", async () => {
+    let requests = 0;
+    const fetcher: GitHubCollectorFetch = async () => { requests++; return Response.json([]); };
+    await expect(collectOwnerSuppliedGitHubProfile(" ", { now, fetcher, policy: defaultGitHubCollectorPolicy, timeoutMilliseconds: 0 }))
+      .rejects.toMatchObject({ code: "invalid_policy", message: "GitHub username is required." });
+    await expect(collectOwnerSuppliedGitHubProfile("probe", { now, fetcher, policy: defaultGitHubCollectorPolicy, timeoutMilliseconds: 0 }))
+      .rejects.toMatchObject({
+        code: "invalid_policy",
+        message: "Private-local GitHub collector policy must not be public-only. Private-local GitHub collector policy must allow private repositories."
+      });
+    await expect(collectOwnerSuppliedGitHubProfile("probe", { now, fetcher, timeoutMilliseconds: 0 }))
+      .rejects.toMatchObject({ code: "invalid_policy", message: "Private-local collection requires an explicitly supplied read-only GitHub token." });
+    expect(requests).toBe(0);
+  });
+
+  for (const login of ["probe", "other-owner"]) {
+    test(`checks token ownership before listing repositories for ${login}`, async () => {
+      const requests: string[] = [];
+      const operation = collectOwnerSuppliedGitHubProfile("probe", {
+        now, token: "test-token",
+        fetcher: async url => {
+          const path = new URL(url).pathname;
+          requests.push(path);
+          return Response.json(path === "/user" ? { login } : []);
+        }
+      });
+      if (login === "probe") {
+        expect((await operation).repositories).toEqual([]);
+        expect(requests).toEqual(["/user", "/user/repos"]);
+      } else {
+        await expect(operation).rejects.toMatchObject({ code: "github_owner_mismatch", message: "Private-local collection token belongs to other-owner, not probe." });
+        expect(requests).toEqual(["/user"]);
+      }
+    });
+  }
 });
