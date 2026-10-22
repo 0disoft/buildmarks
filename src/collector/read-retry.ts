@@ -17,6 +17,7 @@ export async function readWithRetry<T>(
       signal.throwIfAborted();
       if (!isTransientReadError(error) || attempt >= githubRequestPolicy.retryCount) throw error;
     }
+    if (attempt >= githubRequestPolicy.retryCount) throw new Error("Read retry budget exhausted.");
     await wait(attempt);
   }
 }
@@ -28,6 +29,7 @@ const transientCodes = new Set([
 
 export function isTransientReadError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
+  if (error.name === "AbortError" || error instanceof SyntaxError) return false;
   if (error.name === "TimeoutError") return true;
   const code = (error as Error & { code?: unknown }).code;
   if (typeof code === "string" && transientCodes.has(code)) return true;

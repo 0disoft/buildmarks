@@ -46,6 +46,8 @@ export interface CollectPublicGitHubProfileOptions {
   now?: Date;
   signal?: AbortSignal;
   timeoutMilliseconds?: number;
+  /** Optional wall-clock limit shared by pagination, detail reads and retry waits. */
+  collectionTimeoutMilliseconds?: number;
   runtime?: Partial<GitHubCollectorRuntime>;
 }
 
@@ -69,7 +71,7 @@ export async function collectOwnerSuppliedGitHubProfile(
     } catch (error) {
       throw redactPrivateRepositoryError(error, activeRepositories);
     }
-    throwIfCancelled(context.signal);
+    client.assertActive();
     return buildCollectedProfile(context, activeRepositories.length, collected, relabelPrivateRepositories(collected.repositories));
   } finally { client.dispose(); }
 }
@@ -86,7 +88,7 @@ export async function collectPublicGitHubProfile(
       wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays, now)
     );
     const collected = await collectRepositoryBatch(client, activeRepositories, policy);
-    throwIfCancelled(context.signal);
+    client.assertActive();
     return buildCollectedProfile(context, activeRepositories.length, collected, collected.repositories);
   } finally { client.dispose(); }
 }
@@ -157,6 +159,7 @@ class GitHubRestClient {
   private readonly runtime: GitHubCollectorRuntime;
   private readonly timeoutMilliseconds: number;
   private readonly callerSignal: AbortSignal | undefined;
+  private cancelCollectionTimeout = () => {};
   private readonly abortFromCaller = () => this.batchAbortController.abort(cancellationError(this.callerSignal!));
 
   constructor(
@@ -172,12 +175,30 @@ class GitHubRestClient {
     }
     this.callerSignal = options.signal;
     throwIfCancelled(this.callerSignal);
-    this.callerSignal?.addEventListener("abort", this.abortFromCaller, { once: true });
+    const collectionTimeout = options.collectionTimeoutMilliseconds;
+    if (collectionTimeout !== undefined) {
+      if (!Number.isSafeInteger(collectionTimeout) || collectionTimeout <= 0 || collectionTimeout > githubRequestPolicy.maximumTimerMilliseconds) {
+        throw new GitHubCollectorError("invalid_policy", `Collection timeout must be a positive integer at most ${githubRequestPolicy.maximumTimerMilliseconds} milliseconds.`);
+      }
+      this.cancelCollectionTimeout = this.runtime.scheduleTimeout(() => this.batchAbortController.abort(
+        new GitHubCollectorError("github_collection_timeout", "GitHub profile collection exceeded its total time limit.", {
+          cause: new DOMException("Collection deadline exceeded.", "TimeoutError")
+        })
+      ), collectionTimeout);
+    }
+    if (this.callerSignal?.aborted) this.abortFromCaller();
+    else this.callerSignal?.addEventListener("abort", this.abortFromCaller, { once: true });
   }
 
   dispose(): void {
     this.abortPendingRequests();
     this.callerSignal?.removeEventListener("abort", this.abortFromCaller);
+    this.cancelCollectionTimeout();
+  }
+
+  assertActive(): void {
+    throwIfCancelled(this.callerSignal);
+    this.batchAbortController.signal.throwIfAborted();
   }
 
   abortPendingRequests(): void {
@@ -363,7 +384,6 @@ class GitHubRestClient {
   async fetchJson<T>(path: string, options: { allowMissing?: boolean; signal?: AbortSignal } = {}): Promise<T | null> {
     return this.request(path, { accept: githubJsonAccept }, async (response) => {
       if (isMissingResponse(response) && options.allowMissing === true) {
-        await response.body?.cancel();
         return null;
       }
 
@@ -378,7 +398,6 @@ class GitHubRestClient {
   ): Promise<string | null> {
     return this.request(path, { accept: options.accept ?? githubJsonAccept }, async (response) => {
       if (isMissingResponse(response) && options.allowMissing === true) {
-        await response.body?.cancel();
         return null;
       }
 
@@ -424,7 +443,8 @@ class GitHubRestClient {
       headers,
       timeoutMilliseconds: this.timeoutMilliseconds,
       signal,
-      scheduleTimeout: this.runtime.scheduleTimeout
+      scheduleTimeout: this.runtime.scheduleTimeout,
+      ...(this.runtime.onCleanupError === undefined ? {} : { onCleanupError: this.runtime.onCleanupError })
     }, response => consumeRequestAttempt(response, path, attempt, consume));
   }
 
@@ -465,12 +485,10 @@ async function consumeRequestAttempt<T>(
 ): Promise<RequestAttemptResult<T>> {
   const action = requestResponseAction(response, attempt);
   if (action === "rate-limit") {
-    // Cleanup failure must not turn a rate limit into a retryable error.
-    void response.body?.cancel().catch(() => undefined);
+    // fetchWithTimeout owns non-blocking body cleanup for every response status.
     await assertOkResponse(response, path);
   }
   if (action === "retry") {
-    await response.body?.cancel();
     return { retry: true };
   }
   return { retry: false, value: await consume(response) };
@@ -733,7 +751,7 @@ function compareRepositoryCollectionFailures(
 
 function shouldAbortRepositoryBatch(error: unknown): boolean {
   return isAbortError(error) || error instanceof GitHubCollectorError &&
-    (error.code === "github_rate_limited" || error.code === "github_request_budget_exhausted");
+    (error.code === "github_rate_limited" || error.code === "github_request_budget_exhausted" || error.code === "github_collection_timeout");
 }
 
 function isRepositoryCollectionCandidate(repository: GitHubRepositoryResponse): boolean {

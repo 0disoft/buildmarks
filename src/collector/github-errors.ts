@@ -5,6 +5,7 @@ export type GitHubCollectorErrorCode =
   | "github_owner_mismatch"
   | "github_rate_limited"
   | "github_request_budget_exhausted"
+  | "github_collection_timeout"
   | "invalid_github_response";
 
 export class GitHubCollectorError extends Error {

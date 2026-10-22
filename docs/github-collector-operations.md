@@ -116,6 +116,10 @@ The request budget is enforced immediately before each HTTP attempt. Exhaustion 
 
 Programmatic collectors accept an optional `now`, `signal`, `timeoutMilliseconds` and injected retry/timer runtime. GitHub renderer options also accept filesystem and ID-generation dependencies. Caller cancellation propagates as `AbortError` without fallback writes. See [deterministic evaluation and I/O tests](testing.md) for options and publication cancellation behavior.
 
+Callers can additionally set `collectionTimeoutMilliseconds` to bound the entire collection, including pagination and retry waits. It is disabled when omitted. Total expiry is a fatal `github_collection_timeout`, distinct from caller cancellation and a retryable per-attempt timeout. Transient transport failures retain their cause, while programming errors do not retry. An optional `runtime.onCleanupError` observes failed response-body cleanup without delaying completion; no logging or telemetry is installed by default.
+
+Output inspection failures do not prove that an existing artifact is present or absent. They raise `OutputInspectionError` without writing fallback output. Temporary or backup cleanup failures raise `OutputCleanupError`, preserving the primary cause and cleanup errors. When `committed` is true, the new files have already been published and must not be replaced by fallback or blindly retried. File publication, rollback and lock creation have no automatic retry policy.
+
 The backend-free profile README workflow pays collection cost only when it refreshes the checked-in artifacts. Profile visitors load a static SVG from GitHub and do not trigger new API work.
 
 Generated text artifacts are written to unpredictable temporary files in the destination directory, flushed, closed, and then renamed over the destination. This provides file-level atomic replacement on ordinary local filesystems. A multi-file SVG/HTML/JSON generation is not claimed to be one transaction, and directory fsync or network-filesystem durability is platform-dependent.

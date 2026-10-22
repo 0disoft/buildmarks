@@ -1,12 +1,13 @@
 import { githubRequestPolicy } from "./request-policy.js";
 import type { GitHubCollectorFetch } from "./github-client.js";
 import { scheduleTimeout, type TimeoutScheduler } from "./runtime.js";
+import { reportCleanupError, type CleanupErrorHandler } from "../shared/cleanup-diagnostics.js";
 
 /** Keep cancellation and the deadline active until the response is consumed. */
 export async function fetchWithTimeout<T>(
   fetcher: GitHubCollectorFetch,
   url: string,
-  options: { headers: Record<string, string>; timeoutMilliseconds: number; signal: AbortSignal; scheduleTimeout?: TimeoutScheduler },
+  options: { headers: Record<string, string>; timeoutMilliseconds: number; signal: AbortSignal; scheduleTimeout?: TimeoutScheduler; onCleanupError?: CleanupErrorHandler },
   consume: (response: Response) => Promise<T>
 ): Promise<T> {
   options.signal.throwIfAborted();
@@ -41,7 +42,7 @@ export async function fetchWithTimeout<T>(
         return await consume(received);
       } finally {
         // A non-cooperative adapter may return headers after the outer call ended.
-        if (controller.signal.aborted) cancelResponseBody(received);
+        if (controller.signal.aborted) cancelResponseBody(received, options.onCleanupError);
       }
     };
     const result = await Promise.race([request(), aborted]);
@@ -51,7 +52,7 @@ export async function fetchWithTimeout<T>(
     // Settle the original result before aborting, so cleanup cannot replace it.
     if (!completed || (response?.body !== null && response?.bodyUsed === false)) {
       controller.abort();
-      cancelResponseBody(response);
+      cancelResponseBody(response, options.onCleanupError);
     }
     cancelTimeout();
     options.signal.removeEventListener("abort", abortFromBatch);
@@ -59,9 +60,9 @@ export async function fetchWithTimeout<T>(
   }
 }
 
-function cancelResponseBody(response: Response | undefined): void {
+function cancelResponseBody(response: Response | undefined, handler?: CleanupErrorHandler): void {
   if (response?.body && !response.body.locked) {
     // Abort owns transport cancellation; a custom stream's cleanup must not hang it.
-    void response.body.cancel().catch(() => undefined);
+    void response.body.cancel().catch(error => reportCleanupError(error, handler));
   }
 }

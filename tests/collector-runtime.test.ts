@@ -248,6 +248,121 @@ describe("collector runtime injection", () => {
 });
 
 describe("deterministic response deadlines", () => {
+  for (const collect of [collectPublicGitHubProfile, collectOwnerSuppliedGitHubProfile]) {
+    for (const stage of ["headers", "body", "retry"] as const) {
+      test(`${collect.name} shares its total deadline across ${stage}`, async () => {
+        const clock = new ManualClock();
+        let ready!: () => void;
+        const started = new Promise<void>(resolve => { ready = resolve; });
+        let requests = 0;
+        let requestSignal: AbortSignal | null | undefined;
+        const operation = collect("probe", {
+          token: "mock", collectionTimeoutMilliseconds: 100, timeoutMilliseconds: 1000,
+          runtime: { scheduleTimeout: clock.schedule, sleep: async () => { ready(); return new Promise(() => {}); } },
+          fetcher: async (_url, init) => {
+            requests++; requestSignal = init.signal;
+            if (stage === "retry") return json({}, 503);
+            ready();
+            return stage === "headers" ? new Promise(() => {}) : new Response(new ReadableStream());
+          }
+        });
+        void operation.catch(() => {});
+        await started;
+        clock.advance(99); expect(requestSignal?.aborted).toBe(stage === "retry");
+        clock.advance(1);
+        await expect(operation).rejects.toMatchObject({ code: "github_collection_timeout", cause: { name: "TimeoutError" } });
+        expect(requests).toBe(1); expect(requestSignal?.aborted).toBe(true); expect(clock.tasks.size).toBe(0);
+      });
+    }
+  }
+
+  test("does not reset the total deadline for a new page", async () => {
+    const clock = new ManualClock(); let requests = 0;
+    await expect(collectPublicGitHubProfile("probe", {
+      collectionTimeoutMilliseconds: 100, timeoutMilliseconds: 1000, runtime: { scheduleTimeout: clock.schedule },
+      fetcher: async () => {
+        requests++; clock.advance(60);
+        return json(requests === 1 ? Array.from({ length: 30 }, (_, index) => ({ ...repository(`fork-${index}`), fork: true })) : []);
+      }
+    })).rejects.toMatchObject({ code: "github_collection_timeout" });
+    expect(requests).toBe(2); expect(clock.tasks.size).toBe(0);
+  });
+
+  test("treats a total deadline during repository details as fatal, not partial evidence", async () => {
+    const clock = new ManualClock(); const base = fakeGitHub();
+    let ready!: () => void; const started = new Promise<void>(resolve => { ready = resolve; });
+    const operation = collectPublicGitHubProfile("probe", {
+      now, collectionTimeoutMilliseconds: 100, runtime: { scheduleTimeout: clock.schedule },
+      fetcher: async (url, init) => {
+        if (url.includes("/one/")) { ready(); return new Promise(() => {}); }
+        return base(url, init);
+      }
+    });
+    void operation.catch(() => {});
+    await started; clock.advance(100);
+    await expect(operation).rejects.toMatchObject({ code: "github_collection_timeout" });
+    expect(clock.tasks.size).toBe(0);
+  });
+
+  test("removes the total deadline after successful collection", async () => {
+    const clock = new ManualClock();
+    await collectPublicGitHubProfile("probe", { now, collectionTimeoutMilliseconds: 100, runtime: { scheduleTimeout: clock.schedule }, fetcher: fakeGitHub() });
+    expect(clock.tasks.size).toBe(0);
+  });
+
+  test("a per-attempt timeout can recover within the shared total deadline", async () => {
+    const clock = new ManualClock(); let requests = 0;
+    const operation = collectPublicGitHubProfile("probe", {
+      collectionTimeoutMilliseconds: 1000, timeoutMilliseconds: 100,
+      runtime: { scheduleTimeout: clock.schedule, sleep: async () => {} },
+      fetcher: async () => { requests++; return requests === 1 ? new Promise(() => {}) : json([]); }
+    });
+    clock.advance(100);
+    expect((await operation).repositories).toHaveLength(0);
+    expect(requests).toBe(2); expect(clock.tasks.size).toBe(0);
+  });
+
+  test("caller cancellation removes the total timer and retains its reason", async () => {
+    const clock = new ManualClock(); const caller = new AbortController(); const reason = new Error("caller stopped");
+    const operation = collectPublicGitHubProfile("probe", {
+      signal: caller.signal, collectionTimeoutMilliseconds: 1000,
+      runtime: { scheduleTimeout: clock.schedule }, fetcher: async () => new Promise(() => {})
+    });
+    caller.abort(reason);
+    await expect(operation).rejects.toMatchObject({ name: "AbortError", cause: reason });
+    expect(clock.tasks.size).toBe(0);
+  });
+
+  test("validates the total deadline before attaching timers or fetching", async () => {
+    for (const collectionTimeoutMilliseconds of [0, -1, 1.5, NaN, Infinity, 2_147_483_648]) {
+      const clock = new ManualClock(); let requests = 0;
+      await expect(collectPublicGitHubProfile("probe", {
+        collectionTimeoutMilliseconds, runtime: { scheduleTimeout: clock.schedule }, fetcher: async () => { requests++; return json([]); }
+      })).rejects.toMatchObject({ code: "invalid_policy" });
+      expect(requests).toBe(0); expect(clock.tasks.size).toBe(0);
+    }
+  });
+
+  for (const status of [404, 429, 503]) {
+    test(`body cleanup failure does not change HTTP ${status} handling`, async () => {
+      const failure = new Error("broken stream cleanup"); const reported: unknown[] = [];
+      let requests = 0;
+      const base = fakeGitHub();
+      const operation = collectPublicGitHubProfile("probe", {
+        now, runtime: { sleep: async () => {}, onCleanupError: error => { reported.push(error); throw new Error("observer failed"); } },
+        fetcher: async (url, init) => {
+          if (status === 404 && !url.endsWith("/community/profile")) return base(url, init);
+          requests++;
+          return new Response(new ReadableStream({ cancel() { throw failure; } }), { status });
+        }
+      });
+      if (status === 404) expect((await operation).repositories).toHaveLength(1);
+      else await expect(operation).rejects.toMatchObject({ code: status === 429 ? "github_rate_limited" : "github_request_failed", status });
+      await Promise.resolve();
+      expect(requests).toBe(status === 503 ? 2 : 1); expect(reported).toContain(failure);
+    });
+  }
+
   test("preserves timer setup failure without starting a request or leaking an abort rejection", async () => {
     const error = new Error("timer setup failed");
     const parent = new AbortController();
