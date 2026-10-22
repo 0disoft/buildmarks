@@ -20,6 +20,7 @@ import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 import { aggregateScoreAssessments } from "./assessment.js";
 import { resolveCollectionCounts } from "./collection-counts.js";
 import { classifySignalType } from "./signal-type.js";
+import { classifyProfilePersona } from "./profile-persona.js";
 import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
 import { normalizeProfileRepositories } from "../shared/repository-identity.js";
 import {
@@ -137,6 +138,8 @@ function assessProfile(evaluated: readonly EvaluatedRepository[], collection: Pr
     applicableDimensionCount,
     collectionCheckedRatio
   );
+  const persona = evidenceStatus === "insufficient" || resultStatus === "unavailable" ? undefined
+    : classifyProfilePersona(dimensions, { unavailableDimensions, notApplicableDimensions, dimensionAssessments });
   return {
     evidenceStatus,
     ...(evidenceStatus === "insufficient"
@@ -147,6 +150,7 @@ function assessProfile(evaluated: readonly EvaluatedRepository[], collection: Pr
     ...(notApplicableDimensions.length > 0 ? { notApplicableDimensions } : {}),
     overall: overallAssessment.score ?? 0,
     signalType,
+    ...(persona === undefined ? {} : { persona }),
     dimensions,
     dimensionAssessments,
     assessment: overallAssessment,

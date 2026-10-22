@@ -57,6 +57,16 @@
         "username": { "type": "string" },
         "methodologyVersion": { "type": "string" },
         "overall": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "persona": {
+          "type": "object",
+          "required": ["id", "title", "description"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
         "assessment": { "$ref": "#/$defs/assessment" },
         "dimensionAssessments": { "type": "object" },
         "selection": {

@@ -363,6 +363,13 @@ export interface RepositorySelectionSummary {
 
 export type ResultStatus = "confirmed" | "provisional" | "unavailable";
 
+/** Display copy only; the score pair used for selection stays internal. */
+export interface ProfilePersona {
+  id: string;
+  title: string;
+  description: string;
+}
+
 export interface UserSignalReport {
   username: string;
   generatedAt: string;
@@ -372,6 +379,7 @@ export interface UserSignalReport {
   evidenceStatus?: "complete" | "partial" | "insufficient";
   overall: number;
   signalType: SignalType;
+  persona?: ProfilePersona;
   dimensions: Record<SignalDimension, number>;
   topRepos: RepoSignal[];
   evidence: Evidence[];

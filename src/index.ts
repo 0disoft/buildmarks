@@ -14,6 +14,7 @@ export type {
   DimensionScoreV2,
   Evidence,
   ProfileInput,
+  ProfilePersona,
   ProfileSignalScope,
   RepositoryInput,
   RepositoryKind,
@@ -89,6 +90,7 @@ export { detectRepositoryKindFromPaths, resolveRepositoryKind } from "./scoring/
 export { scoreUserProfile, type ScoreUserProfileOptions } from "./scoring/score-user.js";
 export { analyzeSignalGaps } from "./scoring/gaps.js";
 export { classifySignalType } from "./scoring/signal-type.js";
+export { classifyProfilePersona, type PersonaClassificationOptions } from "./scoring/profile-persona.js";
 export {
   renderFallbackCard,
   renderRepositorySignalCard,
