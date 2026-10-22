@@ -6,6 +6,8 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+- Pin the internal Bun setup step to a full-length commit SHA so the Action keeps working in repositories that require SHA-pinned Actions.
+
 ## v0.4.0 - 2026-10-01
 
 - Make a readable 420-pixel profile card the default, showing two representative projects and up to three observed details.
