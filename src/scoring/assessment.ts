@@ -323,11 +323,19 @@ function testSurface(repository: RepositoryInput): boolean | null {
   if (shape === undefined) {
     return null;
   }
+  if (
+    !Number.isSafeInteger(shape.sourceFileCount) || shape.sourceFileCount < 0 ||
+    !Number.isSafeInteger(shape.testFileCount) || shape.testFileCount < 0 || shape.testFileCount > shape.sourceFileCount ||
+    !Number.isFinite(shape.testToSourceRatio) || shape.testToSourceRatio < 0 || shape.testToSourceRatio > 1
+  ) return null;
   const sourceFileCount = codebaseShapeMetric(shape.sourceFileCount);
   if (sourceFileCount === 0) {
-    return false;
+    return shape.testToSourceRatio === 0 ? false : null;
   }
-  return codebaseShapeMetric(shape.testFileCount) >= 2 || codebaseShapeMetric(shape.testToSourceRatio) >= 0.08;
+  const ratio = shape.testFileCount / sourceFileCount;
+  // Collected snapshots historically round this descriptive field to 3 decimals.
+  if (Math.abs(shape.testToSourceRatio - ratio) > 0.000500001) return null;
+  return shape.testFileCount >= 2 || ratio >= 0.08;
 }
 
 function compactSourceShape(repository: RepositoryInput): boolean | null {
@@ -356,6 +364,7 @@ function exampleSurface(repository: RepositoryInput): boolean | null {
   if (repository.codebaseShape === undefined) {
     return null;
   }
+  if (!Number.isSafeInteger(repository.codebaseShape.exampleFileCount) || repository.codebaseShape.exampleFileCount < 0) return null;
   return codebaseShapeMetric(repository.codebaseShape.exampleFileCount) > 0;
 }
 

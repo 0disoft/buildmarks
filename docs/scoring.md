@@ -33,6 +33,8 @@ The default profile card shows its project type and representative repository de
 
 The checked percentage appears on the card so readers can see how much Buildmarks actually reviewed without a second label trying to interpret the number for them.
 
+Coverage decisions use the original observed/expected ratio; rounding a displayed percentage never promotes a result across the 50%, 60% or 85% thresholds. Imported collection counts must be non-negative safe integers, with attempted count equal to eligible returned repositories plus failures. Truncated trees remain returned repositories but count as unavailable for the profile result.
+
 ## How Points Add Up
 
 Combinations of observed project details are worth more than isolated files. These checks confirm that tests and a workflow, a release or tag and a project manifest, a release or tag and a changelog, or documentation and examples are both present.

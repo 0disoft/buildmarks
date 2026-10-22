@@ -6,7 +6,7 @@ import { resolveCollectorRuntime } from "../src/collector/runtime";
 const now = new Date("2026-05-28T00:00:00Z");
 const day = 86_400_000;
 const json = (value: unknown, status = 200, headers = {}) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json", ...headers } });
-const repository = (name: string, pushed = now.toISOString()) => ({ name, owner: { login: "probe" }, private: false, fork: false, archived: false, stargazers_count: 0, forks_count: 0, created_at: "2025-01-01T00:00:00Z", pushed_at: pushed, default_branch: "main", html_url: `https://github.com/probe/${name}`, homepage: null });
+const repository = (name: string, pushed: string | null = now.toISOString()) => ({ name, owner: { login: "probe" }, private: false, fork: false, archived: false, stargazers_count: 0, forks_count: 0, created_at: "2025-01-01T00:00:00Z", pushed_at: pushed, default_branch: "main", html_url: `https://github.com/probe/${name}`, homepage: null });
 function fakeGitHub(repositories = [repository("one")]): GitHubCollectorFetch {
   return async url => {
     const path = new URL(url).pathname;
@@ -56,6 +56,27 @@ describe("collector runtime injection", () => {
     });
   }
 
+  test("excludes future, missing and invalid activity timestamps", async () => {
+    const profile = await collectPublicGitHubProfile("probe", { now, fetcher: fakeGitHub([repository("future", new Date(now.getTime() + 1).toISOString()), repository("missing", null), repository("invalid", "invalid")]) });
+    expect(profile.repositories).toHaveLength(0);
+    expect(profile.repositoryCollectionAttemptCount).toBe(0);
+  });
+
+  test("does not schedule the next repository after caller cancellation", async () => {
+    const controller = new AbortController(); const calls: string[] = [];
+    const fetcher = fakeGitHub([repository("one"), repository("two")]);
+    await expect(collectPublicGitHubProfile("probe", {
+      now, signal: controller.signal,
+      policy: { ...defaultGitHubCollectorPolicy, limits: { ...defaultGitHubCollectorPolicy.limits, maxConcurrentRepositoryCollections: 1 } },
+      fetcher: async (url, init) => {
+        calls.push(url);
+        if (url.includes("/one/git/trees/")) controller.abort();
+        return fetcher(url, init);
+      }
+    })).rejects.toMatchObject({ name: "AbortError" });
+    expect(calls.some(url => url.includes("/two/"))).toBe(false);
+  });
+
   for (const stage of ["headers", "body", "retry"] as const) {
     test(`caller cancellation terminates ${stage} without another request`, async () => {
       const controller = new AbortController();
@@ -103,6 +124,18 @@ describe("collector runtime injection", () => {
       else expect((await operation).repositories).toHaveLength(0);
       expect(requests).toBe(budget); expect(waits).toEqual([150]);
     }
+  });
+
+  test("preserves a rate-limit failure when response cleanup fails", async () => {
+    let requests = 0; let waits = 0;
+    await expect(collectPublicGitHubProfile("probe", {
+      now, runtime: { sleep: async () => { waits++; } },
+      fetcher: async () => {
+        requests++;
+        return new Response(new ReadableStream({ cancel() { throw new Error("injected cleanup failure"); } }), { status: 429, headers: { "retry-after": "60" } });
+      }
+    })).rejects.toMatchObject({ code: "github_rate_limited", rateLimitReset: "60" });
+    expect(requests).toBe(1); expect(waits).toBe(0);
   });
 
   test("enforces the shared budget under concurrent repository requests", async () => {

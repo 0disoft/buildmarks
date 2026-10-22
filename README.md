@@ -370,6 +370,8 @@ npm pack --dry-run
 
 The current tests use local fixtures and mocked fetch calls. They do not call the live GitHub API.
 
+See [deterministic evaluation and I/O tests](docs/testing.md) for optional time, cancellation, timer, filesystem and ID-generation dependencies. Existing required arguments and result shapes remain unchanged.
+
 `bun run check` also builds the shipped Node CLI entry points and runs each bundle with a real Node.js binary, so a Node.js runtime on `PATH` is required for the full suite. Those checks confirm that each local renderer bundle runs only its own command and that importing a bundle does not execute a CLI. `bun run typecheck` only type-checks; it does not re-run the execution tests.
 
 Repository CI runs dependency installation from the lockfile, core tests, TypeScript typecheck, build, sample SVG, sample report, and npm package dry-run checks on pushes to `main` and pull requests. The CI workflow is read-only: it does not commit generated files, push tags, create releases, publish packages, or use secrets.

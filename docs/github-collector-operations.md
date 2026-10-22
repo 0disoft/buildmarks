@@ -104,9 +104,11 @@ GitHub currently documents unauthenticated REST requests as 60 requests per hour
 
 Before a hosted endpoint is added, it must define cache storage, abuse limits, stale-result behavior, and a way to avoid repeated uncached repository-content scans for the same profile.
 
-The live client keeps a 10-second deadline active for each attempt, including fetching headers and reading JSON or text bodies. A deadline or batch cancellation aborts the fetch signal and rejects the pending read. The client retries a transient response or transport/read failure once; malformed JSON and non-transient HTTP failures are not retried. Deadline timers and batch listeners are removed after consumption.
+The live client keeps a 10-second deadline active for each attempt, including fetching headers and reading JSON or text bodies. A deadline or batch cancellation aborts the fetch signal and rejects the pending read. The client retries a transient server response or transport/read failure once; malformed JSON, rate-limit responses and non-transient HTTP failures are not retried. Rate limits fail immediately so caller workflows can retry later without violating `Retry-After`. Deadline timers and batch listeners are removed after consumption.
 
 The request budget is enforced immediately before each HTTP attempt. Exhaustion is fatal for the profile rather than being hidden as an omitted repository. Fatal rate-limit and budget errors stop new repository work and abort in-flight sibling requests; an aborted request is not retried.
+
+Programmatic collectors accept an optional `now`, `signal`, `timeoutMilliseconds` and injected retry/timer runtime. GitHub renderer options also accept filesystem and ID-generation dependencies. Caller cancellation propagates as `AbortError` without fallback writes. See [deterministic evaluation and I/O tests](testing.md) for options and publication cancellation behavior.
 
 The backend-free profile README workflow pays collection cost only when it refreshes the checked-in artifacts. Profile visitors load a static SVG from GitHub and do not trigger new API work.
 

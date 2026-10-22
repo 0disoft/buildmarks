@@ -456,7 +456,8 @@ class GitHubRestClient {
           scheduleTimeout: this.runtime.scheduleTimeout
         }, async (response): Promise<{ retry: true } | { retry: false; value: T }> => {
           if (isRateLimitResponse(response)) {
-            await response.body?.cancel();
+            // Cleanup failure must not turn a rate limit into a retryable error.
+            void response.body?.cancel().catch(() => undefined);
             await assertOkResponse(response, path);
           }
           if (shouldRetryResponse(response) && attempt < githubRequestRetryCount) {

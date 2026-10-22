@@ -6,6 +6,10 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+- Compare coverage thresholds before display rounding, validate collection counts, and avoid rewarding invalid codebase metrics or selecting gaps from another owner's same-named repository.
+- Replay saved profile timestamps consistently and support optional evaluation time, caller cancellation and request timing dependencies.
+- Stop immediately on rate limits, preserve existing output on cancellation, and inject filesystem and ID-generation dependencies while cleaning only owned temporary and backup files.
+
 - Pin the internal Bun setup step to a full-length commit SHA so the Action keeps working in repositories that require SHA-pinned Actions.
 
 ## v0.4.0 - 2026-10-01

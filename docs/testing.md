@@ -1,0 +1,53 @@
+# Deterministic evaluation and I/O tests
+
+Required arguments and result shapes are unchanged. Existing calls continue to use the built-in fetch, filesystem and timers. The new options are optional dependency injection points; they do not install global mocks.
+
+## Evaluation time
+
+`scoreRepository`, `scoreUserProfile`, `analyzeSignalGaps` and `createStaticReport` accept `now?: Date` in their existing options. Each profile or static report captures one time and passes it through all repository evaluations and gap selection.
+
+An explicit `now` takes precedence. Otherwise, a profile's valid `generatedAt` is the evaluation time, so saved snapshots can be replayed. With neither value, the operation captures the current time. The resulting report records that evaluation time in `generatedAt`. Invalid explicit times and malformed input timestamps fail validation; SVG rendering of a malformed report date says `Date unavailable` instead of inventing a current date.
+
+```ts
+const now = new Date("2026-05-28T00:00:00.000Z");
+const report = createStaticReport(profile, { now });
+```
+
+Local `renderCardFile`, `renderGapsCardFile` and `renderReportFiles` accept an optional options argument after their required paths. `renderRepoCardFile` accepts it after the input path, repository reference and output path. These options include `now`, `signal`, `fileSystem` and `randomId`.
+
+## Collection and cancellation
+
+The existing GitHub collector options additionally accept:
+
+- `now?: Date`: one reference time for the activity window and `collectedAt`.
+- `signal?: AbortSignal`: caller cancellation, propagated through requests, body consumption and retry waits.
+- `timeoutMilliseconds?: number`: per-attempt deadline, including body consumption; default 10,000, valid range 1 through 2,147,483,647 integer milliseconds.
+- `runtime?: Partial<GitHubCollectorRuntime>`: optional `sleep(milliseconds, signal)` and `scheduleTimeout(callback, milliseconds)` implementations. The scheduler returns a function that cancels the scheduled callback. Test schedulers should queue callbacks for explicit advancement rather than calling them inline.
+
+Rate-limit responses stop collection immediately. Buildmarks does not retry a 429 or rate-limited 403 ahead of `Retry-After`; caller workflows can retry later. Transient server and transport failures still get at most one retry, counted against the same request budget.
+
+Caller cancellation rejects with `AbortError`, stops repository scheduling and does not generate fallback artifacts. Request and caller hooks are removed after completion. Injected fetchers should honor the request signal; the deadline also rejects the caller when a test double ignores cancellation. Retry waits follow the same rule.
+
+## Filesystem boundaries
+
+The CLI renderer options accept `fileSystem?: Partial<RenderFileSystem>`. Unspecified operations retain their built-in implementation. Inject all operations a memory-only test may use: input identity checks (`realpath`, `stat`), reads, directory creation, output existence checks and output operations. A fixed `randomId` makes temporary-name collisions reproducible.
+
+The low-level writers accept `WriteOutputOptions`:
+
+```ts
+await writeTextFileAtomically(path, content, options);
+await writeTextFilesAsSet(outputs, undefined, options);
+```
+
+The existing second `replace` argument to `writeTextFilesAsSet` is preserved. An injected filesystem can separately fail backup creation, staging, publication and recovery.
+
+Writers remove only temporary and backup files they successfully created. Cancellation before publication cleans owned staging files and preserves existing outputs. Once replacement starts, publication and recovery finish without cancellation checks; a successfully published output set remains a success. If recovery fails, its diagnostic and retained backup are preserved even when the caller also cancels. Output sets require one writer. Caught-failure recovery does not make multiple renames atomic or protect against process termination or power loss.
+
+## Regression coverage
+
+- `scoring-boundaries.test.ts`: unrounded coverage thresholds, partial invalid metrics, count consistency, collection availability and owner-qualified selection.
+- `evaluation-time.test.ts`: snapshot replay, explicit time overrides, shared report time and millisecond activity boundaries.
+- `collector-runtime.test.ts`: manual deadlines, external cancellation, request budgets and rate-limit handling without live GitHub calls.
+- `output-runtime.test.ts`: memory filesystem rendering, exclusive-name collisions, write failures, publication rollback and cancellation.
+
+The existing input-alias and bundled Node CLI tests continue to exercise real filesystem and runtime integration.

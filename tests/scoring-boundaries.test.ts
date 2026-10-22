@@ -50,6 +50,34 @@ describe("scoring boundaries", () => {
     }
   });
 
+  test("validates test counts independently and compares their unrounded ratio", () => {
+    for (const [sourceFileCount, testFileCount, testToSourceRatio, observed] of [
+      [100, 1, 0.01, false], [100, 2, 0.02, true],
+      [13, 1, 0.077, false], [12, 1, 0.083, true],
+      [25, 2, 0.08, true], [100, 1, 0.8, null],
+      [100, NaN, 0.1, null], [100, 1, NaN, null], [0, 1, 0, null]
+    ] as const) {
+      const report = scoreRepository({ ...base, codebaseShape: { ...base.codebaseShape, sourceFileCount, testFileCount, testToSourceRatio } }, { now });
+      expect(report.dimensions.maintainability.assessment.criteria.find(item => item.criterionId === "maintainability.test-surface")?.observed).toBe(observed);
+    }
+  });
+
+  test("rejects impossible file size summaries and unknown example counts", () => {
+    for (const change of [{ medianSourceFileBytes: 10000, p90SourceFileBytes: 1000 }, { oversizedSourceFileCount: base.codebaseShape.sourceFileCount + 1 }]) {
+      const report = scoreRepository({ ...base, codebaseShape: { ...base.codebaseShape, ...change } }, { now });
+      expect(report.dimensions.maintainability.assessment.criteria.find(item => item.criterionId === "maintainability.compact-shape")?.observed).toBeNull();
+    }
+    const report = scoreRepository({ ...base, codebaseShape: { ...base.codebaseShape, exampleFileCount: NaN } }, { now });
+    expect(report.dimensions.maintainability.assessment.criteria.find(item => item.criterionId === "maintainability.examples")?.observed).toBeNull();
+  });
+
+  test("counts failed and truncated repositories together at the unavailable boundary", () => {
+    const input = { username: "probe", repositories: [{ ...base, name: "complete" }, { ...base, name: "truncated", codebaseShape: { ...base.codebaseShape, treeTruncated: true } }, { ...base, name: "complete-2" }], repositoryCollectionFailureCount: 1, repositoryCollectionAttemptCount: 4 };
+    const report = scoreUserProfile(input, { now });
+    expect(report.selection.checkedRatio).toBe(0.5);
+    expect(report.evidenceStatus).toBe("insufficient");
+  });
+
   for (const failed of [49, 50, 51]) {
     test(`collection availability with ${failed}% unavailable`, () => {
       const repositories = Array.from({ length: 100 - failed }, (_, index) => ({ ...base, name: `repo-${index}` }));
