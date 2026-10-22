@@ -41,11 +41,42 @@ export function scoreUserProfile(
   options: ScoreUserProfileOptions = {}
 ): UserSignalReportV2 {
   validatePrivateRepositoryDisclosure(input);
-
   const now = resolveEvaluationTime(options.now, input.generatedAt);
   const generatedAt = now.toISOString();
-  const includesPrivateRepositories = input.signalVisibility?.privateRepositoriesIncluded === true;
   const displayLimit = resolveMaxRepositories(options.maxRepositories);
+  const collection = prepareProfileCollection(input);
+  const evaluated = collection.completeTreeRepositories.map((repository) => ({
+    input: repository,
+    scored: scoreRepository(repository, { ...options, now })
+  }));
+  const displayed = selectDisplayedRepositories(evaluated, displayLimit);
+  const assessment = assessProfile(evaluated, collection);
+  const evidenceLedger = evaluated.flatMap(({ scored }) => scored.evidenceLedger);
+  return {
+    username: input.username,
+    generatedAt,
+    ...(input.activityWindowDays === undefined ? {} : { activityWindowDays: input.activityWindowDays }),
+    ...(input.signalVisibility ? { signalVisibility: { ...input.signalVisibility } } : {}),
+    methodologyVersion: scoringMethodologyVersion,
+    ...assessment,
+    selection: {
+      strategy: "kind-stratified",
+      eligibleCount: collection.eligibleRepositories.length,
+      evaluatedCount: evaluated.length,
+      displayedCount: displayed.length,
+      displayLimit,
+      attemptedCount: collection.collectionAttemptCount,
+      missedCount: collection.collectionFailureCount + collection.truncatedRepositoryCount,
+      checkedRatio: collection.collectionCheckedRatio
+    },
+    topRepos: displayed.map(({ scored }) => scored),
+    evidence: collectProfileHighlights(evidenceLedger),
+    evidenceLedger,
+    limitations: buildLimitations(input, collection, evaluated.length, displayed.length, assessment)
+  };
+}
+
+function prepareProfileCollection(input: ProfileInput) {
   const eligibleRepositories = input.repositories.filter(isEligibleRepository);
   const completeTreeRepositories = eligibleRepositories.filter(
     (repository) => repository.codebaseShape?.treeTruncated !== true
@@ -62,11 +93,16 @@ export function scoreUserProfile(
     collectionFailureCount,
     truncatedRepositoryCount
   );
-  const evaluated = completeTreeRepositories.map((repository) => ({
-    input: repository,
-    scored: scoreRepository(repository, { ...options, now })
-  }));
-  const displayed = selectDisplayedRepositories(evaluated, displayLimit);
+  return {
+    eligibleRepositories, completeTreeRepositories, truncatedRepositoryCount,
+    collectionAttemptCount, collectionFailureCount, collectionStatus, collectionCheckedRatio
+  };
+}
+
+type ProfileCollection = ReturnType<typeof prepareProfileCollection>;
+
+function assessProfile(evaluated: readonly EvaluatedRepository[], collection: ProfileCollection) {
+  const { collectionStatus, collectionCheckedRatio } = collection;
   const dimensionAssessments = Object.fromEntries(
     signalDimensions.map((dimension) => [
       dimension,
@@ -97,16 +133,7 @@ export function scoreUserProfile(
     applicableDimensionCount,
     collectionCheckedRatio
   );
-  const evidenceLedger = evaluated.flatMap(({ scored }) => scored.evidenceLedger);
-
   return {
-    username: input.username,
-    generatedAt,
-    ...(input.activityWindowDays === undefined
-      ? {}
-      : { activityWindowDays: input.activityWindowDays }),
-    ...(input.signalVisibility ? { signalVisibility: { ...input.signalVisibility } } : {}),
-    methodologyVersion: scoringMethodologyVersion,
     evidenceStatus,
     ...(evidenceStatus === "insufficient"
       ? { unavailableDimensions: [...signalDimensions] }
@@ -122,32 +149,6 @@ export function scoreUserProfile(
     confidence: overallAssessment.confidence,
     coverage: overallAssessment.coverage,
     resultStatus,
-    selection: {
-      strategy: "kind-stratified",
-      eligibleCount: eligibleRepositories.length,
-      evaluatedCount: evaluated.length,
-      displayedCount: displayed.length,
-      displayLimit,
-      attemptedCount: collectionAttemptCount,
-      missedCount: collectionFailureCount + truncatedRepositoryCount,
-      checkedRatio: collectionCheckedRatio
-    },
-    topRepos: displayed.map(({ scored }) => scored),
-    evidence: collectProfileHighlights(evidenceLedger),
-    evidenceLedger,
-    limitations: buildLimitations(
-      input.repositories.length,
-      eligibleRepositories.length,
-      evaluated.length,
-      displayed.length,
-      includesPrivateRepositories,
-      signalType,
-      input.activityWindowDays,
-      truncatedRepositoryCount,
-      input.activityAggregatesDeferred === true,
-      collectionFailureCount,
-      overallAssessment
-    )
   };
 }
 
@@ -220,18 +221,18 @@ function collectProfileHighlights(details: readonly Evidence[]): Evidence[] {
 }
 
 function buildLimitations(
-  total: number,
-  eligible: number,
-  evaluated: number,
-  displayed: number,
-  includesPrivateRepositories: boolean,
-  signalType: SignalType,
-  activityWindowDays: number | undefined,
-  truncatedRepositoryCount: number,
-  activityAggregatesDeferred: boolean,
-  repositoryCollectionFailureCount: number,
-  overallAssessment: ScoreAssessment
+  input: ProfileInput, collection: ProfileCollection, evaluated: number, displayed: number,
+  assessment: ReturnType<typeof assessProfile>
 ): string[] {
+  return [
+    ...buildScopeLimitations(input.signalVisibility?.privateRepositoriesIncluded === true),
+    ...buildCollectionLimitations(input, collection),
+    ...buildSelectionLimitations(input.repositories.length, collection.eligibleRepositories.length, evaluated, displayed),
+    ...buildAssessmentLimitations(assessment.assessment, assessment.signalType)
+  ];
+}
+
+function buildScopeLimitations(includesPrivateRepositories: boolean): string[] {
   const limitations = [
     includesPrivateRepositories
       ? "This result includes owner-supplied private repositories that cannot be checked independently on public GitHub."
@@ -249,6 +250,13 @@ function buildLimitations(
     );
   }
 
+  return limitations;
+}
+
+function buildCollectionLimitations(input: ProfileInput, collection: ProfileCollection): string[] {
+  const { activityWindowDays, activityAggregatesDeferred } = input;
+  const { truncatedRepositoryCount, collectionFailureCount: repositoryCollectionFailureCount } = collection;
+  const limitations: string[] = [];
   if (activityWindowDays !== undefined) {
     limitations.push(`Only repositories active within the last ${activityWindowDays} days were collected.`);
   }
@@ -261,7 +269,7 @@ function buildLimitations(
     );
   }
 
-  if (activityAggregatesDeferred) {
+  if (activityAggregatesDeferred === true) {
     limitations.push(
       "Issue replies, pull request reviews, and outside contributors are not folded into this version's score."
     );
@@ -274,6 +282,11 @@ function buildLimitations(
     );
   }
 
+  return limitations;
+}
+
+function buildSelectionLimitations(total: number, eligible: number, evaluated: number, displayed: number): string[] {
+  const limitations: string[] = [];
   if (eligible === 0) {
     limitations.push("No eligible repositories were available for review.");
   }
@@ -290,6 +303,11 @@ function buildLimitations(
     );
   }
 
+  return limitations;
+}
+
+function buildAssessmentLimitations(overallAssessment: ScoreAssessment, signalType: SignalType): string[] {
+  const limitations: string[] = [];
   if (overallAssessment.coverage.expected > 0 && overallAssessment.coverage.ratio < 1) {
     limitations.push(
       `Buildmarks checked ${Math.round(overallAssessment.coverage.ratio * 100)}% of the project details used for this result.`
