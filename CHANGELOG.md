@@ -6,10 +6,17 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.5.0 - 2026-10-22
+
+- Count each case-insensitive owner/name identity once across imported profiles, scoring and GitHub pagination; reject conflicting observations instead of silently choosing one.
+- Treat unavailable or malformed repository trees as missing evidence rather than complete empty repositories.
+- Reserve output paths before collection and retain cross-process locks through publication and recovery so overlapping refreshes cannot overwrite newer results.
+- Bound shared GitHub request concurrency, queued work, response bytes, tree entries and total collection time; cancel sibling requests and release response readers on failure.
+- Keep retries limited to idempotent GitHub reads, preserve original failure causes, and expose optional cleanup diagnostics without hiding publication or recovery failures.
+- Snapshot caller-owned policy and observation data, centralize policy constants, and reuse profile assessments and indexed selections without changing ordering.
 - Compare coverage thresholds before display rounding, validate collection counts, and avoid rewarding invalid codebase metrics or selecting gaps from another owner's same-named repository.
 - Replay saved profile timestamps consistently and support optional evaluation time, caller cancellation and request timing dependencies.
 - Stop immediately on rate limits, preserve existing output on cancellation, and inject filesystem and ID-generation dependencies while cleaning only owned temporary and backup files.
-
 - Pin the internal Bun setup step to a full-length commit SHA so the Action keeps working in repositories that require SHA-pinned Actions.
 
 ## v0.4.0 - 2026-10-01
