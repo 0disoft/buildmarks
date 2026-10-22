@@ -15,9 +15,9 @@ export class GitHubCollectorError extends Error {
   constructor(
     code: GitHubCollectorErrorCode,
     message: string,
-    options: { status?: number; rateLimitReset?: string } = {}
+    options: ErrorOptions & { status?: number; rateLimitReset?: string } = {}
   ) {
-    super(message);
+    super(message, options);
     this.name = "GitHubCollectorError";
     this.code = code;
     if (options.status !== undefined) {
@@ -27,4 +27,18 @@ export class GitHubCollectorError extends Error {
       this.rateLimitReset = options.rateLimitReset;
     }
   }
+}
+
+/** Copy only diagnostic fields, never arbitrary adapter metadata or private names. */
+export function redactErrorCause(value: unknown, redact: (text: string) => string, seen = new Set<unknown>()): unknown {
+  if (typeof value === "string") return redact(value);
+  if (value === null || value === undefined || typeof value === "number" || typeof value === "boolean") return value;
+  if (!(value instanceof Error) || seen.has(value) || seen.size >= 8) return new Error("Redacted error detail.");
+  seen.add(value);
+  const copy = new Error(redact(value.message), "cause" in value ? { cause: redactErrorCause(value.cause, redact, seen) } : {});
+  copy.name = redact(value.name);
+  if (value.stack !== undefined) copy.stack = redact(value.stack);
+  const code = (value as Error & { code?: unknown }).code;
+  if (typeof code === "string") Object.assign(copy, { code: redact(code) });
+  return copy;
 }

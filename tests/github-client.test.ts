@@ -28,7 +28,7 @@ describe("GitHub response deadlines", () => {
       };
       await expect(fetchWithTimeout(fetcher, "https://api.github.com/test", {
         headers: {}, timeoutMilliseconds: 20, signal: new AbortController().signal
-      }, (response) => bodyKind === "json" ? response.json() : response.text())).rejects.toMatchObject({ name: "AbortError" });
+      }, (response) => bodyKind === "json" ? response.json() : response.text())).rejects.toMatchObject({ name: "TimeoutError" });
       expect(signal?.aborted).toBe(true);
       expect(bodyAborted).toBe(true);
     });

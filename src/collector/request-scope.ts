@@ -1,11 +1,11 @@
 /** Own every sibling request until it settles, retaining the first real failure. */
 export class RepositoryRequestScope {
   private readonly controller = new AbortController();
-  private readonly abortFromParent = () => this.controller.abort();
+  private readonly abortFromParent = () => this.controller.abort(this.parent.reason);
   private failure: { error: unknown } | undefined;
 
   constructor(private readonly parent: AbortSignal) {
-    if (parent.aborted) this.controller.abort();
+    if (parent.aborted) this.abortFromParent();
     else parent.addEventListener("abort", this.abortFromParent, { once: true });
   }
 
@@ -36,6 +36,6 @@ export class RepositoryRequestScope {
   private fail(error: unknown): void {
     if (this.failure !== undefined) return;
     this.failure = { error };
-    this.controller.abort();
+    this.controller.abort(error);
   }
 }

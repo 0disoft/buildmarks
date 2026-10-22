@@ -4,7 +4,9 @@ import { collectTreePathSignals, summarizeCodebaseShape, type GitHubTreeEntry } 
 import { GitHubCollectorError } from "./github-errors.js";
 import { fetchWithTimeout } from "./request-timeout.js";
 import { resolveCollectorRuntime, type GitHubCollectorRuntime } from "./runtime.js";
-import { isAbortError, runAbortable, throwIfCancelled } from "../shared/cancellation.js";
+import { cancellationError, isAbortError, runAbortable, throwIfCancelled } from "../shared/cancellation.js";
+import { isTransientReadError, readWithRetry } from "./read-retry.js";
+import { redactErrorCause } from "./github-errors.js";
 import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 export { GitHubCollectorError, type GitHubCollectorErrorCode } from "./github-errors.js";
 
@@ -155,7 +157,7 @@ class GitHubRestClient {
   private readonly runtime: GitHubCollectorRuntime;
   private readonly timeoutMilliseconds: number;
   private readonly callerSignal: AbortSignal | undefined;
-  private readonly abortFromCaller = () => this.abortPendingRequests();
+  private readonly abortFromCaller = () => this.batchAbortController.abort(cancellationError(this.callerSignal!));
 
   constructor(
     private readonly fetcher: GitHubCollectorFetch,
@@ -390,31 +392,21 @@ class GitHubRestClient {
     signal: AbortSignal = this.batchAbortController.signal
   ): Promise<T> {
     const headers = buildRequestHeaders(options.accept, this.token);
-    let lastError: unknown;
-    for (let attempt = 0; attempt <= githubRequestRetryCount; attempt += 1) {
-      try {
-        const result = await this.requestAttempt(path, headers, attempt, consume, signal);
-        if (!result.retry) return result.value;
-        await this.waitForRetry(attempt, signal);
-      } catch (error) {
-        throwIfCancelled(this.callerSignal);
-        if (signal.aborted) throw error;
-        if (error instanceof GitHubCollectorError || error instanceof SyntaxError) {
-          throw error;
-        }
-        lastError = error;
-        if (this.batchAbortController.signal.aborted || attempt === githubRequestRetryCount) {
-          break;
-        }
-
-        await this.waitForRetry(attempt, signal);
-      }
+    try {
+      return await readWithRetry(
+        attempt => this.requestAttempt(path, headers, attempt, consume, signal),
+        attempt => this.waitForRetry(attempt, signal), signal
+      );
+    } catch (error) {
+      throwIfCancelled(this.callerSignal);
+      signal.throwIfAborted();
+      if (!isTransientReadError(error)) throw error;
+      throw new GitHubCollectorError(
+        "github_request_failed",
+        `GitHub API request failed before its response was fully read while requesting ${path}: ${errorMessage(error)}`,
+        { cause: error }
+      );
     }
-
-    throw new GitHubCollectorError(
-      "github_request_failed",
-      `GitHub API request failed before its response was fully read while requesting ${path}: ${errorMessage(lastError)}`
-    );
   }
 
   private async requestAttempt<T>(
@@ -756,17 +748,12 @@ function redactPrivateRepositoryError(
     return error;
   }
 
-  let message = error.message;
-  for (const repository of repositories) {
-    if (!repository.private) {
-      continue;
-    }
-    for (const identifier of new Set([repository.name, encodeURIComponent(repository.name)])) {
-      message = message.replaceAll(identifier, "Private repository");
-    }
-  }
+  const identifiers = repositories.filter(repository => repository.private)
+    .flatMap(repository => [repository.name, encodeURIComponent(repository.name)]);
+  const redact = (text: string) => identifiers.reduce((value, identifier) => value.replaceAll(identifier, "Private repository"), text);
 
-  return new GitHubCollectorError(error.code, message, {
+  return new GitHubCollectorError(error.code, redact(error.message), {
+    ...("cause" in error ? { cause: redactErrorCause(error.cause, redact) } : {}),
     ...(error.status === undefined ? {} : { status: error.status }),
     ...(error.rateLimitReset === undefined ? {} : { rateLimitReset: error.rateLimitReset })
   });

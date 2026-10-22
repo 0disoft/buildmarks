@@ -15,8 +15,8 @@ export function resolveCollectorRuntime(runtime: Partial<GitHubCollectorRuntime>
   return {
     scheduleTimeout: schedule,
     sleep: runtime.sleep ?? ((milliseconds, signal) => new Promise<void>((resolve, reject) => {
-      if (signal.aborted) { reject(new DOMException("Retry wait was cancelled.", "AbortError")); return; }
-      const abort = () => { cancel(); signal.removeEventListener("abort", abort); reject(new DOMException("Retry wait was cancelled.", "AbortError")); };
+      if (signal.aborted) { reject(signal.reason); return; }
+      const abort = () => { cancel(); signal.removeEventListener("abort", abort); reject(signal.reason); };
       const cancel = schedule(() => { signal.removeEventListener("abort", abort); resolve(); }, milliseconds);
       signal.addEventListener("abort", abort, { once: true });
     }))

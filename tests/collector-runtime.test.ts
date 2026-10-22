@@ -300,7 +300,7 @@ describe("deterministic response deadlines", () => {
     }, response => response.text());
     void operation.catch(() => undefined);
     clock.advance(10000);
-    await expect(operation).rejects.toMatchObject({ name: "AbortError" });
+    await expect(operation).rejects.toMatchObject({ name: "TimeoutError" });
     deliver(new Response(new ReadableStream({ cancel() { cancelled = true; } })));
     await Promise.resolve();
     expect(cancelled).toBe(true);
@@ -323,7 +323,7 @@ describe("deterministic response deadlines", () => {
       void operation.catch(() => undefined);
       await started;
       clock.advance(9999); expect(requestSignal?.aborted).toBe(false);
-      clock.advance(1); await expect(operation).rejects.toMatchObject({ name: "AbortError" });
+      clock.advance(1); await expect(operation).rejects.toMatchObject({ name: "TimeoutError" });
       expect(requestSignal?.aborted).toBe(true); expect(clock.tasks.size).toBe(0);
     });
   }
