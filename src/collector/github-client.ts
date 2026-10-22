@@ -1,6 +1,9 @@
 import { collectTreePathSignals, summarizeCodebaseShape, type GitHubTreeEntry } from "./repository-tree-signals.js";
 import { GitHubCollectorError } from "./github-errors.js";
 import { fetchWithTimeout } from "./request-timeout.js";
+import { resolveCollectorRuntime, type GitHubCollectorRuntime } from "./runtime.js";
+import { isAbortError, runAbortable, throwIfCancelled } from "../shared/cancellation.js";
+import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 export { GitHubCollectorError, type GitHubCollectorErrorCode } from "./github-errors.js";
 
 import type {
@@ -36,12 +39,18 @@ export interface CollectPublicGitHubProfileOptions {
   policy?: GitHubCollectorPolicy;
   token?: string;
   fetcher?: GitHubCollectorFetch;
+  now?: Date;
+  signal?: AbortSignal;
+  timeoutMilliseconds?: number;
+  runtime?: Partial<GitHubCollectorRuntime>;
 }
 
 export async function collectOwnerSuppliedGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
 ): Promise<CollectedGitHubProfile> {
+  throwIfCancelled(options.signal);
+  const now = resolveEvaluationTime(options.now);
   const normalizedUsername = normalizeRequiredGitHubUsername(username);
   const policy = options.policy ?? privateLocalGitHubCollectorPolicy;
   const validation = validateGitHubCollectorPolicy(policy, { mode: "private-local" });
@@ -61,46 +70,51 @@ export async function collectOwnerSuppliedGitHubProfile(
     throw new GitHubCollectorError("missing_fetch", "Buildmarks requires a fetch implementation to collect GitHub data.");
   }
 
-  const client = new GitHubRestClient(fetcher, options.token, policy.limits.maxApiRequestsPerProfile);
-  await client.assertAuthenticatedOwner(normalizedUsername);
-  const repositories = await client.listAuthenticatedOwnerRepositories(
-    normalizedUsername,
-    policy.limits.maxRepositoriesScannedPerProfile
-  );
-  const activeRepositories = repositories.filter((repository) =>
-    wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
-  );
-  let collected: CollectedRepositoryBatch;
+  const client = new GitHubRestClient(fetcher, options.token, policy.limits.maxApiRequestsPerProfile, options);
   try {
-    collected = await collectRepositories(
-      activeRepositories,
-      policy.limits.maxConcurrentRepositoryCollections,
-      (repository) => client.collectRepository(repository),
-      () => client.abortPendingRequests()
+    await client.assertAuthenticatedOwner(normalizedUsername);
+    const repositories = await client.listAuthenticatedOwnerRepositories(
+      normalizedUsername,
+      policy.limits.maxRepositoriesScannedPerProfile
     );
-  } catch (error) {
-    throw redactPrivateRepositoryError(error, activeRepositories);
-  }
-  const repositoriesWithPrivateLabels = relabelPrivateRepositories(collected.repositories);
-  const includesPrivateRepositories = repositoriesWithPrivateLabels.some((repository) => repository.visibility === "private");
+    const activeRepositories = repositories.filter((repository) =>
+      wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays, now)
+    );
+    let collected: CollectedRepositoryBatch;
+    try {
+      collected = await collectRepositories(
+        activeRepositories,
+        policy.limits.maxConcurrentRepositoryCollections,
+        (repository) => client.collectRepository(repository),
+        () => client.abortPendingRequests()
+      );
+    } catch (error) {
+      throw redactPrivateRepositoryError(error, activeRepositories);
+    }
+    const repositoriesWithPrivateLabels = relabelPrivateRepositories(collected.repositories);
+    const includesPrivateRepositories = repositoriesWithPrivateLabels.some((repository) => repository.visibility === "private");
 
-  return {
-    username: normalizedUsername,
-    collectedAt: new Date().toISOString(),
-    activityWindowDays: policy.limits.repositoryActivityWindowDays,
-    activityAggregatesDeferred,
-    ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
-    repositoryCollectionAttemptCount: activeRepositories.length,
-    ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
-    signalVisibility: includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility,
-    repositories: repositoriesWithPrivateLabels
-  };
+    throwIfCancelled(options.signal);
+    return {
+      username: normalizedUsername,
+      collectedAt: now.toISOString(),
+      activityWindowDays: policy.limits.repositoryActivityWindowDays,
+      activityAggregatesDeferred,
+      ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
+      repositoryCollectionAttemptCount: activeRepositories.length,
+      ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
+      signalVisibility: includesPrivateRepositories ? privateLocalSignalVisibility : publicOnlySignalVisibility,
+      repositories: repositoriesWithPrivateLabels
+    };
+  } finally { client.dispose(); }
 }
 
 export async function collectPublicGitHubProfile(
   username: string,
   options: CollectPublicGitHubProfileOptions = {}
 ): Promise<CollectedGitHubProfile> {
+  throwIfCancelled(options.signal);
+  const now = resolveEvaluationTime(options.now);
   const normalizedUsername = normalizeRequiredGitHubUsername(username);
   const policy = options.policy ?? defaultGitHubCollectorPolicy;
   const validation = validateGitHubCollectorPolicy(policy);
@@ -113,29 +127,32 @@ export async function collectPublicGitHubProfile(
     throw new GitHubCollectorError("missing_fetch", "Buildmarks requires a fetch implementation to collect GitHub data.");
   }
 
-  const client = new GitHubRestClient(fetcher, options.token, policy.limits.maxApiRequestsPerProfile);
-  const repositories = await client.listUserRepositories(normalizedUsername, policy.limits.maxRepositoriesScannedPerProfile);
-  const activeRepositories = repositories.filter((repository) =>
-    wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays)
-  );
-  const collected = await collectRepositories(
-    activeRepositories,
-    policy.limits.maxConcurrentRepositoryCollections,
-    (repository) => client.collectRepository(repository),
-    () => client.abortPendingRequests()
-  );
+  const client = new GitHubRestClient(fetcher, options.token, policy.limits.maxApiRequestsPerProfile, options);
+  try {
+    const repositories = await client.listUserRepositories(normalizedUsername, policy.limits.maxRepositoriesScannedPerProfile);
+    const activeRepositories = repositories.filter((repository) =>
+      wasPushedWithinWindow(repository.pushed_at, policy.limits.repositoryActivityWindowDays, now)
+    );
+    const collected = await collectRepositories(
+      activeRepositories,
+      policy.limits.maxConcurrentRepositoryCollections,
+      (repository) => client.collectRepository(repository),
+      () => client.abortPendingRequests()
+    );
 
-  return {
-    username: normalizedUsername,
-    collectedAt: new Date().toISOString(),
-    activityWindowDays: policy.limits.repositoryActivityWindowDays,
-    activityAggregatesDeferred,
-    ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
-    repositoryCollectionAttemptCount: activeRepositories.length,
-    ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
-    signalVisibility: publicOnlySignalVisibility,
-    repositories: collected.repositories
-  };
+    throwIfCancelled(options.signal);
+    return {
+      username: normalizedUsername,
+      collectedAt: now.toISOString(),
+      activityWindowDays: policy.limits.repositoryActivityWindowDays,
+      activityAggregatesDeferred,
+      ...(collected.failureCount === 0 ? {} : { repositoryCollectionFailureCount: collected.failureCount }),
+      repositoryCollectionAttemptCount: activeRepositories.length,
+      ...(collected.failures.length === 0 ? {} : { repositoryCollectionFailures: collected.failures }),
+      signalVisibility: publicOnlySignalVisibility,
+      repositories: collected.repositories
+    };
+  } finally { client.dispose(); }
 }
 
 function normalizeRequiredGitHubUsername(username: string): string {
@@ -150,12 +167,28 @@ function normalizeRequiredGitHubUsername(username: string): string {
 class GitHubRestClient {
   private readonly batchAbortController = new AbortController();
   private requestCount = 0;
+  private readonly runtime: GitHubCollectorRuntime;
+  private readonly timeoutMilliseconds: number;
+  private readonly abortFromCaller = () => this.abortPendingRequests();
 
   constructor(
     private readonly fetcher: GitHubCollectorFetch,
     private readonly token: string | undefined,
-    private readonly maxRequests: number
-  ) {}
+    private readonly maxRequests: number,
+    private readonly options: CollectPublicGitHubProfileOptions
+  ) {
+    this.runtime = resolveCollectorRuntime(options.runtime);
+    this.timeoutMilliseconds = options.timeoutMilliseconds ?? githubRequestTimeoutMilliseconds;
+    if (!Number.isSafeInteger(this.timeoutMilliseconds) || this.timeoutMilliseconds <= 0 || this.timeoutMilliseconds > 2_147_483_647) {
+      throw new GitHubCollectorError("invalid_policy", "Request timeout must be a positive integer at most 2147483647 milliseconds.");
+    }
+    throwIfCancelled(options.signal);
+    options.signal?.addEventListener("abort", this.abortFromCaller, { once: true });
+  }
+
+  dispose(): void {
+    this.options.signal?.removeEventListener("abort", this.abortFromCaller);
+  }
 
   abortPendingRequests(): void {
     this.batchAbortController.abort();
@@ -413,12 +446,19 @@ class GitHubRestClient {
 
     for (let attempt = 0; attempt <= githubRequestRetryCount; attempt += 1) {
       try {
+        throwIfCancelled(this.options.signal);
+        this.batchAbortController.signal.throwIfAborted();
         this.consumeRequestBudget(path);
         const result = await fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
           headers,
-          timeoutMilliseconds: githubRequestTimeoutMilliseconds,
-          signal: this.batchAbortController.signal
+          timeoutMilliseconds: this.timeoutMilliseconds,
+          signal: this.batchAbortController.signal,
+          scheduleTimeout: this.runtime.scheduleTimeout
         }, async (response): Promise<{ retry: true } | { retry: false; value: T }> => {
+          if (isRateLimitResponse(response)) {
+            await response.body?.cancel();
+            await assertOkResponse(response, path);
+          }
           if (shouldRetryResponse(response) && attempt < githubRequestRetryCount) {
             await response.body?.cancel();
             return { retry: true };
@@ -430,8 +470,9 @@ class GitHubRestClient {
           return result.value;
         }
 
-        await sleep(retryDelayMilliseconds(attempt));
+        await this.waitForRetry(attempt);
       } catch (error) {
+        throwIfCancelled(this.options.signal);
         if (error instanceof GitHubCollectorError || error instanceof SyntaxError) {
           throw error;
         }
@@ -440,7 +481,7 @@ class GitHubRestClient {
           break;
         }
 
-        await sleep(retryDelayMilliseconds(attempt));
+        await this.waitForRetry(attempt);
       }
     }
 
@@ -448,6 +489,11 @@ class GitHubRestClient {
       "github_request_failed",
       `GitHub API request failed before its response was fully read while requesting ${path}: ${errorMessage(lastError)}`
     );
+  }
+
+  private async waitForRetry(attempt: number): Promise<void> {
+    const signal = this.batchAbortController.signal;
+    await runAbortable(() => this.runtime.sleep(retryDelayMilliseconds(attempt), signal), signal);
   }
 
   private consumeRequestBudget(path: string): void {
@@ -683,7 +729,7 @@ function compareRepositoryCollectionFailures(
 }
 
 function shouldAbortRepositoryBatch(error: unknown): boolean {
-  return error instanceof GitHubCollectorError &&
+  return isAbortError(error) || error instanceof GitHubCollectorError &&
     (error.code === "github_rate_limited" || error.code === "github_request_budget_exhausted");
 }
 
@@ -830,7 +876,7 @@ function isMissingResponse(response: Response): boolean {
 }
 
 function shouldRetryResponse(response: Response): boolean {
-  return response.status === 429 || (response.status >= 500 && response.status <= 599);
+  return response.status >= 500 && response.status <= 599;
 }
 
 function retryDelayMilliseconds(attempt: number): number {
@@ -839,10 +885,6 @@ function retryDelayMilliseconds(attempt: number): number {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "unknown error";
-}
-
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function requireString(record: Record<string, unknown>, key: string): string {
@@ -897,7 +939,7 @@ function responseArrayHasItems(value: unknown, label: string): boolean {
   return value.length > 0;
 }
 
-function wasPushedWithinWindow(value: string | null, days: number, now = new Date()): boolean {
+function wasPushedWithinWindow(value: string | null, days: number, now: Date): boolean {
   if (value === null) {
     return false;
   }

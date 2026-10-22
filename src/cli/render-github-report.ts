@@ -1,3 +1,4 @@
+import { throwIfCancelled } from "../shared/cancellation";
 import { mkdir } from "node:fs/promises";
 import { isMainModule } from "./main";
 import { join } from "node:path";
@@ -33,6 +34,7 @@ export async function renderGitHubReportFiles(
   outputDirectory: string,
   options: RenderGitHubReportFilesOptions = {}
 ): Promise<RenderGitHubReportFilesResult> {
+  throwIfCancelled(options.signal);
   const normalizedUsername = resolveRequiredGitHubUsername(username);
   const resolvedOutputDirectory = resolveRequiredPath(outputDirectory, "Output report directory");
   const htmlPath = join(resolvedOutputDirectory, "buildmarks-report.html");
@@ -45,6 +47,7 @@ export async function renderGitHubReportFiles(
       ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
       : await collectPublicGitHubProfile(normalizedUsername, options);
     const profile = normalizePublicGitHubProfile(collected);
+    throwIfCancelled(options.signal);
     const scoringOptions = options.policy === undefined
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
@@ -65,6 +68,7 @@ export async function renderGitHubReportFiles(
       jsonPath
     };
   } catch (error) {
+    throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown GitHub report render failure";
     if (await hasExistingOutput([htmlPath, jsonPath])) {
       return {

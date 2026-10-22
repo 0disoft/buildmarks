@@ -1,3 +1,4 @@
+import { throwIfCancelled } from "../shared/cancellation";
 import { mkdir } from "node:fs/promises";
 import { isMainModule } from "./main";
 import { dirname } from "node:path";
@@ -35,6 +36,7 @@ export async function renderGitHubCardFile(
   outputPath: string,
   options: RenderGitHubCardFileOptions = {}
 ): Promise<RenderGitHubCardFileResult> {
+  throwIfCancelled(options.signal);
   const normalizedUsername = resolveRequiredGitHubUsername(username);
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
 
@@ -45,6 +47,7 @@ export async function renderGitHubCardFile(
       ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
       : await collectPublicGitHubProfile(normalizedUsername, options);
     const profile = normalizePublicGitHubProfile(collected);
+    throwIfCancelled(options.signal);
     const scoringOptions = options.policy === undefined
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
@@ -85,6 +88,7 @@ export async function renderGitHubCardFile(
       fallback: false
     };
   } catch (error) {
+    throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown GitHub render failure";
     if (await hasExistingOutput([resolvedOutputPath])) {
       return {

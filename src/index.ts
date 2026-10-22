@@ -50,6 +50,7 @@ export {
   signalTypes
 } from "./shared/types.js";
 export { buildmarksVersion } from "./shared/version.js";
+export type { GitHubCollectorRuntime, TimeoutScheduler } from "./collector/runtime.js";
 export { normalizePublicGitHubProfile } from "./collector/normalize-public-profile.js";
 export {
   collectOwnerSuppliedGitHubProfile,

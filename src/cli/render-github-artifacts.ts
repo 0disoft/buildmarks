@@ -1,3 +1,4 @@
+import { throwIfCancelled } from "../shared/cancellation";
 import { mkdir } from "node:fs/promises";
 import { isMainModule } from "./main";
 import { dirname, join } from "node:path";
@@ -40,6 +41,7 @@ export async function renderGitHubArtifacts(
   reportOutputDirectory: string,
   options: RenderGitHubArtifactsOptions = {}
 ): Promise<RenderGitHubArtifactsResult> {
+  throwIfCancelled(options.signal);
   const normalizedUsername = resolveRequiredGitHubUsername(username);
   const resolvedSvgPath = resolveRequiredPath(svgOutputPath, "Output SVG path");
   const resolvedReportDirectory = resolveRequiredPath(reportOutputDirectory, "Output report directory");
@@ -54,6 +56,7 @@ export async function renderGitHubArtifacts(
       ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
       : await collectPublicGitHubProfile(normalizedUsername, options);
     const profile = normalizePublicGitHubProfile(collected);
+    throwIfCancelled(options.signal);
     const scoringOptions = options.policy === undefined
       ? {}
       : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
@@ -75,6 +78,7 @@ export async function renderGitHubArtifacts(
       fallback: false
     };
   } catch (error) {
+    throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown GitHub artifact render failure";
     if (await hasExistingOutput([resolvedSvgPath, htmlPath, jsonPath])) {
       return {
