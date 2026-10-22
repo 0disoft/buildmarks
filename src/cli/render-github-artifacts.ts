@@ -1,5 +1,5 @@
 import { throwIfCancelled } from "../shared/cancellation";
-import { mkdir } from "node:fs/promises";
+import { resolveFileSystem, type RenderFileOptions } from "./file-system";
 import { isMainModule } from "./main";
 import { dirname, join } from "node:path";
 import { parseCardLayoutOptions } from "./card-options";
@@ -19,7 +19,7 @@ import {
   type RenderCardOptions
 } from "../index";
 
-export interface RenderGitHubArtifactsOptions extends CollectPublicGitHubProfileOptions, RenderCardOptions {
+export interface RenderGitHubArtifactsOptions extends CollectPublicGitHubProfileOptions, RenderFileOptions, RenderCardOptions {
   privateLocal?: boolean;
 }
 
@@ -42,14 +42,17 @@ export async function renderGitHubArtifacts(
   options: RenderGitHubArtifactsOptions = {}
 ): Promise<RenderGitHubArtifactsResult> {
   throwIfCancelled(options.signal);
+  const fs = resolveFileSystem(options.fileSystem);
   const normalizedUsername = resolveRequiredGitHubUsername(username);
   const resolvedSvgPath = resolveRequiredPath(svgOutputPath, "Output SVG path");
   const resolvedReportDirectory = resolveRequiredPath(reportOutputDirectory, "Output report directory");
   const htmlPath = join(resolvedReportDirectory, "buildmarks-report.html");
   const jsonPath = join(resolvedReportDirectory, "buildmarks-report.json");
 
-  await mkdir(dirname(resolvedSvgPath), { recursive: true });
-  await mkdir(resolvedReportDirectory, { recursive: true });
+  throwIfCancelled(options.signal);
+  await fs.mkdir(dirname(resolvedSvgPath), { recursive: true });
+  throwIfCancelled(options.signal);
+  await fs.mkdir(resolvedReportDirectory, { recursive: true });
 
   try {
     const collected = options.privateLocal === true
@@ -66,7 +69,7 @@ export async function renderGitHubArtifacts(
       { path: resolvedSvgPath, content: renderUserSignalCard(staticReport.profile, options) },
       { path: htmlPath, content: renderStaticReportHtml(staticReport) },
       { path: jsonPath, content: `${JSON.stringify(staticReport, null, 2)}\n` }
-    ]);
+    ], undefined, options);
 
     return {
       ok: true,
@@ -78,9 +81,9 @@ export async function renderGitHubArtifacts(
       fallback: false
     };
   } catch (error) {
-    throwIfCancelled(options.signal);
+    if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown GitHub artifact render failure";
-    if (await hasExistingOutput([resolvedSvgPath, htmlPath, jsonPath])) {
+    if (await hasExistingOutput([resolvedSvgPath, htmlPath, jsonPath], options)) {
       return {
         ok: false,
         username: normalizedUsername,
@@ -114,7 +117,7 @@ export async function renderGitHubArtifacts(
       { path: resolvedSvgPath, content: renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now", options) },
       { path: htmlPath, content: fallbackHtml },
       { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
-    ]);
+    ], options);
 
     return {
       ok: false,

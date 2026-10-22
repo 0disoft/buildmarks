@@ -1,5 +1,5 @@
 import { throwIfCancelled } from "../shared/cancellation";
-import { mkdir } from "node:fs/promises";
+import { resolveFileSystem, type RenderFileOptions } from "./file-system";
 import { isMainModule } from "./main";
 import { dirname } from "node:path";
 import { parseCardLayoutOptions } from "./card-options";
@@ -18,7 +18,7 @@ import {
   type RenderCardOptions
 } from "../index";
 
-export interface RenderGitHubCardFileOptions extends CollectPublicGitHubProfileOptions, RenderCardOptions {
+export interface RenderGitHubCardFileOptions extends CollectPublicGitHubProfileOptions, RenderFileOptions, RenderCardOptions {
   privateLocal?: boolean;
 }
 
@@ -37,10 +37,12 @@ export async function renderGitHubCardFile(
   options: RenderGitHubCardFileOptions = {}
 ): Promise<RenderGitHubCardFileResult> {
   throwIfCancelled(options.signal);
+  const fs = resolveFileSystem(options.fileSystem);
   const normalizedUsername = resolveRequiredGitHubUsername(username);
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
 
-  await mkdir(dirname(resolvedOutputPath), { recursive: true });
+  throwIfCancelled(options.signal);
+  await fs.mkdir(dirname(resolvedOutputPath), { recursive: true });
 
   try {
     const collected = options.privateLocal === true
@@ -54,7 +56,7 @@ export async function renderGitHubCardFile(
     const report = scoreUserProfile(profile, scoringOptions);
     if (report.evidenceStatus === "insufficient") {
       const message = new InsufficientEvidenceError(profile).message;
-      if (await hasExistingOutput([resolvedOutputPath])) {
+      if (await hasExistingOutput([resolvedOutputPath], options)) {
         return {
           ok: false,
           username: profile.username,
@@ -68,7 +70,7 @@ export async function renderGitHubCardFile(
       const writeError = await tryWriteTextFile(
         resolvedOutputPath,
         renderFallbackCard("Not enough complete repository data to calculate a reliable score", options)
-      );
+      , options);
       return {
         ok: false,
         username: profile.username,
@@ -79,7 +81,7 @@ export async function renderGitHubCardFile(
     }
     const svg = renderUserSignalCard(report, options);
 
-    await writeTextFileAtomically(resolvedOutputPath, svg);
+    await writeTextFileAtomically(resolvedOutputPath, svg, options);
 
     return {
       ok: true,
@@ -90,7 +92,7 @@ export async function renderGitHubCardFile(
   } catch (error) {
     throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown GitHub render failure";
-    if (await hasExistingOutput([resolvedOutputPath])) {
+    if (await hasExistingOutput([resolvedOutputPath], options)) {
       return {
         ok: false,
         username: normalizedUsername,
@@ -101,7 +103,7 @@ export async function renderGitHubCardFile(
       };
     }
     const svg = renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now", options);
-    const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
+    const writeError = await tryWriteTextFile(resolvedOutputPath, svg, options);
 
     return {
       ok: false,

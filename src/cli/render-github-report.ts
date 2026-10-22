@@ -1,5 +1,5 @@
 import { throwIfCancelled } from "../shared/cancellation";
-import { mkdir } from "node:fs/promises";
+import { resolveFileSystem, type RenderFileOptions } from "./file-system";
 import { isMainModule } from "./main";
 import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
@@ -15,7 +15,7 @@ import {
   type CollectPublicGitHubProfileOptions
 } from "../index";
 
-export interface RenderGitHubReportFilesOptions extends CollectPublicGitHubProfileOptions {
+export interface RenderGitHubReportFilesOptions extends CollectPublicGitHubProfileOptions, RenderFileOptions {
   privateLocal?: boolean;
 }
 
@@ -35,12 +35,14 @@ export async function renderGitHubReportFiles(
   options: RenderGitHubReportFilesOptions = {}
 ): Promise<RenderGitHubReportFilesResult> {
   throwIfCancelled(options.signal);
+  const fs = resolveFileSystem(options.fileSystem);
   const normalizedUsername = resolveRequiredGitHubUsername(username);
   const resolvedOutputDirectory = resolveRequiredPath(outputDirectory, "Output report directory");
   const htmlPath = join(resolvedOutputDirectory, "buildmarks-report.html");
   const jsonPath = join(resolvedOutputDirectory, "buildmarks-report.json");
 
-  await mkdir(resolvedOutputDirectory, { recursive: true });
+  throwIfCancelled(options.signal);
+  await fs.mkdir(resolvedOutputDirectory, { recursive: true });
 
   try {
     const collected = options.privateLocal === true
@@ -58,7 +60,7 @@ export async function renderGitHubReportFiles(
     await writeTextFilesAsSet([
       { path: htmlPath, content: html },
       { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
-    ]);
+    ], undefined, options);
 
     return {
       ok: true,
@@ -68,9 +70,9 @@ export async function renderGitHubReportFiles(
       jsonPath
     };
   } catch (error) {
-    throwIfCancelled(options.signal);
+    if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown GitHub report render failure";
-    if (await hasExistingOutput([htmlPath, jsonPath])) {
+    if (await hasExistingOutput([htmlPath, jsonPath], options)) {
       return {
         ok: false,
         username: normalizedUsername,
@@ -101,7 +103,7 @@ export async function renderGitHubReportFiles(
     const fallbackWriteFailure = await tryWriteTextFilesAsSet([
       { path: htmlPath, content: fallbackHtml },
       { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
-    ]);
+    ], options);
 
     return {
       ok: false,

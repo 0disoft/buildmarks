@@ -1,4 +1,5 @@
-import { mkdir, readFile } from "node:fs/promises";
+import { readProfileSource, resolveFileSystem } from "./file-system";
+import { throwIfCancelled } from "../shared/cancellation";
 import { join } from "node:path";
 import { createStaticReport, renderStaticReportHtml } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
@@ -22,16 +23,20 @@ export async function renderReportFiles(
   outputDirectory: string,
   options: LocalRenderOptions = {}
 ): Promise<RenderReportFileResult> {
+  throwIfCancelled(options.signal);
+  const fs = resolveFileSystem(options.fileSystem);
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputDirectory = resolveRequiredPath(outputDirectory, "Output report directory");
   const htmlPath = join(resolvedOutputDirectory, "buildmarks-report.html");
   const jsonPath = join(resolvedOutputDirectory, "buildmarks-report.json");
-  await assertInputNotReplaced(resolvedInputPath, [htmlPath, jsonPath]);
+  await assertInputNotReplaced(resolvedInputPath, [htmlPath, jsonPath], options);
 
-  await mkdir(resolvedOutputDirectory, { recursive: true });
+  throwIfCancelled(options.signal);
+  await fs.mkdir(resolvedOutputDirectory, { recursive: true });
 
   try {
-    const rawInput = await readFile(resolvedInputPath, "utf8");
+    const rawInput = await readProfileSource(resolvedInputPath, options);
+    throwIfCancelled(options.signal);
     const profile = parseProfileInput(JSON.parse(rawInput));
     const report = createStaticReport(profile, options);
     const html = renderStaticReportHtml(report);
@@ -39,7 +44,7 @@ export async function renderReportFiles(
     await writeTextFilesAsSet([
       { path: htmlPath, content: html },
       { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
-    ]);
+    ], undefined, options);
 
     return {
       ok: true,
@@ -49,6 +54,7 @@ export async function renderReportFiles(
       jsonPath
     };
   } catch (error) {
+    if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown report render failure";
     if (error instanceof OutputSetRollbackError) {
       return { ok: false, inputPath: resolvedInputPath, outputDirectory: resolvedOutputDirectory, htmlPath, jsonPath, error: message };
@@ -72,7 +78,7 @@ export async function renderReportFiles(
     const fallbackWriteFailure = await tryWriteTextFilesAsSet([
       { path: htmlPath, content: fallbackHtml },
       { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
-    ]);
+    ], options);
 
     return {
       ok: false,

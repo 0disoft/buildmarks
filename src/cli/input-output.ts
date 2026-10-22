@@ -1,5 +1,6 @@
-import { realpath, stat } from "node:fs/promises";
-import { basename, dirname, resolve } from "node:path";
+import { resolve } from "node:path";
+import { canonicalFilePath, resolveFileSystem, type RenderFileOptions, type RenderFileSystem } from "./file-system.js";
+import { throwIfCancelled } from "../shared/cancellation.js";
 
 export class InputOutputCollisionError extends Error {
   constructor(outputPath: string) {
@@ -9,36 +10,28 @@ export class InputOutputCollisionError extends Error {
 }
 
 /** Validate all destinations before creating directories or publishing fallback output. */
-export async function assertInputNotReplaced(inputPath: string, outputPaths: readonly string[]): Promise<void> {
+export async function assertInputNotReplaced(inputPath: string, outputPaths: readonly string[], options: RenderFileOptions = {}): Promise<void> {
+  throwIfCancelled(options.signal);
+  const fs = resolveFileSystem(options.fileSystem);
   const input = resolve(inputPath);
-  const inputIdentity = await canonicalPath(input);
-  const inputFile = await fileIdentity(input);
+  const inputIdentity = await canonicalFilePath(input, fs);
+  const inputFile = await fileIdentity(input, fs);
   for (const path of outputPaths) {
+    throwIfCancelled(options.signal);
     const output = resolve(path);
-    if (output === input || await canonicalPath(output) === inputIdentity) {
+    if (output === input || await canonicalFilePath(output, fs) === inputIdentity) {
       throw new InputOutputCollisionError(output);
     }
-    const outputFile = await fileIdentity(output);
+    const outputFile = await fileIdentity(output, fs);
     if (inputFile && outputFile && inputFile.ino !== 0n && inputFile.dev === outputFile.dev && inputFile.ino === outputFile.ino) {
       throw new InputOutputCollisionError(output);
     }
   }
 }
 
-async function canonicalPath(path: string): Promise<string> {
+async function fileIdentity(path: string, fs: RenderFileSystem) {
   try {
-    return await realpath(path);
-  } catch (error) {
-    if (!isMissingPath(error)) throw error;
-    const parent = dirname(path);
-    if (parent === path) return path;
-    return resolve(await canonicalPath(parent), basename(path));
-  }
-}
-
-async function fileIdentity(path: string) {
-  try {
-    return await stat(path, { bigint: true });
+    return await fs.stat(path, { bigint: true });
   } catch (error) {
     if (!isMissingPath(error)) throw error;
     return undefined;

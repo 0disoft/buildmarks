@@ -1,4 +1,5 @@
-import { mkdir, readFile } from "node:fs/promises";
+import { readProfileSource, resolveFileSystem } from "./file-system";
+import { throwIfCancelled } from "../shared/cancellation";
 import { dirname } from "node:path";
 import { analyzeSignalGaps, renderFallbackCard, renderSignalGapsCard } from "../index";
 import { isOptionLikeArgument, unknownOptionMessage } from "./args";
@@ -21,19 +22,23 @@ export async function renderGapsCardFile(
   outputPath: string,
   options: LocalRenderOptions = {}
 ): Promise<RenderGapsCardFileResult> {
+  throwIfCancelled(options.signal);
+  const fs = resolveFileSystem(options.fileSystem);
   const resolvedInputPath = resolveRequiredPath(inputPath, "Profile JSON path");
   const resolvedOutputPath = resolveRequiredPath(outputPath, "Output SVG path");
-  await assertInputNotReplaced(resolvedInputPath, [resolvedOutputPath]);
+  await assertInputNotReplaced(resolvedInputPath, [resolvedOutputPath], options);
 
-  await mkdir(dirname(resolvedOutputPath), { recursive: true });
+  throwIfCancelled(options.signal);
+  await fs.mkdir(dirname(resolvedOutputPath), { recursive: true });
 
   try {
-    const rawInput = await readFile(resolvedInputPath, "utf8");
+    const rawInput = await readProfileSource(resolvedInputPath, options);
+    throwIfCancelled(options.signal);
     const profile = parseProfileInput(JSON.parse(rawInput));
     const report = analyzeSignalGaps(profile, options);
     const svg = renderSignalGapsCard(report, options);
 
-    await writeTextFileAtomically(resolvedOutputPath, svg);
+    await writeTextFileAtomically(resolvedOutputPath, svg, options);
 
     return {
       ok: true,
@@ -42,9 +47,10 @@ export async function renderGapsCardFile(
       fallback: false
     };
   } catch (error) {
+    throwIfCancelled(options.signal);
     const message = error instanceof Error ? error.message : "unknown gaps render failure";
     const svg = renderFallbackCard("Buildmarks couldn't generate project suggestions right now");
-    const writeError = await tryWriteTextFile(resolvedOutputPath, svg);
+    const writeError = await tryWriteTextFile(resolvedOutputPath, svg, options);
 
     return {
       ok: false,

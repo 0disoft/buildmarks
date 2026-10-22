@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { resolveFileSystem, type RenderFileOptions } from "./file-system.js";
 import type { ProfileInput, UserSignalReport } from "../shared/types.js";
 
 export class InsufficientEvidenceError extends Error {
@@ -23,10 +23,11 @@ export function assertSufficientEvidence(profile: ProfileInput, report: UserSign
   }
 }
 
-export async function hasExistingOutput(paths: readonly string[]): Promise<boolean> {
+export async function hasExistingOutput(paths: readonly string[], options: RenderFileOptions = {}): Promise<boolean> {
+  const fs = resolveFileSystem(options.fileSystem);
   for (const path of paths) {
     try {
-      await access(path);
+      await fs.access(path);
       return true;
     } catch (error) {
       // Permission and I/O failures are not proof that a destination is absent.
