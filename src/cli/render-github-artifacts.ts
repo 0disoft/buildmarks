@@ -1,3 +1,4 @@
+import { withOutputLocks } from "./output-lock.js";
 import { throwIfCancelled } from "../shared/cancellation";
 import { resolveFileSystem, type RenderFileOptions } from "./file-system";
 import { isMainModule } from "./main";
@@ -54,28 +55,30 @@ export async function renderGitHubArtifacts(
   await fs.mkdir(resolvedReportDirectory, { recursive: true });
 
   const destinations = { svgPath: resolvedSvgPath, reportDirectory: resolvedReportDirectory, htmlPath, jsonPath };
-  try {
-    const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, options);
-    const report = createStaticReport(profile, scoringOptions);
-    assertSufficientEvidence(profile, report.profile);
-    await writeTextFilesAsSet([
-      { path: resolvedSvgPath, content: renderUserSignalCard(report.profile, options) },
-      { path: htmlPath, content: renderStaticReportHtml(report) },
-      { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
-    ], undefined, options);
-    return { ok: true, username: report.profile.username, ...destinations, fallback: false };
-  } catch (error) {
-    const failure = await recoverGitHubOutput(error, {
-      paths: [resolvedSvgPath, htmlPath, jsonPath],
-      unknownErrorMessage: "unknown GitHub artifact render failure",
-      fallbackLabel: "Fallback artifact",
-      writeFallback: (message, lockedOptions) => tryWriteTextFilesAsSet([
-        { path: resolvedSvgPath, content: renderFallbackCard(githubRefreshFailureMessage, options) },
-        ...fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath)
-      ], lockedOptions)
-    }, options);
-    return { ok: false, username: normalizedUsername, ...destinations, ...failure };
-  }
+  return withOutputLocks([resolvedSvgPath, htmlPath, jsonPath], options, async lockedOptions => {
+    try {
+      const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, lockedOptions);
+      const report = createStaticReport(profile, scoringOptions);
+      assertSufficientEvidence(profile, report.profile);
+      await writeTextFilesAsSet([
+        { path: resolvedSvgPath, content: renderUserSignalCard(report.profile, lockedOptions) },
+        { path: htmlPath, content: renderStaticReportHtml(report) },
+        { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
+      ], undefined, lockedOptions);
+      return { ok: true, username: report.profile.username, ...destinations, fallback: false };
+    } catch (error) {
+      const failure = await recoverGitHubOutput(error, {
+        paths: [resolvedSvgPath, htmlPath, jsonPath],
+        unknownErrorMessage: "unknown GitHub artifact render failure",
+        fallbackLabel: "Fallback artifact",
+        writeFallback: (message, recoveryOptions) => tryWriteTextFilesAsSet([
+          { path: resolvedSvgPath, content: renderFallbackCard(githubRefreshFailureMessage, lockedOptions) },
+          ...fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath)
+        ], recoveryOptions)
+      }, lockedOptions);
+      return { ok: false, username: normalizedUsername, ...destinations, ...failure };
+    }
+  });
 }
 
 function resolveRequiredGitHubUsername(username: string): string {
@@ -83,7 +86,6 @@ function resolveRequiredGitHubUsername(username: string): string {
   if (normalizedUsername === "") {
     throw new Error("GitHub username is required.");
   }
-
   return normalizedUsername;
 }
 

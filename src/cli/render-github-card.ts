@@ -1,3 +1,4 @@
+import { withOutputLocks } from "./output-lock.js";
 import { throwIfCancelled } from "../shared/cancellation";
 import { isOutputSafetyError } from "./output-errors.js";
 import { resolveFileSystem, type RenderFileOptions } from "./file-system";
@@ -44,24 +45,26 @@ export async function renderGitHubCardFile(
   throwIfCancelled(options.signal);
   await fs.mkdir(dirname(resolvedOutputPath), { recursive: true });
 
-  try {
-    const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, options);
-    const report = scoreUserProfile(profile, scoringOptions);
-    if (report.evidenceStatus === "insufficient") {
-      const failure = await recoverGitHubCard(
-        new InsufficientEvidenceError(profile), resolvedOutputPath,
-        "Not enough complete repository data to calculate a reliable score", options
-      );
-      return { ok: false, username: profile.username, outputPath: resolvedOutputPath, ...failure };
+  return withOutputLocks([resolvedOutputPath], options, async lockedOptions => {
+    try {
+      const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, lockedOptions);
+      const report = scoreUserProfile(profile, scoringOptions);
+      if (report.evidenceStatus === "insufficient") {
+        const failure = await recoverGitHubCard(
+          new InsufficientEvidenceError(profile), resolvedOutputPath,
+          "Not enough complete repository data to calculate a reliable score", lockedOptions
+        );
+        return { ok: false, username: profile.username, outputPath: resolvedOutputPath, ...failure };
+      }
+      await writeTextFileAtomically(resolvedOutputPath, renderUserSignalCard(report, lockedOptions), lockedOptions);
+      return { ok: true, username: profile.username, outputPath: resolvedOutputPath, fallback: false };
+    } catch (error) {
+      if (isOutputSafetyError(error)) throw error;
+      throwIfCancelled(lockedOptions.signal);
+      const failure = await recoverGitHubCard(error, resolvedOutputPath, githubRefreshFailureMessage, lockedOptions);
+      return { ok: false, username: normalizedUsername, outputPath: resolvedOutputPath, ...failure };
     }
-    await writeTextFileAtomically(resolvedOutputPath, renderUserSignalCard(report, options), options);
-    return { ok: true, username: profile.username, outputPath: resolvedOutputPath, fallback: false };
-  } catch (error) {
-    if (isOutputSafetyError(error)) throw error;
-    throwIfCancelled(options.signal);
-    const failure = await recoverGitHubCard(error, resolvedOutputPath, githubRefreshFailureMessage, options);
-    return { ok: false, username: normalizedUsername, outputPath: resolvedOutputPath, ...failure };
-  }
+  });
 }
 
 function recoverGitHubCard(error: unknown, path: string, fallbackMessage: string, options: RenderGitHubCardFileOptions) {

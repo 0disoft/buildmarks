@@ -10,6 +10,9 @@ import { writeTextFileAtomically, writeTextFilesAsSet } from "../src/cli/write-o
 import { renderCardFile } from "../src/cli/render-card";
 import { renderGitHubCardFile } from "../src/cli/render-github-card";
 import { GitHubCollectorError } from "../src/collector/github-client";
+import type { CollectPublicGitHubProfileOptions } from "../src";
+import { renderGitHubReportFiles } from "../src/cli/render-github-report";
+import { renderGitHubArtifacts } from "../src/cli/render-github-artifacts";
 
 const tempRoot = resolve(tmpdir());
 const directories: string[] = [];
@@ -32,6 +35,42 @@ function deferred() {
 }
 
 describe("output writer exclusion", () => {
+  for (const kind of ["card", "report", "artifacts"] as const) {
+    test(`holds the ${kind} refresh lease from collection through publication`, async () => {
+      const directory = await workspace(); const card = join(directory, "card.svg");
+      const now = new Date("2026-05-28T00:00:00Z");
+      const paused = deferred(), resume = deferred();
+      const json = (value: unknown) => new Response(JSON.stringify(value));
+      const fetcher = async (url: string) => {
+        const path = new URL(url).pathname;
+        if (path.includes("/users/")) return json([{ owner: { login: "probe" }, name: "one", private: false, fork: false, archived: false, stargazers_count: 0, forks_count: 0, pushed_at: now.toISOString(), default_branch: "main" }]);
+        if (path.includes("/git/trees/")) return json({ tree: [{ path: "src/main.ts", type: "blob", size: 10 }], truncated: false });
+        if (path.endsWith("/community/profile")) return json({ files: {} });
+        if (path.endsWith("/readme")) return new Response("Usage");
+        return json([]);
+      };
+      const renderers = {
+        card: (options: CollectPublicGitHubProfileOptions) => renderGitHubCardFile("probe", card, options),
+        report: (options: CollectPublicGitHubProfileOptions) => renderGitHubReportFiles("probe", directory, options),
+        artifacts: (options: CollectPublicGitHubProfileOptions) => renderGitHubArtifacts("probe", card, directory, options)
+      };
+      const first = renderers[kind]({ now, fetcher: async url => { paused.resolve(); await resume.promise; return fetcher(url); } });
+      await paused.promise;
+      let duplicateRequests = 0;
+      try {
+        const overlaps = kind === "artifacts" ? ["card", "report", "artifacts"] as const : [kind, "artifacts"] as const;
+        for (const overlap of overlaps) {
+          await expect(renderers[overlap]({ now, fetcher: async url => { duplicateRequests++; return fetcher(url); } }))
+            .rejects.toBeInstanceOf(OutputBusyError);
+        }
+        expect(duplicateRequests).toBe(0);
+      } finally { resume.resolve(); }
+      expect((await first).ok).toBe(true);
+      expect((await renderers[kind]({ now: new Date("2026-05-29T00:00:00Z"), fetcher })).ok).toBe(true);
+      expect((await readdir(directory)).some(path => path.endsWith(".lock"))).toBe(false);
+    });
+  }
+
   test("renderers propagate lock conflicts without attempting fallback publication", async () => {
     const directory = await workspace();
     const path = join(directory, "card.svg");

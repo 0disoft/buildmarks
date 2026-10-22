@@ -1,3 +1,4 @@
+import { withOutputLocks } from "./output-lock.js";
 import { throwIfCancelled } from "../shared/cancellation";
 import { resolveFileSystem, type RenderFileOptions } from "./file-system";
 import { isMainModule } from "./main";
@@ -44,26 +45,28 @@ export async function renderGitHubReportFiles(
   await fs.mkdir(resolvedOutputDirectory, { recursive: true });
 
   const destinations = { outputDirectory: resolvedOutputDirectory, htmlPath, jsonPath };
-  try {
-    const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, options);
-    const report = createStaticReport(profile, scoringOptions);
-    assertSufficientEvidence(profile, report.profile);
-    await writeTextFilesAsSet([
-      { path: htmlPath, content: renderStaticReportHtml(report) },
-      { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
-    ], undefined, options);
-    return { ok: true, username: report.profile.username, ...destinations };
-  } catch (error) {
-    const { fallback, ...failure } = await recoverGitHubOutput(error, {
-      paths: [htmlPath, jsonPath],
-      unknownErrorMessage: "unknown GitHub report render failure",
-      fallbackLabel: "Fallback report",
-      writeFallback: (message, lockedOptions) => tryWriteTextFilesAsSet(
-        fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath), lockedOptions
-      )
-    }, options);
-    return { ok: false, username: normalizedUsername, ...destinations, ...failure };
-  }
+  return withOutputLocks([htmlPath, jsonPath], options, async lockedOptions => {
+    try {
+      const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, lockedOptions);
+      const report = createStaticReport(profile, scoringOptions);
+      assertSufficientEvidence(profile, report.profile);
+      await writeTextFilesAsSet([
+        { path: htmlPath, content: renderStaticReportHtml(report) },
+        { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
+      ], undefined, lockedOptions);
+      return { ok: true, username: report.profile.username, ...destinations };
+    } catch (error) {
+      const { fallback, ...failure } = await recoverGitHubOutput(error, {
+        paths: [htmlPath, jsonPath],
+        unknownErrorMessage: "unknown GitHub report render failure",
+        fallbackLabel: "Fallback report",
+        writeFallback: (message, lockedOptions) => tryWriteTextFilesAsSet(
+          fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath), lockedOptions
+        )
+      }, lockedOptions);
+      return { ok: false, username: normalizedUsername, ...destinations, ...failure };
+    }
+  });
 }
 
 async function main(args: readonly string[]): Promise<void> {
