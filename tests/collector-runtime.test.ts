@@ -248,6 +248,19 @@ describe("collector runtime injection", () => {
 });
 
 describe("deterministic response deadlines", () => {
+  test("preserves timer setup failure without starting a request or leaking an abort rejection", async () => {
+    const error = new Error("timer setup failed");
+    const parent = new AbortController();
+    let requests = 0;
+    await expect(fetchWithTimeout(async () => { requests++; return json([]); }, "https://example.invalid", {
+      headers: {}, signal: parent.signal, timeoutMilliseconds: 10000,
+      scheduleTimeout: () => { throw error; }
+    }, response => response.json())).rejects.toBe(error);
+    parent.abort();
+    await Promise.resolve();
+    expect(requests).toBe(0);
+  });
+
   for (const status of [403, 503]) {
     test(`releases unread HTTP ${status} bodies while preserving the response error`, async () => {
       const clock = new ManualClock();

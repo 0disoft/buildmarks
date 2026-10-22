@@ -20,6 +20,8 @@ export async function fetchWithTimeout<T>(
     abortRequest = () => reject(new DOMException("GitHub request was aborted before its response was consumed.", "AbortError"));
     controller.signal.addEventListener("abort", abortRequest, { once: true });
   });
+  // Timer setup can fail before Promise.race attaches its rejection handler.
+  void aborted.catch(() => undefined);
   if (options.signal.aborted) controller.abort();
   else options.signal.addEventListener("abort", abortFromBatch, { once: true });
   let cancelTimeout = () => {};
