@@ -12,15 +12,35 @@ export interface AnalyzeSignalGapsOptions {
   now?: Date;
 }
 
+interface RepositoryIdentity {
+  owner: string;
+  name: string;
+  visibility?: RepositoryInput["visibility"];
+  redactedName?: boolean;
+  signalVisibility?: { privateRepositoriesIncluded: boolean };
+}
+
 export function analyzeSignalGaps(
   input: ProfileInput,
   options: AnalyzeSignalGapsOptions = {}
 ): UserSignalGapsReport {
+  return buildSignalGaps(input, options);
+}
+
+/** Internal report composition reuses the scored selection without re-evaluating repositories. */
+export function analyzeSignalGapsWithSelection(
+  input: ProfileInput, options: AnalyzeSignalGapsOptions,
+  displayed: readonly RepositoryIdentity[]
+): UserSignalGapsReport {
+  return buildSignalGaps(input, options, new Set(displayed.map(repositoryKey)));
+}
+
+function buildSignalGaps(input: ProfileInput, options: AnalyzeSignalGapsOptions, displayedKeys?: ReadonlySet<string>): UserSignalGapsReport {
   validatePrivateRepositoryDisclosure(input);
 
   const now = resolveEvaluationTime(options.now, input.generatedAt);
   const generatedAt = now.toISOString();
-  const eligibleRepositories = selectEligibleRepositories(input, { ...options, now });
+  const eligibleRepositories = selectEligibleRepositories(input, { ...options, now }, displayedKeys);
   const gaps = eligibleRepositories.flatMap(repositorySignalGaps).slice(0, reportDisplayPolicy.gapLimit);
 
   return {
@@ -34,7 +54,8 @@ export function analyzeSignalGaps(
 
 function selectEligibleRepositories(
   input: ProfileInput,
-  options: AnalyzeSignalGapsOptions
+  options: AnalyzeSignalGapsOptions,
+  selectionKeys?: ReadonlySet<string>
 ): RepositoryInput[] {
   const repositories = input.repositories;
   const eligibleRepositories = repositories.filter(isEligibleRepository);
@@ -43,7 +64,7 @@ function selectEligibleRepositories(
   }
 
   const maxRepositories = resolveMaxRepositories(options.maxRepositories);
-  const displayedKeys = new Set(
+  const displayedKeys = selectionKeys ?? new Set(
     scoreUserProfile(
       {
         username: "gap-selection",
@@ -56,7 +77,7 @@ function selectEligibleRepositories(
   return eligibleRepositories.filter((repository) => displayedKeys.has(repositoryKey(repository)));
 }
 
-function repositoryKey(repository: { owner: string; name: string; visibility?: RepositoryInput["visibility"]; redactedName?: boolean; signalVisibility?: { privateRepositoriesIncluded: boolean } }): string {
+function repositoryKey(repository: RepositoryIdentity): string {
   const isPrivate = repository.visibility === "private" || repository.redactedName === true || repository.signalVisibility?.privateRepositoriesIncluded === true;
   const owner = isPrivate ? "Private owner" : repository.owner;
   return `${owner}/${repository.name}`.toLowerCase();

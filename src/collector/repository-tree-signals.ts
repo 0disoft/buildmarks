@@ -233,12 +233,14 @@ export function summarizeCodebaseShape(
     }
   }
 
+  // This array is owned by the summary; sort once for both exact percentiles.
+  sourceSizes.sort((left, right) => left - right);
   return {
     sourceFileCount,
     testFileCount,
     exampleFileCount,
-    medianSourceFileBytes: percentile(sourceSizes, 0.5),
-    p90SourceFileBytes: percentile(sourceSizes, 0.9),
+    medianSourceFileBytes: percentileOfSorted(sourceSizes, 0.5),
+    p90SourceFileBytes: percentileOfSorted(sourceSizes, 0.9),
     oversizedSourceFileCount,
     testToSourceRatio: sourceFileCount === 0 ? 0 : roundRatio(testFileCount / sourceFileCount),
     ...(treeTruncated ? { treeTruncated: true } : {})
@@ -320,12 +322,11 @@ function extensionOf(fileName: string): string {
   return extensionStart === -1 ? "" : fileName.slice(extensionStart);
 }
 
-function percentile(values: readonly number[], percentileValue: number): number {
-  if (values.length === 0) {
+function percentileOfSorted(sorted: readonly number[], percentileValue: number): number {
+  if (sorted.length === 0) {
     return 0;
   }
 
-  const sorted = [...values].sort((left, right) => left - right);
   const clampedPercentile = Math.max(0, Math.min(1, percentileValue));
   const rawIndex = (sorted.length - 1) * clampedPercentile;
   const lowerIndex = Math.floor(rawIndex);

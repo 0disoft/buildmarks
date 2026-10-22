@@ -23,6 +23,14 @@ import {
   type CriterionDefinition
 } from "./methodology-v2.js";
 
+const criterionIndexes = new Map(signalDimensions.map(dimension => {
+  const definitions = methodologyCriteria.filter(criterion => criterion.dimension === dimension);
+  const byId = new Map<string, CriterionDefinition>();
+  for (const definition of definitions) {
+    if (!byId.has(definition.id)) byId.set(definition.id, definition);
+  }
+  return [dimension, { definitions, byId }] as const;
+}));
 
 export interface RepositoryAssessmentResult {
   dimensions: Record<SignalDimension, DimensionScoreV2>;
@@ -38,10 +46,10 @@ export function assessRepository(
 ): RepositoryAssessmentResult {
   const dimensions = Object.fromEntries(
     signalDimensions.map((dimension) => {
-      const definitions = methodologyCriteria.filter((criterion) => criterion.dimension === dimension);
+      const { definitions, byId } = criterionIndexes.get(dimension)!;
       const assessment = assessDimension(repository, repositoryKind, now, outputRepositoryName, dimension, definitions);
       const evidence = assessment.criteria.flatMap((criterion) =>
-        criterion.evidenceIds.map((id) => makeCriterionEvidence(id, outputRepositoryName, definitions))
+        criterion.evidenceIds.map((id) => makeCriterionEvidence(id, outputRepositoryName, byId))
       );
 
       return [
@@ -165,13 +173,12 @@ function assessDimension(
   const pointsAvailable = observedCriteria.reduce((total, criterion) => total + criterion.pointsAvailable, 0);
   const pointsAwarded = observedCriteria.reduce((total, criterion) => total + criterion.pointsAwarded, 0);
   const rawScore = pointsAvailable === 0 ? 0 : clampScore(Math.round(pointsAwarded / pointsAvailable * 100));
+  const positiveIds = new Set(criteria.filter(criterion => criterion.observed === true).map(criterion => criterion.criterionId));
   const hasCorroboratedPositive = definitions.some((definition) => {
     if (definition.dimension !== dimension || definition.basis !== "corroborated") {
       return false;
     }
-    return criteria.some(
-      (criterion) => criterion.criterionId === definition.id && criterion.observed === true
-    );
+    return positiveIds.has(definition.id);
   });
   const presenceOnlyCapApplied = rawScore > presenceOnlyScoreCap && !hasCorroboratedPositive;
 
@@ -227,10 +234,10 @@ function assessCriterion(
 function makeCriterionEvidence(
   id: string,
   repositoryName: string,
-  definitions: readonly CriterionDefinition[]
+  definitions: ReadonlyMap<string, CriterionDefinition>
 ): Evidence {
   const criterionId = id.slice(repositoryName.length + 1);
-  const definition = definitions.find((candidate) => candidate.id === criterionId);
+  const definition = definitions.get(criterionId);
   if (definition === undefined) {
     throw new Error(`Unknown scoring criterion: ${criterionId}`);
   }

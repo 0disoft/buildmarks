@@ -60,13 +60,26 @@ export function selectCardProjects(repositories: readonly RepoSignal[], signalTy
         return true;
       });
     if (details.length === 0) return [];
-    return [{ repository, details, key: `${repository.owner}/${repository.name}`.toLowerCase() }];
-  }).sort((left, right) => Number(right.details.some((detail) => detail.preferred)) - Number(left.details.some((detail) => detail.preferred))
-    || Math.min(right.details.filter((detail) => detail.preferred && detail.combined).length, cardDisplayPolicy.rankedFactLimit)
-      - Math.min(left.details.filter((detail) => detail.preferred && detail.combined).length, cardDisplayPolicy.rankedFactLimit)
-    || Math.min(right.details.filter((detail) => detail.combined).length, cardDisplayPolicy.rankedFactLimit) - Math.min(left.details.filter((detail) => detail.combined).length, cardDisplayPolicy.rankedFactLimit)
-    || Math.min(right.details.length, cardDisplayPolicy.rankedFactLimit) - Math.min(left.details.length, cardDisplayPolicy.rankedFactLimit) || compareText(left.key, right.key));
-  const unique = candidates.filter((candidate, index) => candidates.findIndex((other) => other.key === candidate.key) === index);
+    let hasPreferred = false, preferredCombined = 0, combined = 0;
+    for (const detail of details) {
+      hasPreferred ||= detail.preferred;
+      if (detail.combined) { combined++; if (detail.preferred) preferredCombined++; }
+    }
+    return [{ repository, details, key: `${repository.owner}/${repository.name}`.toLowerCase(),
+      hasPreferred: Number(hasPreferred),
+      preferredCombined: Math.min(preferredCombined, cardDisplayPolicy.rankedFactLimit),
+      combined: Math.min(combined, cardDisplayPolicy.rankedFactLimit),
+      factCount: Math.min(details.length, cardDisplayPolicy.rankedFactLimit) }];
+  }).sort((left, right) => right.hasPreferred - left.hasPreferred
+    || right.preferredCombined - left.preferredCombined || right.combined - left.combined
+    || right.factCount - left.factCount || compareText(left.key, right.key));
+  // Deduplicate after ranking: the first ranked occurrence wins, including ties.
+  const seenKeys = new Set<string>();
+  const unique = candidates.filter(candidate => {
+    if (seenKeys.has(candidate.key)) return false;
+    seenKeys.add(candidate.key);
+    return true;
+  });
   const first = unique[0];
   if (first === undefined) return [];
   const otherKind = unique.slice(1).find((candidate) => candidate.repository.repositoryKind?.kind !== first.repository.repositoryKind?.kind);

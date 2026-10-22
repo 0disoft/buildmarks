@@ -15,6 +15,23 @@ function repository(name: string, ids: string[], kind: "library" | "documentatio
 }
 
 describe("compact card project selection", () => {
+  test("keeps the strongest ranked duplicate even when it is not last in the input", () => {
+    const weak = repository("same", ["completeness.license"]);
+    const strong = repository("SAME", ["maintainability.tests-ci", "maintainability.release-notes"]);
+    for (const input of [[weak, strong], [strong, weak]]) {
+      expect(selectCardProjects(input, "Maintainer-Builder")).toEqual([{
+        name: "example/SAME", private: false, facts: ["Release + changelog", "Tests + workflow"]
+      }]);
+    }
+  });
+
+  test("keeps input order for equally ranked case-insensitive duplicates", () => {
+    const first = repository("Same", ["maintainability.tests-ci"]);
+    const second = repository("SAME", ["maintainability.tests-ci"]);
+    expect(selectCardProjects([first, second], "Builder")[0]?.name).toBe("example/Same");
+    expect(selectCardProjects([second, first], "Builder")[0]?.name).toBe("example/SAME");
+  });
+
   test("prefers type-relevant evidence instead of the highest overall score", () => {
     const documented = { ...repository("docs", ["usability.docs-usage", "completeness.license"]), overall: 99 };
     const maintained = { ...repository("tested", ["maintainability.tests-ci", "maintainability.release-notes"]), overall: 40 };

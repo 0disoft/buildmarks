@@ -62,6 +62,9 @@ Temporary-file and backup cleanup failures throw `OutputCleanupError` with the p
 - `evaluation-time.test.ts`: snapshot replay, explicit time overrides, shared report time and millisecond activity boundaries.
 - `collector-runtime.test.ts`: manual deadlines, unread-body cleanup, late responses, sibling cancellation and settlement, request budgets and rate-limit handling without live GitHub calls.
 - `failure-isolation.test.ts`: transport causes, permanent-error retry exclusion, custom cancellation reasons and private diagnostic redaction.
+- `request-limiter.test.ts`: shared admission across profiles, FIFO cancellation, queue overflow, body lifetime and retry backoff.
+- `response-limits.test.ts`: streamed byte limits, UTF-8 boundaries, inaccurate length headers, reader cancellation and excessive tree entries.
+- `report-reuse.test.ts`: equivalent standalone/report gap selection, a single profile assessment and exact percentiles without changing input order.
 - `output-runtime.test.ts`: memory filesystem rendering, exclusive-name collisions, write failures, publication rollback and cancellation.
 - `output-concurrency.test.ts`: overlapping output sets, fallback races, partial lock acquisition, cleanup failures, directory aliases and a separate writer process.
 
