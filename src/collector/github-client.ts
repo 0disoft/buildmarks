@@ -1,4 +1,5 @@
 import { githubRequestPolicy } from "./request-policy.js";
+import { RepositoryRequestScope } from "./request-scope.js";
 import { collectTreePathSignals, summarizeCodebaseShape, type GitHubTreeEntry } from "./repository-tree-signals.js";
 import { GitHubCollectorError } from "./github-errors.js";
 import { fetchWithTimeout } from "./request-timeout.js";
@@ -173,6 +174,7 @@ class GitHubRestClient {
   }
 
   dispose(): void {
+    this.abortPendingRequests();
     this.callerSignal?.removeEventListener("abort", this.abortFromCaller);
   }
 
@@ -254,27 +256,30 @@ class GitHubRestClient {
     const owner = repository.owner.login;
     const name = repository.name;
     const isPrivate = repository.private;
-    const [community, readmeText, hasReleasesOrTags, treeEntries] = await Promise.all([
-      withRepositoryCollectionOperation(
-        "community_profile",
-        this.fetchJson<GitHubCommunityProfileResponse>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/community/profile`, {
-          allowMissing: true
-        })
-      ),
-      isPrivate
-        ? Promise.resolve(null)
-        : withRepositoryCollectionOperation(
-            "readme",
-            this.fetchText(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`, {
-              accept: githubRawAccept,
-              allowMissing: true
-            })
-          ),
-      this.hasReleasesOrTags(owner, name),
-      withRepositoryCollectionOperation("tree", this.fetchRepositoryTree(owner, name, repository.default_branch))
-    ]);
-    const fileSignals = this.collectFileSignals(treeEntries.entries, repository, treeEntries.truncated);
-    return buildCollectedRepository(repository, treeEntries, fileSignals, community, readmeText, hasReleasesOrTags);
+    const scope = new RepositoryRequestScope(this.batchAbortController.signal);
+    try {
+      const [community, readmeText, hasReleasesOrTags, treeEntries] = await scope.settle([
+        scope.track(withRepositoryCollectionOperation(
+          "community_profile",
+          this.fetchJson<GitHubCommunityProfileResponse>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/community/profile`, {
+            allowMissing: true, signal: scope.signal
+          })
+        )),
+        isPrivate
+          ? Promise.resolve(null)
+          : scope.track(withRepositoryCollectionOperation(
+              "readme",
+              this.fetchText(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`, {
+                accept: githubRawAccept,
+                allowMissing: true, signal: scope.signal
+              })
+            )),
+        this.hasReleasesOrTags(owner, name, scope),
+        scope.track(withRepositoryCollectionOperation("tree", this.fetchRepositoryTree(owner, name, repository.default_branch, scope.signal)))
+      ] as const);
+      const fileSignals = this.collectFileSignals(treeEntries.entries, repository, treeEntries.truncated);
+      return buildCollectedRepository(repository, treeEntries, fileSignals, community, readmeText, hasReleasesOrTags);
+    } finally { scope.dispose(); }
   }
 
   collectFileSignals(
@@ -300,10 +305,10 @@ class GitHubRestClient {
     };
   }
 
-  async fetchRepositoryTree(owner: string, repo: string, branch: string): Promise<GitHubTreeSummary> {
+  async fetchRepositoryTree(owner: string, repo: string, branch: string, signal: AbortSignal): Promise<GitHubTreeSummary> {
     const tree = await this.fetchJson<GitHubTreeResponse>(
       `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
-      { allowMissing: true }
+      { allowMissing: true, signal }
     );
 
     if (tree === null) {
@@ -334,26 +339,26 @@ class GitHubRestClient {
     };
   }
 
-  async hasReleasesOrTags(owner: string, repo: string): Promise<boolean> {
-    const [releases, tags] = await Promise.all([
-      withRepositoryCollectionOperation(
+  async hasReleasesOrTags(owner: string, repo: string, scope: RepositoryRequestScope): Promise<boolean> {
+    const [releases, tags] = await scope.settle([
+      scope.track(withRepositoryCollectionOperation(
         "releases",
         this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases?per_page=1`, {
-          allowMissing: true
+          allowMissing: true, signal: scope.signal
         })
-      ),
-      withRepositoryCollectionOperation(
+      )),
+      scope.track(withRepositoryCollectionOperation(
         "tags",
         this.fetchJson<unknown>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tags?per_page=1`, {
-          allowMissing: true
+          allowMissing: true, signal: scope.signal
         })
-      )
-    ]);
+      ))
+    ] as const);
 
     return responseArrayHasItems(releases, "releases") || responseArrayHasItems(tags, "tags");
   }
 
-  async fetchJson<T>(path: string, options: { allowMissing?: boolean } = {}): Promise<T | null> {
+  async fetchJson<T>(path: string, options: { allowMissing?: boolean; signal?: AbortSignal } = {}): Promise<T | null> {
     return this.request(path, { accept: githubJsonAccept }, async (response) => {
       if (isMissingResponse(response) && options.allowMissing === true) {
         await response.body?.cancel();
@@ -362,12 +367,12 @@ class GitHubRestClient {
 
       await assertOkResponse(response, path);
       return (await response.json()) as T;
-    });
+    }, options.signal);
   }
 
   async fetchText(
     path: string,
-    options: { accept?: string; allowMissing?: boolean } = {}
+    options: { accept?: string; allowMissing?: boolean; signal?: AbortSignal } = {}
   ): Promise<string | null> {
     return this.request(path, { accept: options.accept ?? githubJsonAccept }, async (response) => {
       if (isMissingResponse(response) && options.allowMissing === true) {
@@ -377,19 +382,23 @@ class GitHubRestClient {
 
       await assertOkResponse(response, path);
       return response.text();
-    });
+    }, options.signal);
   }
 
-  private async request<T>(path: string, options: { accept: string }, consume: (response: Response) => Promise<T>): Promise<T> {
+  private async request<T>(
+    path: string, options: { accept: string }, consume: (response: Response) => Promise<T>,
+    signal: AbortSignal = this.batchAbortController.signal
+  ): Promise<T> {
     const headers = buildRequestHeaders(options.accept, this.token);
     let lastError: unknown;
     for (let attempt = 0; attempt <= githubRequestRetryCount; attempt += 1) {
       try {
-        const result = await this.requestAttempt(path, headers, attempt, consume);
+        const result = await this.requestAttempt(path, headers, attempt, consume, signal);
         if (!result.retry) return result.value;
-        await this.waitForRetry(attempt);
+        await this.waitForRetry(attempt, signal);
       } catch (error) {
         throwIfCancelled(this.callerSignal);
+        if (signal.aborted) throw error;
         if (error instanceof GitHubCollectorError || error instanceof SyntaxError) {
           throw error;
         }
@@ -398,7 +407,7 @@ class GitHubRestClient {
           break;
         }
 
-        await this.waitForRetry(attempt);
+        await this.waitForRetry(attempt, signal);
       }
     }
 
@@ -412,21 +421,22 @@ class GitHubRestClient {
     path: string,
     headers: Record<string, string>,
     attempt: number,
-    consume: (response: Response) => Promise<T>
+    consume: (response: Response) => Promise<T>,
+    signal: AbortSignal
   ): Promise<RequestAttemptResult<T>> {
     throwIfCancelled(this.callerSignal);
     this.batchAbortController.signal.throwIfAborted();
+    signal.throwIfAborted();
     this.consumeRequestBudget(path);
     return fetchWithTimeout(this.fetcher, `${githubApiBaseUrl}${path}`, {
       headers,
       timeoutMilliseconds: this.timeoutMilliseconds,
-      signal: this.batchAbortController.signal,
+      signal,
       scheduleTimeout: this.runtime.scheduleTimeout
     }, response => consumeRequestAttempt(response, path, attempt, consume));
   }
 
-  private async waitForRetry(attempt: number): Promise<void> {
-    const signal = this.batchAbortController.signal;
+  private async waitForRetry(attempt: number, signal: AbortSignal): Promise<void> {
     await runAbortable(() => this.runtime.sleep(retryDelayMilliseconds(attempt), signal), signal);
   }
 

@@ -37,6 +37,85 @@ class ManualClock {
 }
 
 describe("collector runtime injection", () => {
+  test("cancels a sibling retry wait without starting another attempt", async () => {
+    const clock = new ManualClock();
+    let retryStarted!: () => void;
+    const waiting = new Promise<void>(resolve => { retryStarted = resolve; });
+    let retryCancelled = false;
+    let releaseRequests = 0;
+    const base = fakeGitHub();
+    const profile = await collectPublicGitHubProfile("probe", {
+      now,
+      runtime: {
+        scheduleTimeout: clock.schedule,
+        sleep: async (_milliseconds, signal) => new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => { retryCancelled = true; reject(new DOMException("cancelled", "AbortError")); }, { once: true });
+          retryStarted();
+        })
+      },
+      fetcher: async (url, init) => {
+        if (url.endsWith("/community/profile")) { await waiting; return json({}, 403); }
+        if (new URL(url).pathname.endsWith("/releases")) { releaseRequests++; return json({}, 503); }
+        return base(url, init);
+      }
+    });
+    expect(profile.repositoryCollectionFailures).toEqual([{ code: "github_request_failed", operation: "community_profile", status: 403, count: 1 }]);
+    expect(retryCancelled).toBe(true);
+    expect(releaseRequests).toBe(1);
+    expect(clock.tasks.size).toBe(0);
+  });
+
+  for (const failingPath of ["/community/profile", "/tags"]) {
+    test(`settles failed repository siblings before advancing after ${failingPath}`, async () => {
+      const clock = new ManualClock();
+      const caller = new AbortController();
+      const base = fakeGitHub([repository("one"), repository("two")]);
+      let active = 0;
+      let started = 0;
+      let releaseFailure!: () => void;
+      const siblingsStarted = new Promise<void>(resolve => { releaseFailure = resolve; });
+      const profile = await collectPublicGitHubProfile("probe", {
+        now, signal: caller.signal, runtime: { scheduleTimeout: clock.schedule },
+        policy: { ...defaultGitHubCollectorPolicy, limits: { ...defaultGitHubCollectorPolicy.limits, maxConcurrentRepositoryCollections: 1 } },
+        fetcher: async (url, init) => {
+          if (url.includes("/two/")) {
+            expect(active).toBe(0);
+            return base(url, init);
+          }
+          if (!url.includes("/one/")) return base(url, init);
+          if (new URL(url).pathname.endsWith(failingPath)) {
+            await siblingsStarted;
+            return json({}, 403);
+          }
+          active++;
+          if (++started === 4) releaseFailure();
+          if (url.endsWith("/readme")) {
+            return new Response(new ReadableStream({ start(controller) {
+              init.signal!.addEventListener("abort", () => {
+                active--;
+                controller.error(new DOMException("cancelled", "AbortError"));
+              }, { once: true });
+            } }));
+          }
+          return new Promise((_resolve, reject) => {
+            init.signal!.addEventListener("abort", () => {
+              active--;
+              reject(new DOMException("cancelled", "AbortError"));
+            }, { once: true });
+          });
+        }
+      });
+      expect(profile.repositories.map(repository => repository.name)).toEqual(["two"]);
+      expect(profile.repositoryCollectionFailures).toEqual([{
+        code: "github_request_failed", operation: failingPath === "/tags" ? "tags" : "community_profile", status: 403, count: 1
+      }]);
+      expect(active).toBe(0);
+      expect(clock.tasks.size).toBe(0);
+      caller.abort();
+      expect(active).toBe(0);
+    });
+  }
+
   for (const offset of [-1, 0, 1]) {
     test(`uses a fixed collection time at the 365-day boundary ${offset}ms`, async () => {
       const profile = await collectPublicGitHubProfile("probe", { now, fetcher: fakeGitHub([repository("edge", new Date(now.getTime() - 365 * day + offset).toISOString())]) });
