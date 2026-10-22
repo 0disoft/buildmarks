@@ -6,6 +6,15 @@ Buildmarks follows practical v0 release notes rather than a strict semver promis
 
 ## Unreleased
 
+## v0.6.0 - 2026-10-23
+
+- Add 30 playful profile personas and Balanced Builder, with distinct vector emblems and descriptions selected from available area scores.
+- Simplify the default profile card around a large score, persona and emblem, with compact project names and icon-led footer details; retain the detailed six-area layout.
+- Show analyzed repositories out of all owned public and private repositories when the complete count is available, such as `2 of 138`; retain the analyzed count alone when the total is unknown.
+- Collect optional account totals from matching owner metadata without adding private repository details to public-only scoring.
+- Preserve completed repository analysis when the GitHub request budget is exhausted and report omitted work.
+- Reduce repository-kind and file-presence false positives from unrelated package files, example paths and directories named like files.
+
 ## v0.5.0 - 2026-10-22
 
 - Count each case-insensitive owner/name identity once across imported profiles, scoring and GitHub pagination; reject conflicting observations instead of silently choosing one.
