@@ -1,3 +1,4 @@
+import { githubRequestPolicy } from "./request-policy.js";
 import { collectTreePathSignals, summarizeCodebaseShape, type GitHubTreeEntry } from "./repository-tree-signals.js";
 import { GitHubCollectorError } from "./github-errors.js";
 import { fetchWithTimeout } from "./request-timeout.js";
@@ -28,8 +29,8 @@ const githubApiVersion = "2026-03-10";
 const githubJsonAccept = "application/vnd.github+json";
 const githubRawAccept = "application/vnd.github.raw+json";
 const activityAggregatesDeferred = true;
-const githubRequestTimeoutMilliseconds = 10_000;
-const githubRequestRetryCount = 1;
+const githubRequestTimeoutMilliseconds = githubRequestPolicy.timeoutMilliseconds;
+const githubRequestRetryCount = githubRequestPolicy.retryCount;
 
 const usageGuidePattern = /\b(install|installation|usage|example|quick start|get started|getting started)\b|설치|사용법|예제|시작하기/i;
 export type GitHubCollectorFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -179,8 +180,8 @@ class GitHubRestClient {
   ) {
     this.runtime = resolveCollectorRuntime(options.runtime);
     this.timeoutMilliseconds = options.timeoutMilliseconds ?? githubRequestTimeoutMilliseconds;
-    if (!Number.isSafeInteger(this.timeoutMilliseconds) || this.timeoutMilliseconds <= 0 || this.timeoutMilliseconds > 2_147_483_647) {
-      throw new GitHubCollectorError("invalid_policy", "Request timeout must be a positive integer at most 2147483647 milliseconds.");
+    if (!Number.isSafeInteger(this.timeoutMilliseconds) || this.timeoutMilliseconds <= 0 || this.timeoutMilliseconds > githubRequestPolicy.maximumTimerMilliseconds) {
+      throw new GitHubCollectorError("invalid_policy", `Request timeout must be a positive integer at most ${githubRequestPolicy.maximumTimerMilliseconds} milliseconds.`);
     }
     this.callerSignal = options.signal;
     throwIfCancelled(this.callerSignal);
@@ -209,7 +210,7 @@ class GitHubRestClient {
   async listUserRepositories(username: string, limit: number): Promise<GitHubRepositoryResponse[]> {
     const repositories: GitHubRepositoryResponse[] = [];
     let page = 1;
-    const perPage = Math.min(100, limit);
+    const perPage = Math.min(githubRequestPolicy.maximumPageSize, limit);
 
     while (repositories.length < limit) {
       const pageRepositories = await this.fetchJson<unknown>(
@@ -237,7 +238,7 @@ class GitHubRestClient {
     const repositories: GitHubRepositoryResponse[] = [];
     let page = 1;
     const normalizedUsername = username.toLowerCase();
-    const perPage = 100;
+    const perPage = githubRequestPolicy.maximumPageSize;
 
     while (repositories.length < limit) {
       const pageRepositories = await this.fetchJson<unknown>(
@@ -897,7 +898,7 @@ function shouldRetryResponse(response: Response): boolean {
 }
 
 function retryDelayMilliseconds(attempt: number): number {
-  return 150 + attempt * 250;
+  return githubRequestPolicy.retryBaseDelayMilliseconds + attempt * githubRequestPolicy.retryStepDelayMilliseconds;
 }
 
 function errorMessage(error: unknown): string {

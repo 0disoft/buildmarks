@@ -1,3 +1,4 @@
+import { codebaseShapePolicy, repositoryHistoryPolicy, scoringCoveragePolicy } from "../shared/evidence-policy.js";
 import {
   dimensionLabels,
   signalDimensions,
@@ -22,7 +23,6 @@ import {
   type CriterionDefinition
 } from "./methodology-v2.js";
 
-const RECENT_DAYS = 180;
 
 export interface RepositoryAssessmentResult {
   dimensions: Record<SignalDimension, DimensionScoreV2>;
@@ -113,10 +113,10 @@ export function aggregateScoreAssessments(
 }
 
 export function confidenceFromCoverage(ratio: number): AssessmentConfidence {
-  if (ratio >= 0.85) {
+  if (ratio >= scoringCoveragePolicy.highConfidenceCoverage) {
     return "high";
   }
-  if (ratio >= 0.6) {
+  if (ratio >= scoringCoveragePolicy.mediumConfidenceCoverage) {
     return "medium";
   }
   return "low";
@@ -276,9 +276,9 @@ function evaluateCheck(check: CriterionCheck, repository: RepositoryInput, now: 
     case "examples":
       return exampleSurface(repository);
     case "recent-activity":
-      return dateWithinDays(repository.pushedAt, now, RECENT_DAYS);
+      return dateWithinDays(repository.pushedAt, now, repositoryHistoryPolicy.recentActivityDays);
     case "established-history":
-      return dateAtLeastDaysOld(repository.createdAt, now, RECENT_DAYS);
+      return dateAtLeastDaysOld(repository.createdAt, now, repositoryHistoryPolicy.establishedHistoryDays);
     case "tests-backed-by-ci":
       return allOf(observedBoolean(repository.hasTests), observedBoolean(repository.hasCi));
     case "tests-backed-by-files":
@@ -297,8 +297,8 @@ function evaluateCheck(check: CriterionCheck, repository: RepositoryInput, now: 
       return allOf(observedBoolean(repository.hasPackageArtifact), exampleSurface(repository));
     case "sustained-history":
       return allOf(
-        dateAtLeastDaysOld(repository.createdAt, now, RECENT_DAYS),
-        dateWithinDays(repository.pushedAt, now, RECENT_DAYS)
+        dateAtLeastDaysOld(repository.createdAt, now, repositoryHistoryPolicy.establishedHistoryDays),
+        dateWithinDays(repository.pushedAt, now, repositoryHistoryPolicy.recentActivityDays)
       );
     case "community-guardrails":
       return allOf(observedBoolean(repository.hasContributing), observedBoolean(repository.hasCodeOfConduct));
@@ -334,8 +334,8 @@ function testSurface(repository: RepositoryInput): boolean | null {
   }
   const ratio = shape.testFileCount / sourceFileCount;
   // Collected snapshots historically round this descriptive field to 3 decimals.
-  if (Math.abs(shape.testToSourceRatio - ratio) > 0.000500001) return null;
-  return shape.testFileCount >= 2 || ratio >= 0.08;
+  if (Math.abs(shape.testToSourceRatio - ratio) > codebaseShapePolicy.storedRatioTolerance) return null;
+  return shape.testFileCount >= codebaseShapePolicy.minimumTestFiles || ratio >= codebaseShapePolicy.minimumTestToSourceRatio;
 }
 
 function compactSourceShape(repository: RepositoryInput): boolean | null {
@@ -354,10 +354,12 @@ function compactSourceShape(repository: RepositoryInput): boolean | null {
   const medianSourceFileBytes = codebaseShapeMetric(shape.medianSourceFileBytes);
   const p90SourceFileBytes = codebaseShapeMetric(shape.p90SourceFileBytes);
   const oversizedSourceFileCount = codebaseShapeMetric(shape.oversizedSourceFileCount);
-  if (sourceFileCount < 4 || medianSourceFileBytes <= 0) {
+  if (sourceFileCount < codebaseShapePolicy.minimumSourceFiles || medianSourceFileBytes <= 0) {
     return false;
   }
-  return medianSourceFileBytes <= 8_000 && p90SourceFileBytes <= 32_000 && oversizedSourceFileCount / sourceFileCount <= 0.1;
+  return medianSourceFileBytes <= codebaseShapePolicy.maximumMedianSourceFileBytes
+    && p90SourceFileBytes <= codebaseShapePolicy.maximumP90SourceFileBytes
+    && oversizedSourceFileCount / sourceFileCount <= codebaseShapePolicy.maximumOversizedSourceFileRatio;
 }
 
 function exampleSurface(repository: RepositoryInput): boolean | null {

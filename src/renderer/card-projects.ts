@@ -1,3 +1,4 @@
+import { cardDisplayPolicy } from "./layout-policy.js";
 import { methodologyCriteria, type CriterionCheck } from "../scoring/methodology-v2.js";
 import type { RepoSignal, SignalDimension, SignalType } from "../shared/types.js";
 
@@ -61,10 +62,10 @@ export function selectCardProjects(repositories: readonly RepoSignal[], signalTy
     if (details.length === 0) return [];
     return [{ repository, details, key: `${repository.owner}/${repository.name}`.toLowerCase() }];
   }).sort((left, right) => Number(right.details.some((detail) => detail.preferred)) - Number(left.details.some((detail) => detail.preferred))
-    || Math.min(right.details.filter((detail) => detail.preferred && detail.combined).length, 2)
-      - Math.min(left.details.filter((detail) => detail.preferred && detail.combined).length, 2)
-    || Math.min(right.details.filter((detail) => detail.combined).length, 2) - Math.min(left.details.filter((detail) => detail.combined).length, 2)
-    || Math.min(right.details.length, 2) - Math.min(left.details.length, 2) || compareText(left.key, right.key));
+    || Math.min(right.details.filter((detail) => detail.preferred && detail.combined).length, cardDisplayPolicy.rankedFactLimit)
+      - Math.min(left.details.filter((detail) => detail.preferred && detail.combined).length, cardDisplayPolicy.rankedFactLimit)
+    || Math.min(right.details.filter((detail) => detail.combined).length, cardDisplayPolicy.rankedFactLimit) - Math.min(left.details.filter((detail) => detail.combined).length, cardDisplayPolicy.rankedFactLimit)
+    || Math.min(right.details.length, cardDisplayPolicy.rankedFactLimit) - Math.min(left.details.length, cardDisplayPolicy.rankedFactLimit) || compareText(left.key, right.key));
   const unique = candidates.filter((candidate, index) => candidates.findIndex((other) => other.key === candidate.key) === index);
   const first = unique[0];
   if (first === undefined) return [];
@@ -76,7 +77,7 @@ export function selectCardProjects(repositories: readonly RepoSignal[], signalTy
     return {
       name: isPrivate ? `Private project ${++privateOrdinal}` : `${repository.owner}/${repository.name}`,
       private: isPrivate,
-      facts: details.slice(0, index === 0 ? 2 : 1).map((detail) => detail.label)
+      facts: details.slice(0, index === 0 ? cardDisplayPolicy.leadProjectFactLimit : cardDisplayPolicy.secondaryProjectFactLimit).map((detail) => detail.label)
     };
   });
 }

@@ -1,3 +1,4 @@
+import { cardDisplayPolicy, detailedCardSize } from "./layout-policy.js";
 import {
   dimensionLabels,
   privateLocalSignalVisibility,
@@ -34,8 +35,8 @@ export interface RenderCardOptions {
   layout?: "compact" | "detailed";
 }
 
-const cardWidth = 760;
-const cardHeight = 420;
+const cardWidth = detailedCardSize.width;
+const cardHeight = detailedCardSize.height;
 const barX = 336;
 const barMaxWidth = 372;
 const barHeight = 6;
@@ -78,7 +79,7 @@ export function renderUserSignalCard(
   const theme = normalizeTheme(options.theme);
   const highlights = [...new Set(
     (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item))
-  )].slice(0, 4);
+  )].slice(0, cardDisplayPolicy.contextHighlightLimit);
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
   const generatedDate = formatDate(report.generatedAt);
@@ -191,7 +192,7 @@ export function renderSignalGapsCard(report: UserSignalGapsReport, options: Rend
   const usernameRaw = coerceString(report.username, "unknown");
   const username = fitText(usernameRaw, 34);
   const generatedDate = formatDate(report.generatedAt);
-  const visibleGaps = report.gaps.slice(0, 4);
+  const visibleGaps = report.gaps.slice(0, cardDisplayPolicy.gapLimit);
   const gapCount = report.gaps.length;
   const suggestionLabel = gapCount === 1 ? "suggestion" : "suggestions";
   const rows = visibleGaps.length === 0
@@ -248,7 +249,7 @@ export function renderRepositorySignalCard(report: RepoSignal, options: RenderCa
   );
   const highlights = [...new Set(
     (report.evidenceLedger ?? report.evidence).map((item) => evidenceToHighlight(item))
-  )].slice(0, 4);
+  )].slice(0, cardDisplayPolicy.contextHighlightLimit);
   const chips = highlights.map((label, index) => renderEvidenceChip(label, index));
   const desc = buildRepositoryDescription(report, overall);
 

@@ -1,3 +1,4 @@
+import { reportDisplayPolicy } from "../shared/report-policy.js";
 import type { ProfileInput, RepositoryInput, SignalGap, SignalDimension, UserSignalGapsReport } from "../shared/types.js";
 import { codebaseShapeMetric } from "./codebase-shape.js";
 import { validatePrivateRepositoryDisclosure } from "./private-disclosure.js";
@@ -5,7 +6,6 @@ import { resolveRepositoryKind } from "./repository-kind.js";
 import { scoreUserProfile } from "./score-user.js";
 import { resolveEvaluationTime } from "../shared/evaluation-time.js";
 
-const maxGaps = 8;
 
 export interface AnalyzeSignalGapsOptions {
   maxRepositories?: number;
@@ -21,7 +21,7 @@ export function analyzeSignalGaps(
   const now = resolveEvaluationTime(options.now, input.generatedAt);
   const generatedAt = now.toISOString();
   const eligibleRepositories = selectEligibleRepositories(input, { ...options, now });
-  const gaps = eligibleRepositories.flatMap(repositorySignalGaps).slice(0, maxGaps);
+  const gaps = eligibleRepositories.flatMap(repositorySignalGaps).slice(0, reportDisplayPolicy.gapLimit);
 
   return {
     username: input.username,

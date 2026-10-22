@@ -1,3 +1,4 @@
+import { compactCardSize } from "./layout-policy.js";
 import type { SignalType } from "../shared/types.js";
 import { getProfileCover, renderCoverArtwork, renderCoverStyles } from "./profile-cover.js";
 import { renderProfileStyles } from "./profile-card.js";
@@ -17,7 +18,7 @@ interface CompactCardContent {
 
 export function renderCompactCard(content: CompactCardContent): string {
   const cover = getProfileCover(content.signalType);
-  const height = content.includesPrivate ? 360 : 336;
+  const height = content.includesPrivate ? compactCardSize.privateHeight : compactCardSize.publicHeight;
   const projects = content.projects.map((project, index) => {
     const y = 176 + index * 56;
     return `<g role="img" aria-label="${project.descriptionXml}">
@@ -26,7 +27,7 @@ export function renderCompactCard(content: CompactCardContent): string {
     </g>`;
   });
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-${content.theme}" data-layout="compact" role="img" width="420" height="${height}" viewBox="0 0 420 ${height}" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-${content.theme}" data-layout="compact" role="img" width="${compactCardSize.width}" height="${height}" viewBox="0 0 ${compactCardSize.width} ${height}" aria-labelledby="title desc">
   <title id="title">${content.titleXml}</title>
   <desc id="desc">${content.descriptionXml}</desc>
   <style>${renderCoverStyles(cover)}${renderProfileStyles()}
@@ -37,7 +38,7 @@ export function renderCompactCard(content: CompactCardContent): string {
     .project { font-size:16px; font-weight:650; }
     .facts { font-size:14px; fill:var(--muted); }
   </style>
-  <rect width="420" height="${height}" rx="16" class="surface" />
+  <rect width="${compactCardSize.width}" height="${height}" rx="16" class="surface" />
   <text x="22" y="32" class="brand">Buildmarks</text>
   <text x="398" y="32" class="checked">${content.checkedXml}</text>
   <text x="22" y="63" class="username">${content.usernameXml}</text>
@@ -59,11 +60,11 @@ export function renderCompactCard(content: CompactCardContent): string {
 export function renderCompactFallback(messageXml: string, descriptionXml: string, theme: "auto" | "dark" | "light"): string {
   const cover = getProfileCover("General Signal Profile");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" data-layout="compact" role="img" width="420" height="200" viewBox="0 0 420 200" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-${theme}" data-layout="compact" role="img" width="${compactCardSize.width}" height="${compactCardSize.fallbackHeight}" viewBox="0 0 ${compactCardSize.width} ${compactCardSize.fallbackHeight}" aria-labelledby="title desc">
   <title id="title">Buildmarks fallback card</title>
   <desc id="desc">${descriptionXml} No score is shown. Buildmarks is not a developer ranking.</desc>
   <style>${renderCoverStyles(cover)}${renderProfileStyles()}.footer{font-size:14px}.message{font-size:16px}</style>
-  <rect width="420" height="200" rx="16" class="surface" />
+  <rect width="${compactCardSize.width}" height="${compactCardSize.fallbackHeight}" rx="16" class="surface" />
   <text x="22" y="38" class="brand">Buildmarks</text>
   <text x="22" y="88" class="username">Card unavailable</text>
   <text x="22" y="120" class="message">${messageXml}</text>

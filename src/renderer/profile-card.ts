@@ -1,3 +1,4 @@
+import { cardDisplayPolicy, detailedCardSize } from "./layout-policy.js";
 import { dimensionLabels, type SignalDimension, type SignalType } from "../shared/types.js";
 import { getProfileCover, renderCoverArtwork, renderCoverStyles } from "./profile-cover.js";
 
@@ -41,7 +42,7 @@ export function renderProfileCard(content: ProfileCardContent): string {
       <rect x="314" y="${y + 10}" width="${Math.round(score / 100 * 414)}" height="7" rx="3.5" class="bar" role="progressbar" aria-label="${dimensionLabels[key]} score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}" />
     </g>`;
   });
-  const highlights = content.highlightsXml.slice(0, 3).map((label, index) => {
+  const highlights = content.highlightsXml.slice(0, cardDisplayPolicy.detailedHighlightLimit).map((label, index) => {
     const x = 32 + index * 236;
     return `<g role="img" aria-label="Highlight: ${label}">
       <rect x="${x}" y="345" width="224" height="27" rx="6" class="chip-bg" />
@@ -50,11 +51,11 @@ export function renderProfileCard(content: ProfileCardContent): string {
   });
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="card card-${content.theme}" role="img" width="760" height="420" viewBox="0 0 760 420" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" class="card card-${content.theme}" role="img" width="${detailedCardSize.width}" height="${detailedCardSize.height}" viewBox="0 0 ${detailedCardSize.width} ${detailedCardSize.height}" aria-labelledby="title desc">
   <title id="title">${content.titleXml}</title>
   <desc id="desc">${content.descriptionXml}</desc>
   <style>${renderCoverStyles(cover)}${renderProfileStyles()}</style>
-  <rect width="760" height="420" rx="16" class="surface" />
+  <rect width="${detailedCardSize.width}" height="${detailedCardSize.height}" rx="16" class="surface" />
   <g aria-hidden="true" class="accent"><path d="M32 23h7v17h-7zM43 23h7v17h-7z" /></g>
   <text x="60" y="39" class="brand">Buildmarks</text>
   <text x="728" y="38" class="checked">${content.checkedXml}</text>

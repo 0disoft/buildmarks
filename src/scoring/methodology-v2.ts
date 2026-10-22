@@ -1,3 +1,4 @@
+import { repositoryHistoryPolicy, scoringCoveragePolicy } from "../shared/evidence-policy.js";
 import {
   repositoryKinds,
   scoringMethodologyVersion,
@@ -9,8 +10,8 @@ import {
 
 export { scoringMethodologyVersion };
 
-export const presenceOnlyScoreCap = 40;
-export const minimumScoringCoverage = 0.5;
+export const presenceOnlyScoreCap = scoringCoveragePolicy.presenceOnlyScoreCap;
+export const minimumScoringCoverage = scoringCoveragePolicy.minimumScoringCoverage;
 
 export type CriterionCheck =
   | "readme"
@@ -70,7 +71,7 @@ export const methodologyCriteria = [
   criterion("maintainability.contributing", "maintainability", "presence", 4, "contributing", "Contribution guide found", "file", maintainedKinds, ["contributing"]),
   criterion("maintainability.conduct", "maintainability", "presence", 3, "code-of-conduct", "Code of conduct found", "file", maintainedKinds, ["codeOfConduct"]),
   criterion("maintainability.security", "maintainability", "presence", 4, "security-policy", "Security contact path found", "file", maintainedKinds, ["securityPolicy"]),
-  criterion("maintainability.recent", "maintainability", "history", 6, "recent-activity", "Maintained within the last 180 days", "repository", maintainedKinds, ["pushedAt"]),
+  criterion("maintainability.recent", "maintainability", "history", 6, "recent-activity", `Maintained within the last ${repositoryHistoryPolicy.recentActivityDays} days`, "repository", maintainedKinds, ["pushedAt"]),
   criterion("maintainability.tests-ci", "maintainability", "corroborated", 20, "tests-backed-by-ci", "Tests and an automation workflow both found", "workflow", codeKinds, ["tests", "ci"]),
   criterion("maintainability.tests-files", "maintainability", "corroborated", 12, "tests-backed-by-files", "Tests found alongside the configured test-file share", "file", codeKinds, ["tests", "codebaseShape"]),
   criterion("maintainability.release-notes", "maintainability", "corroborated", 14, "release-notes-match-shipping", "Release or tag and change history both found", "release", shippedKinds, ["releases", "changelog"]),
@@ -97,12 +98,12 @@ export const methodologyCriteria = [
   criterion("shipping.release", "shipping", "presence", 14, "releases", "Release or tag found", "release", shippedKinds, ["releases"]),
   criterion("shipping.package", "shipping", "presence", 10, "package-artifact", "Project manifest found", "config", packagedKinds, ["packageArtifact"]),
   criterion("shipping.docs", "shipping", "presence", 8, "docs-or-demo", "Documentation or demo reference found", "repository", shippedKinds, ["demoOrDocs"]),
-  criterion("shipping.recent", "shipping", "history", 8, "recent-activity", "Shipping or maintenance activity found within 180 days", "repository", shippedKinds, ["pushedAt"]),
+  criterion("shipping.recent", "shipping", "history", 8, "recent-activity", `Shipping or maintenance activity found within ${repositoryHistoryPolicy.recentActivityDays} days`, "repository", shippedKinds, ["pushedAt"]),
   criterion("shipping.release-package", "shipping", "corroborated", 34, "release-backed-by-package", "Release or tag and project manifest both found", "release", packagedKinds, ["releases", "packageArtifact"]),
   criterion("shipping.release-notes", "shipping", "corroborated", 26, "release-notes-match-shipping", "Release or tag and change history both found", "release", shippedKinds, ["releases", "changelog"]),
 
-  criterion("consistency.history", "consistency", "history", 16, "established-history", "Public project history spans at least 180 days", "repository", maintainedKinds, ["createdAt"]),
-  criterion("consistency.recent", "consistency", "history", 14, "recent-activity", "Project activity found within the last 180 days", "repository", maintainedKinds, ["pushedAt"]),
+  criterion("consistency.history", "consistency", "history", 16, "established-history", `Public project history spans at least ${repositoryHistoryPolicy.establishedHistoryDays} days`, "repository", maintainedKinds, ["createdAt"]),
+  criterion("consistency.recent", "consistency", "history", 14, "recent-activity", `Project activity found within the last ${repositoryHistoryPolicy.recentActivityDays} days`, "repository", maintainedKinds, ["pushedAt"]),
   criterion("consistency.changelog", "consistency", "presence", 10, "changelog", "Change history found", "file", maintainedKinds, ["changelog"]),
   criterion("consistency.release", "consistency", "presence", 10, "releases", "Release or tag found", "release", shippedKinds, ["releases"]),
   criterion("consistency.sustained", "consistency", "corroborated", 30, "sustained-history", "The project is both established and recently maintained", "repository", maintainedKinds, ["createdAt", "pushedAt"]),
@@ -113,7 +114,7 @@ export const methodologyCriteria = [
   criterion("stewardship.contributing", "stewardship", "presence", 10, "contributing", "Contribution guide found", "file", maintainedKinds, ["contributing"]),
   criterion("stewardship.conduct", "stewardship", "presence", 8, "code-of-conduct", "Code of conduct found", "file", maintainedKinds, ["codeOfConduct"]),
   criterion("stewardship.changelog", "stewardship", "presence", 8, "changelog", "Change history found", "file", maintainedKinds, ["changelog"]),
-  criterion("stewardship.recent", "stewardship", "history", 8, "recent-activity", "Project care is visible within the last 180 days", "repository", maintainedKinds, ["pushedAt"]),
+  criterion("stewardship.recent", "stewardship", "history", 8, "recent-activity", `Project care is visible within the last ${repositoryHistoryPolicy.recentActivityDays} days`, "repository", maintainedKinds, ["pushedAt"]),
   criterion("stewardship.community", "stewardship", "corroborated", 20, "community-guardrails", "Contribution and conduct guidance both found", "file", maintainedKinds, ["contributing", "codeOfConduct"]),
   criterion("stewardship.ownership", "stewardship", "corroborated", 14, "ownership-paths", "Contribution and security guidance both found", "file", maintainedKinds, ["contributing", "securityPolicy"]),
   criterion("stewardship.release-notes", "stewardship", "corroborated", 12, "release-notes-match-shipping", "Release or tag and change history both found", "release", shippedKinds, ["releases", "changelog"])

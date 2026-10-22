@@ -1,3 +1,4 @@
+import { reportDisplayPolicy } from "../shared/report-policy.js";
 export interface GitHubCollectorPolicy {
   publicOnly: boolean;
   allowPrivateRepositories: boolean;
@@ -38,7 +39,7 @@ export const defaultGitHubCollectorPolicy = {
   },
   limits: {
     maxRepositoriesScannedPerProfile: 30,
-    maxRepositoriesScoredPerProfile: 12,
+    maxRepositoriesScoredPerProfile: reportDisplayPolicy.defaultRepositoryLimit as number,
     repositoryActivityWindowDays: 365,
     maxConcurrentRepositoryCollections: 3,
     maxApiRequestsPerProfile: 160
@@ -51,7 +52,7 @@ export const privateLocalGitHubCollectorPolicy = {
   allowPrivateRepositories: true
 } satisfies GitHubCollectorPolicy;
 
-export function copyGitHubCollectorPolicy(policy: GitHubCollectorPolicy): GitHubCollectorPolicy {
+export function copyGitHubCollectorPolicy<T extends GitHubCollectorPolicy>(policy: T): T {
   return {
     ...policy,
     requiredTokenScopes: [...policy.requiredTokenScopes],

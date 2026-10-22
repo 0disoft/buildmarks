@@ -1,3 +1,4 @@
+import { reportDisplayPolicy } from "../shared/report-policy.js";
 import {
   dimensionLabels,
   scoringMethodologyVersion,
@@ -76,7 +77,7 @@ export function renderStaticReportHtml(report: BuildmarksStaticReport): string {
   const gaps = report.gaps.gaps.length === 0
     ? `<li>${escapeHtml(noGapsMessage)}</li>`
     : report.gaps.gaps
-      .slice(0, 12)
+      .slice(0, reportDisplayPolicy.htmlGapLimit)
       .map((gap) => `<li><strong>${escapeHtml(gap.repository)}</strong> · ${escapeHtml(dimensionLabels[gap.dimension])}: Could add ${escapeHtml(gap.missing.join(", "))}.</li>`)
       .join("");
   const repositories = report.repositories
@@ -235,7 +236,7 @@ function renderRepository(repository: RepoSignal): string {
   const kind = repository.repositoryKind?.kind ?? "general";
   const details = repository.evidence.length === 0
     ? "No repository highlights to show."
-    : repository.evidence.slice(0, 2).map((item) => escapeHtml(item.label)).join(" · ");
+    : repository.evidence.slice(0, reportDisplayPolicy.htmlRepositoryEvidenceLimit).map((item) => escapeHtml(item.label)).join(" · ");
   return `<article class="item">
     <h3>${escapeHtml(repository.owner)}/${escapeHtml(repository.name)}</h3>
     <p><strong>${safeScore(repository.overall)}/100</strong></p>

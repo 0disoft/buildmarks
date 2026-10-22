@@ -1,3 +1,4 @@
+import { githubRequestPolicy } from "./request-policy.js";
 import type { GitHubCollectorFetch } from "./github-client.js";
 import { scheduleTimeout, type TimeoutScheduler } from "./runtime.js";
 
@@ -9,8 +10,8 @@ export async function fetchWithTimeout<T>(
   consume: (response: Response) => Promise<T>
 ): Promise<T> {
   options.signal.throwIfAborted();
-  if (!Number.isSafeInteger(options.timeoutMilliseconds) || options.timeoutMilliseconds <= 0 || options.timeoutMilliseconds > 2_147_483_647) {
-    throw new Error("Request timeout must be a positive integer at most 2147483647 milliseconds.");
+  if (!Number.isSafeInteger(options.timeoutMilliseconds) || options.timeoutMilliseconds <= 0 || options.timeoutMilliseconds > githubRequestPolicy.maximumTimerMilliseconds) {
+    throw new Error(`Request timeout must be a positive integer at most ${githubRequestPolicy.maximumTimerMilliseconds} milliseconds.`);
   }
   const controller = new AbortController();
   const abortFromBatch = () => controller.abort();

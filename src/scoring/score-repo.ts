@@ -1,3 +1,4 @@
+import { reportDisplayPolicy } from "../shared/report-policy.js";
 import {
   privateLocalSignalVisibility,
   scoringMethodologyVersion,
@@ -61,7 +62,7 @@ export function scoreRepository(
 function collectSummaryDetails(details: RepoSignalV2["evidenceLedger"]): RepoSignalV2["evidence"] {
   const preferred = details.filter((item) => item.basis === "corroborated");
   const remaining = details.filter((item) => item.basis !== "corroborated");
-  return [...preferred, ...remaining].slice(0, 5);
+  return [...preferred, ...remaining].slice(0, reportDisplayPolicy.repositorySummaryEvidenceLimit);
 }
 
 function isPrivateRepository(repository: RepositoryInput): boolean {

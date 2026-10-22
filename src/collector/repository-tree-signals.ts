@@ -1,3 +1,4 @@
+import { codebaseShapePolicy } from "../shared/evidence-policy.js";
 import type { CodebaseShapeSignals } from "../shared/types.js";
 
 const ciDirectoryPaths = [".github/workflows"];
@@ -226,7 +227,7 @@ export function summarizeCodebaseShape(
 
     if (entry.size !== undefined && Number.isFinite(entry.size)) {
       sourceSizes.push(entry.size);
-      if (entry.size > 32_000) {
+      if (entry.size > codebaseShapePolicy.maximumP90SourceFileBytes) {
         oversizedSourceFileCount += 1;
       }
     }
@@ -336,5 +337,5 @@ function percentile(values: readonly number[], percentileValue: number): number 
 }
 
 function roundRatio(value: number): number {
-  return Number(value.toFixed(3));
+  return Number(value.toFixed(codebaseShapePolicy.storedRatioDecimalPlaces));
 }

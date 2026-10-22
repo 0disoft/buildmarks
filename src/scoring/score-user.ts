@@ -1,3 +1,5 @@
+import { scoringCoveragePolicy } from "../shared/evidence-policy.js";
+import { reportDisplayPolicy } from "../shared/report-policy.js";
 import {
   dimensionLabels,
   scoringMethodologyVersion,
@@ -25,7 +27,6 @@ import {
   type ScoreRepoOptions
 } from "./score-repo.js";
 
-const MAX_REPOSITORIES = 12;
 
 export interface ScoreUserProfileOptions extends ScoreRepoOptions {
   maxRepositories?: number;
@@ -217,7 +218,7 @@ function collectProfileHighlights(details: readonly Evidence[]): Evidence[] {
     }
     seen.add(key);
     return true;
-  }).slice(0, 6);
+  }).slice(0, reportDisplayPolicy.profileHighlightLimit);
 }
 
 function buildLimitations(
@@ -327,7 +328,7 @@ function resolveCollectionStatus(
   truncated: number
 ): "complete" | "partial" | "insufficient" {
   const unavailable = failed + truncated;
-  if (attempted <= 0 || unavailable >= attempted || unavailable / attempted >= 0.5) {
+  if (attempted <= 0 || unavailable >= attempted || unavailable / attempted >= scoringCoveragePolicy.maximumUnavailableCollectionRatio) {
     return "insufficient";
   }
   return unavailable > 0 ? "partial" : "complete";
@@ -364,9 +365,9 @@ function resolveResultStatus(
     return "unavailable";
   }
   if (
-    assessment.coverage.ratio < 0.85 ||
-    collectionCheckedRatio < 0.85 ||
-    applicableDimensionCount < 4
+    assessment.coverage.ratio < scoringCoveragePolicy.confirmedAssessmentCoverage ||
+    collectionCheckedRatio < scoringCoveragePolicy.confirmedCollectionCoverage ||
+    applicableDimensionCount < scoringCoveragePolicy.minimumConfirmedDimensions
   ) {
     return "provisional";
   }
@@ -385,7 +386,7 @@ export function makeEmptyDimensionScore(key: SignalDimension): DimensionScore {
 
 function resolveMaxRepositories(value: number | undefined): number {
   if (value === undefined) {
-    return MAX_REPOSITORIES;
+    return reportDisplayPolicy.defaultRepositoryLimit;
   }
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error("maxRepositories must be a positive integer.");
