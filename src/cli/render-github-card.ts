@@ -4,19 +4,18 @@ import { isMainModule } from "./main";
 import { dirname } from "node:path";
 import { parseCardLayoutOptions } from "./card-options";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
+import { resolveRequiredPath, tryWriteTextFile, writeTextFileAtomically } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
-import { hasExistingOutput, InsufficientEvidenceError } from "./collection-outcome";
+import { InsufficientEvidenceError } from "./collection-outcome";
 import {
-  collectOwnerSuppliedGitHubProfile,
-  collectPublicGitHubProfile,
-  normalizePublicGitHubProfile,
   renderFallbackCard,
   renderUserSignalCard,
   scoreUserProfile,
   type CollectPublicGitHubProfileOptions,
   type RenderCardOptions
 } from "../index";
+
+import { collectGitHubRenderInput, githubRefreshFailureMessage, recoverGitHubOutput } from "./github-render-runtime.js";
 
 export interface RenderGitHubCardFileOptions extends CollectPublicGitHubProfileOptions, RenderFileOptions, RenderCardOptions {
   privateLocal?: boolean;
@@ -45,74 +44,31 @@ export async function renderGitHubCardFile(
   await fs.mkdir(dirname(resolvedOutputPath), { recursive: true });
 
   try {
-    const collected = options.privateLocal === true
-      ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
-      : await collectPublicGitHubProfile(normalizedUsername, options);
-    const profile = normalizePublicGitHubProfile(collected);
-    throwIfCancelled(options.signal);
-    const scoringOptions = options.policy === undefined
-      ? {}
-      : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
+    const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, options);
     const report = scoreUserProfile(profile, scoringOptions);
     if (report.evidenceStatus === "insufficient") {
-      const message = new InsufficientEvidenceError(profile).message;
-      if (await hasExistingOutput([resolvedOutputPath], options)) {
-        return {
-          ok: false,
-          username: profile.username,
-          outputPath: resolvedOutputPath,
-          fallback: false,
-          preservedExisting: true,
-          error: message
-        };
-      }
-
-      const writeError = await tryWriteTextFile(
-        resolvedOutputPath,
-        renderFallbackCard("Not enough complete repository data to calculate a reliable score", options)
-      , options);
-      return {
-        ok: false,
-        username: profile.username,
-        outputPath: resolvedOutputPath,
-        fallback: true,
-        error: appendWriteFailure(message, "Fallback SVG", writeError)
-      };
+      const failure = await recoverGitHubCard(
+        new InsufficientEvidenceError(profile), resolvedOutputPath,
+        "Not enough complete repository data to calculate a reliable score", options
+      );
+      return { ok: false, username: profile.username, outputPath: resolvedOutputPath, ...failure };
     }
-    const svg = renderUserSignalCard(report, options);
-
-    await writeTextFileAtomically(resolvedOutputPath, svg, options);
-
-    return {
-      ok: true,
-      username: profile.username,
-      outputPath: resolvedOutputPath,
-      fallback: false
-    };
+    await writeTextFileAtomically(resolvedOutputPath, renderUserSignalCard(report, options), options);
+    return { ok: true, username: profile.username, outputPath: resolvedOutputPath, fallback: false };
   } catch (error) {
     throwIfCancelled(options.signal);
-    const message = error instanceof Error ? error.message : "unknown GitHub render failure";
-    if (await hasExistingOutput([resolvedOutputPath], options)) {
-      return {
-        ok: false,
-        username: normalizedUsername,
-        outputPath: resolvedOutputPath,
-        fallback: false,
-        preservedExisting: true,
-        error: message
-      };
-    }
-    const svg = renderFallbackCard("Buildmarks couldn't refresh this GitHub report right now", options);
-    const writeError = await tryWriteTextFile(resolvedOutputPath, svg, options);
-
-    return {
-      ok: false,
-      username: normalizedUsername,
-      outputPath: resolvedOutputPath,
-      fallback: true,
-      error: appendWriteFailure(message, "Fallback SVG", writeError)
-    };
+    const failure = await recoverGitHubCard(error, resolvedOutputPath, githubRefreshFailureMessage, options);
+    return { ok: false, username: normalizedUsername, outputPath: resolvedOutputPath, ...failure };
   }
+}
+
+function recoverGitHubCard(error: unknown, path: string, fallbackMessage: string, options: RenderGitHubCardFileOptions) {
+  return recoverGitHubOutput(error, {
+    paths: [path],
+    unknownErrorMessage: "unknown GitHub render failure",
+    fallbackLabel: "Fallback SVG",
+    writeFallback: () => tryWriteTextFile(path, renderFallbackCard(fallbackMessage, options), options)
+  }, options);
 }
 
 async function main(args: readonly string[]): Promise<void> {

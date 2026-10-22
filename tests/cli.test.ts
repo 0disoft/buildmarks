@@ -19,6 +19,17 @@ afterEach(async () => {
 });
 
 describe("render-card CLI", () => {
+  test("keeps argument errors in input order and applies the last repeated numeric option", () => {
+    expect(parseCommonGitHubCliOptions(["--token", "--max-api-requests", "invalid"]))
+      .toEqual({ ok: false, message: "Missing value for --token." });
+    expect(parseCommonGitHubCliOptions(["--max-api-requests", "invalid", "--token"]))
+      .toEqual({ ok: false, message: "--max-api-requests must be a positive base-10 integer." });
+    const args = Object.freeze(["probe", "--max-api-requests", "1", "--max-api-requests", "160"]);
+    const parsed = parseCommonGitHubCliOptions(args);
+    expect(parsed.ok && parsed.value.maxApiRequests).toBe(160);
+    expect(parsed.ok && parsed.value.positional).toEqual(["probe"]);
+  });
+
   test("selects detailed layout through local CLI arguments", async () => {
     const directory = await makeTempDirectory();
     const output = join(directory, "detailed.svg");

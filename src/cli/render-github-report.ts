@@ -3,17 +3,16 @@ import { resolveFileSystem, type RenderFileOptions } from "./file-system";
 import { isMainModule } from "./main";
 import { join } from "node:path";
 import { buildGitHubCollectorPolicyFromCli, parseCommonGitHubCliOptions } from "./options";
-import { appendWriteFailure, OutputSetRollbackError, resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
+import { resolveRequiredPath, tryWriteTextFilesAsSet, writeTextFilesAsSet } from "./write-output";
 import { privateLocalPublicCommitWarning } from "../shared/private-local-warning";
-import { assertSufficientEvidence, hasExistingOutput } from "./collection-outcome";
+import { assertSufficientEvidence } from "./collection-outcome";
 import {
-  collectOwnerSuppliedGitHubProfile,
-  collectPublicGitHubProfile,
   createStaticReport,
-  normalizePublicGitHubProfile,
   renderStaticReportHtml,
   type CollectPublicGitHubProfileOptions
 } from "../index";
+
+import { collectGitHubRenderInput, fallbackReportOutputs, recoverGitHubOutput } from "./github-render-runtime.js";
 
 export interface RenderGitHubReportFilesOptions extends CollectPublicGitHubProfileOptions, RenderFileOptions {
   privateLocal?: boolean;
@@ -44,75 +43,26 @@ export async function renderGitHubReportFiles(
   throwIfCancelled(options.signal);
   await fs.mkdir(resolvedOutputDirectory, { recursive: true });
 
+  const destinations = { outputDirectory: resolvedOutputDirectory, htmlPath, jsonPath };
   try {
-    const collected = options.privateLocal === true
-      ? await collectOwnerSuppliedGitHubProfile(normalizedUsername, options)
-      : await collectPublicGitHubProfile(normalizedUsername, options);
-    const profile = normalizePublicGitHubProfile(collected);
-    throwIfCancelled(options.signal);
-    const scoringOptions = options.policy === undefined
-      ? {}
-      : { maxRepositories: options.policy.limits.maxRepositoriesScoredPerProfile };
+    const { profile, scoringOptions } = await collectGitHubRenderInput(normalizedUsername, options);
     const report = createStaticReport(profile, scoringOptions);
     assertSufficientEvidence(profile, report.profile);
-    const html = renderStaticReportHtml(report);
-
     await writeTextFilesAsSet([
-      { path: htmlPath, content: html },
+      { path: htmlPath, content: renderStaticReportHtml(report) },
       { path: jsonPath, content: `${JSON.stringify(report, null, 2)}\n` }
     ], undefined, options);
-
-    return {
-      ok: true,
-      username: report.profile.username,
-      outputDirectory: resolvedOutputDirectory,
-      htmlPath,
-      jsonPath
-    };
+    return { ok: true, username: report.profile.username, ...destinations };
   } catch (error) {
-    if (!(error instanceof OutputSetRollbackError)) throwIfCancelled(options.signal);
-    const message = error instanceof Error ? error.message : "unknown GitHub report render failure";
-    if (await hasExistingOutput([htmlPath, jsonPath], options)) {
-      return {
-        ok: false,
-        username: normalizedUsername,
-        outputDirectory: resolvedOutputDirectory,
-        htmlPath,
-        jsonPath,
-        preservedExisting: !(error instanceof OutputSetRollbackError),
-        error: message
-      };
-    }
-    const fallbackReport = {
-      ok: false,
-      username: normalizedUsername,
-      error: message,
-      message: "Buildmarks couldn't refresh this GitHub report right now"
-    };
-    const fallbackHtml = `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Buildmarks GitHub report unavailable</title></head>
-<body>
-  <main>
-    <h1>Buildmarks GitHub report unavailable</h1>
-    <p>No score is shown. Buildmarks is not a developer ranking.</p>
-  </main>
-</body>
-</html>`;
-
-    const fallbackWriteFailure = await tryWriteTextFilesAsSet([
-      { path: htmlPath, content: fallbackHtml },
-      { path: jsonPath, content: `${JSON.stringify(fallbackReport, null, 2)}\n` }
-    ], options);
-
-    return {
-      ok: false,
-      username: normalizedUsername,
-      outputDirectory: resolvedOutputDirectory,
-      htmlPath,
-      jsonPath,
-      error: appendWriteFailure(message, "Fallback report", fallbackWriteFailure)
-    };
+    const { fallback, ...failure } = await recoverGitHubOutput(error, {
+      paths: [htmlPath, jsonPath],
+      unknownErrorMessage: "unknown GitHub report render failure",
+      fallbackLabel: "Fallback report",
+      writeFallback: message => tryWriteTextFilesAsSet(
+        fallbackReportOutputs(normalizedUsername, message, htmlPath, jsonPath), options
+      )
+    }, options);
+    return { ok: false, username: normalizedUsername, ...destinations, ...failure };
   }
 }
 

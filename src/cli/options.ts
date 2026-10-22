@@ -22,111 +22,67 @@ export interface ParsedCommonGitHubCliOptions extends CommonGitHubCliOptions {
   positional: string[];
 }
 
-export function parseCommonGitHubCliOptions(
-  args: readonly string[]
-): { ok: true; value: ParsedCommonGitHubCliOptions } | { ok: false; message: string } {
-  const positional: string[] = [];
-  let token: string | undefined;
-  let maxRepositoriesScanned = githubCliDefaultLimits.maxRepositoriesScannedPerProfile;
-  let maxRepositoriesScored = githubCliDefaultLimits.maxRepositoriesScoredPerProfile;
-  let activityWindowDays = githubCliDefaultLimits.repositoryActivityWindowDays;
-  let maxApiRequests = githubCliDefaultLimits.maxApiRequestsPerProfile;
-  let privateLocal = false;
+type ParsedGitHubCliResult =
+  | { ok: true; value: ParsedCommonGitHubCliOptions }
+  | { ok: false; message: string };
 
+type NumericGitHubOption = Exclude<keyof CommonGitHubCliOptions, "token" | "privateLocal">;
+const numericGitHubOptions = new Map<string, NumericGitHubOption>([
+  ["--max-repositories-scanned", "maxRepositoriesScanned"],
+  ["--max-repositories-scored", "maxRepositoriesScored"],
+  ["--activity-window-days", "activityWindowDays"],
+  ["--max-api-requests", "maxApiRequests"]
+]);
+
+export function parseCommonGitHubCliOptions(args: readonly string[]): ParsedGitHubCliResult {
+  const parsed = parseGitHubArguments(args);
+  if (!parsed.ok) return parsed;
+  const policy = buildGitHubCollectorPolicyFromCli(parsed.value);
+  const validation = validateGitHubCollectorPolicy(policy, {
+    mode: parsed.value.privateLocal ? "private-local" : "public-only"
+  });
+  if (!validation.ok) return { ok: false, message: validation.errors.join(" ") };
+  return parsed;
+}
+
+function defaultGitHubArguments(): ParsedCommonGitHubCliOptions {
+  return {
+    positional: [], privateLocal: false,
+    maxRepositoriesScanned: githubCliDefaultLimits.maxRepositoriesScannedPerProfile,
+    maxRepositoriesScored: githubCliDefaultLimits.maxRepositoriesScoredPerProfile,
+    activityWindowDays: githubCliDefaultLimits.repositoryActivityWindowDays,
+    maxApiRequests: githubCliDefaultLimits.maxApiRequestsPerProfile
+  };
+}
+
+function parseGitHubArguments(args: readonly string[]): ParsedGitHubCliResult {
+  const options = defaultGitHubArguments();
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === undefined) {
-      continue;
-    }
-
+    if (arg === undefined) continue;
     if (arg === "--token") {
       const value = args[index + 1];
-      if (isMissingOptionValue(value)) {
-        return { ok: false, message: "Missing value for --token." };
-      }
-      token = value!.trim();
+      if (isMissingOptionValue(value)) return { ok: false, message: "Missing value for --token." };
+      options.token = value!.trim();
       index += 1;
       continue;
     }
-
     if (arg === "--private-local") {
-      privateLocal = true;
+      options.privateLocal = true;
       continue;
     }
-
-    if (arg === "--max-repositories-scanned") {
+    const key = numericGitHubOptions.get(arg);
+    if (key !== undefined) {
       const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
-      if (typeof value === "string") {
-        return { ok: false, message: value };
-      }
-      maxRepositoriesScanned = value;
+      if (typeof value === "string") return { ok: false, message: value };
+      options[key] = value;
       index += 1;
       continue;
     }
-
-    if (arg === "--max-repositories-scored") {
-      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
-      if (typeof value === "string") {
-        return { ok: false, message: value };
-      }
-      maxRepositoriesScored = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--activity-window-days") {
-      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
-      if (typeof value === "string") {
-        return { ok: false, message: value };
-      }
-      activityWindowDays = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--max-api-requests") {
-      const value = parsePositiveDecimalIntegerOption(arg, args[index + 1]);
-      if (typeof value === "string") {
-        return { ok: false, message: value };
-      }
-      maxApiRequests = value;
-      index += 1;
-      continue;
-    }
-
-    if (isOptionLikeArgument(arg)) {
-      return { ok: false, message: unknownOptionMessage(arg) };
-    }
-
-    positional.push(arg);
+    if (isOptionLikeArgument(arg)) return { ok: false, message: unknownOptionMessage(arg) };
+    options.positional.push(arg);
   }
-
-  const policy = buildGitHubCollectorPolicyFromCli({
-    privateLocal,
-    maxRepositoriesScanned,
-    maxRepositoriesScored,
-    activityWindowDays,
-    maxApiRequests
-  });
-  const validation = validateGitHubCollectorPolicy(policy, {
-    mode: privateLocal ? "private-local" : "public-only"
-  });
-  if (!validation.ok) {
-    return { ok: false, message: validation.errors.join(" ") };
-  }
-
-  return {
-    ok: true,
-    value: {
-      positional,
-      maxRepositoriesScanned,
-      maxRepositoriesScored,
-      activityWindowDays,
-      maxApiRequests,
-      privateLocal,
-      ...(token === undefined ? {} : { token })
-    }
-  };
+  return { ok: true, value: options };
 }
 
 export function parsePositiveDecimalIntegerOption(name: string, rawValue: string | undefined): number | string {
